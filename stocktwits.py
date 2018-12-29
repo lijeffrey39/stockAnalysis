@@ -55,12 +55,18 @@ def getBearBull(symbol):
 
 		user = u['href'][1:]
 		dateTime = parse(t.text)
-		print(dateTime)
+		found = False
+		historical = get_historical_intraday(symbol, dateTime)
 		foundAvg = ""
 
-		for ts in get_historical_intraday(symbol, dateTime):
+		for ts in historical:
 			if (ts.get("minute") == dateTime.strftime("%X")[:5]):
-				foundAvg = ts.get("marketAverage")
+				found = True
+				foundAvg = ts.get('marketAverage')
+
+		if (found == False):
+			last = historical[len(historical) - 1]
+			foundAvg = last.get('marketAverage')
 
 		res = [foundAvg, user]
 
