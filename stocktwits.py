@@ -20,7 +20,7 @@ def scroll():
 
 	print('done scrolling')
 	time.sleep(1)
-
+	
 
 def getBearBull(symbol):
 
@@ -35,7 +35,6 @@ def getBearBull(symbol):
 	soup = BeautifulSoup(html, 'html.parser')
 	currentPrice = soup.find('span', attrs={'class': 'StockHeader__bid___2BF7L'}).text
 	print(currentPrice)
-
 
 	messages = soup.find_all('div', attrs={'class': 'MessageStreamView__message___2o0za'})
 	bulls = []
