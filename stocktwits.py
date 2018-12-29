@@ -54,8 +54,15 @@ def getBearBull(symbol):
 			continue
 
 		user = u['href'][1:]
-		text = parse(t.text)
-		res = [text, user]
+		dateTime = parse(t.text)
+		print(dateTime)
+		foundAvg = ""
+
+		for ts in get_historical_intraday(symbol, dateTime):
+			if (ts.get("minute") == dateTime.strftime("%X")[:5]):
+				foundAvg = ts.get("marketAverage")
+
+		res = [foundAvg, user]
 
 		bull = m.find('span', attrs={'class': bullSentAttr})
 		bear = m.find('span', attrs={'class': bearSentAttr})
