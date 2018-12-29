@@ -7,9 +7,13 @@ import datetime
 from iexfinance.stocks import get_historical_intraday
 from dateutil.parser import parse
 
+chrome_options = webdriver.ChromeOptions()
+prefs = {"profile.managed_default_content_settings.images": 2}
+chrome_options.add_experimental_option("prefs", prefs)
+
 PROJECT_ROOT = os.path.abspath(os.path.dirname(__file__))
 DRIVER_BIN = os.path.join(PROJECT_ROOT, "chromedriver")
-driver = webdriver.Chrome(executable_path = DRIVER_BIN)
+driver = webdriver.Chrome(executable_path = DRIVER_BIN, chrome_options=chrome_options)
 
 
 # SET NAME ATTRIBUTES
@@ -20,6 +24,14 @@ usernameAttr = 'MessageStreamView__username___x9n-9'
 bullSentAttr = 'SentimentIndicator__SentimentIndicator-bullish___1WHAM SentimentIndicator__SentimentIndicator___3bEpt'
 bearSentAttr = 'SentimentIndicator__SentimentIndicator-bearish___2KbIj SentimentIndicator__SentimentIndicator___3bEpt'
 userPageAttr = 'UserHeader__username___33aun'
+messageTextAttr = 'MessageStreamView__body___2giLh'
+
+
+
+# ------------------------------------------------------------------------
+# ----------------------- Useful helper functions ------------------------
+# ------------------------------------------------------------------------
+
 
 
 # Sroll down until length
@@ -28,10 +40,10 @@ def scroll(length):
 
 	for i in range(length):
 		elem.send_keys(Keys.PAGE_DOWN)
-		time.sleep(0.1)
-	time.sleep(1)
+		time.sleep(0.2)
 
 
+# Find time of a message
 def findDateTime(message):
 	t = message.find('a', attrs={'class': timeAttr})
 
@@ -42,6 +54,7 @@ def findDateTime(message):
 		return dateTime
 
 
+# Find username of a message
 def findUser(message):
 	u = message.find('a', attrs={'class': usernameAttr})
 
@@ -52,6 +65,7 @@ def findUser(message):
 		return user
 
 
+# Find historical stock data given date and ticker
 def findHistoricalData(dateTime, symbol, datesSeen):
 	dateTimeStr = dateTime.strftime("%Y-%m-%d")
 	day = dateTime.strftime("%w")
@@ -78,6 +92,7 @@ def findHistoricalData(dateTime, symbol, datesSeen):
 	return (historical, outOfRange)
 
 
+# Price of a stock at a certain time given historical data
 def priceAtTime(dateTime, historical, outOfRange):
 	foundAvg = ""
 	found = False
@@ -93,12 +108,17 @@ def priceAtTime(dateTime, historical, outOfRange):
 	return foundAvg
 
 
+
+# ------------------------------------------------------------------------
+# ----------------------- Analyze Specific Stock -------------------------
+# ------------------------------------------------------------------------
+
+
+
 def getBearBull(symbol):
 	url = "https://stocktwits.com/symbol/" + symbol
 	driver.get(url)
-	time.sleep(1)
-
-	scroll(10)
+	scroll(100)
 
 	html = driver.page_source
 	soup = BeautifulSoup(html, 'html.parser')
@@ -137,25 +157,110 @@ def getBearBull(symbol):
 
 
 
+# ------------------------------------------------------------------------
+# ----------------------- Analyze Specific User --------------------------
+# ------------------------------------------------------------------------
 
-# def analyzeUser(username):
-# 	url = "https://stocktwits.com/" + username
-# 	driver.get(url)
-# 	time.sleep(1)
 
-# 	scroll(20)
 
-# 	messages = soup.find_all('div', attrs={'class': messageStreamAttr})
+def findPricesTickers(spans, datesSeen, dateTime):
+	tickers = []
+	foundTicker = False
+	for s in spans:
+		foundA = s.find('a')
+		ticker = foundA.text
+		tickers.append(ticker[1:])
 
-# 	for m in messages:
+		if ("$" in ticker):
+			foundTicker = True
+
+	# Never found a ticker
+	if (foundTicker == False):
+		return ({}, True)
+
+	prices = {}
+	noData = False
+
+	for ticker in tickers:
+		(historical, outOfRange) = findHistoricalData(dateTime, ticker, datesSeen)
+		if (len(historical) == 0):
+			noData = True
+			break
+
+		foundAvg = priceAtTime(dateTime, historical, outOfRange)
+		prices[ticker] = foundAvg
+
+	return (prices, noData)
+
+
+def analyzeUser(username, days):
+	url = "https://stocktwits.com/" + username
+	driver.get(url)
+	scroll(50)
+
+	html = driver.page_source
+	soup = BeautifulSoup(html, 'html.parser')
+	datesSeen = {} # make array for that date so don't have to keep calling api
+
+	messages = soup.find_all('div', attrs={'class': messageStreamAttr})
+	res = []
+
+	for m in messages:
+		bull = m.find('span', attrs={'class': bullSentAttr})
+		bear = m.find('span', attrs={'class': bearSentAttr})
+		dateTime = findDateTime(m)
+		bullish = False
+
+		if ((bull == None and bear == None) or dateTime == None):
+			continue
+
+		if (bear == None):
+			bullish = True
+
+		textM = m.find('div', attrs={'class': messageTextAttr})
+		spans = textM.find_all('span')
+
+		(prices, noDataTicker) = findPricesTickers(spans, datesSeen, dateTime)
+
+		# Some stocks have no data?
+		if (noDataTicker):
+			continue
+
+		# Find price after # days
+		delta = datetime.timedelta(days)
+		newTime = dateTime + delta
+
+		(newPrices, noDataTicker) = findPricesTickers(spans, datesSeen, newTime)
+
+		# If time + delta is too far in the future
+		if (noDataTicker):
+			print("Too far in future")
+			continue
+
+		res.append([prices, newPrices, dateTime, bullish])
+
+	return res
+
+
+# def analyzeResultsUser(resUser):
+	
+
+
+# ------------------------------------------------------------------------
+# --------------------------- Main Function ------------------------------
+# ------------------------------------------------------------------------
 
 
 
 def main():
-	resTVIX = getBearBull("TVIX")
-	print(resTVIX)
-	# testUser = resTVIX['bear'][0][1]
+	#resTVIX = getBearBull("TVIX")
+	#print(resTVIX)
+
+	print("")
+
+	resUser = analyzeUser('donaldltrump', 1)
+	print(resUser)
+
 	driver.close()
-	#userAnalyze = analyzeUser(testUser)
 
 main()
