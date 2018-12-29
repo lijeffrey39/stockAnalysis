@@ -35,7 +35,7 @@ def getBearBull(symbol):
 	driver.get(url)
 	time.sleep(1)
 
-	scroll(10)
+	scroll(100)
 
 	html = driver.page_source
 	soup = BeautifulSoup(html, 'html.parser')
@@ -45,6 +45,8 @@ def getBearBull(symbol):
 	messages = soup.find_all('div', attrs={'class': messageStreamAttr})
 	bulls = []
 	bears = []
+
+	datesSeen = {} # make array for that date so don't have to keep calling api
 
 	for m in messages:
 		t = m.find('a', attrs={'class': timeAttr})
@@ -56,7 +58,15 @@ def getBearBull(symbol):
 		user = u['href'][1:]
 		dateTime = parse(t.text)
 		found = False
-		historical = get_historical_intraday(symbol, dateTime)
+		dateTimeStr = datetime.now().strftime("%Y-%m-%d")
+		historical = []
+
+		if (dateTimeStr not in datesSeen):
+			historical = get_historical_intraday(symbol, dateTime)
+			datesSeen[dateTimeStr] = historical 
+		else:
+			historical = datesSeen[dateTimeStr]
+
 		foundAvg = ""
 
 		for ts in historical:
@@ -78,6 +88,8 @@ def getBearBull(symbol):
 		if (bear):
 			bears.append(res)
 
+	print(len(bears))
+	print(len(bulls))
 	return {"bear": bears, "bull": bulls}
 
 
@@ -93,6 +105,7 @@ def main():
 	resTVIX = getBearBull("TVIX")
 	print(resTVIX)
 	testUser = resTVIX['bear'][0][1]
+	driver.close()
 	#userAnalyze = analyzeUser(testUser)
 
 main()
