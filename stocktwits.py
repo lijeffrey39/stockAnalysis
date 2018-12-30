@@ -153,7 +153,7 @@ def priceAtTime(dateTime, historical, outOfRange):
 def getBearBull(symbol):
 	url = "https://stocktwits.com/symbol/" + symbol
 	driver.get(url)
-	scrollFor(3)
+	scrollFor(1)
 
 	html = driver.page_source
 	soup = BeautifulSoup(html, 'html.parser')
@@ -291,19 +291,32 @@ def analyzeResultsUser(username, days):
 		print(i)
 		print(analyzeUser(username, soup, i))
 
-
 # ------------------------------------------------------------------------
 # --------------------------- Main Function ------------------------------
 # ------------------------------------------------------------------------
 
 
 
-def main():
-	# resTVIX = getBearBull("TVIX")
-	# print(resTVIX)
+def parseUsers():
+	with open('users.csv') as f:
+		file = f.readlines()
+		users = file[0].split(',')
 
-	analyzeResultsUser('donaldltrump', 1)
+	for i in range(len(users)):
+		user = users[i]
+		s = ''.join(e for e in user if e.isalnum())
+		users[i] = s
+
+
+def main():
+	users = parseUsers()
+
+	resTVIX = getBearBull("TVIX")
+	print(resTVIX)
+
+	analyzeResultsUser('donaldltrump', 2)
 
 	driver.close()
+
 
 main()
