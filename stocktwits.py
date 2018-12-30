@@ -54,6 +54,31 @@ def findDateTime(message):
 		return dateTime
 
 
+# Sroll for # days
+def scrollFor(days):
+	elem = driver.find_element_by_tag_name("body")
+
+	dateTime = datetime.datetime.now() 
+	delta = datetime.timedelta(days)
+	oldTime = dateTime - delta
+
+	# check every 10 page downs
+	count = 0
+
+	while (oldTime < dateTime):
+		count += 1
+		elem.send_keys(Keys.PAGE_DOWN)
+
+		if (count == 50):
+			html = driver.page_source
+			soup = BeautifulSoup(html, 'html.parser')
+			messages = soup.find_all('div', attrs={'class': messageStreamAttr})
+
+			lastMessage = messages[len(messages) - 1]
+			dateTime = findDateTime(lastMessage)
+			count = 0
+
+
 # Find username of a message
 def findUser(message):
 	u = message.find('a', attrs={'class': usernameAttr})
@@ -83,11 +108,18 @@ def findHistoricalData(dateTime, symbol, datesSeen):
 		dateTime = dateTime - delta
 		outOfRange = True
 
-	if (dateTimeStr not in datesSeen):
+	if (symbol not in datesSeen):
 		historical = get_historical_intraday(symbol, dateTime)
-		datesSeen[dateTimeStr] = historical 
+		newSymbolTime = {}
+		newSymbolTime[dateTimeStr] = historical
+		datesSeen[symbol] = newSymbolTime
 	else:
-		historical = datesSeen[dateTimeStr]
+		datesForSymbol = datesSeen[symbol]
+		if (dateTimeStr not in datesForSymbol):
+			historical = get_historical_intraday(symbol, dateTime)
+			datesSeen[symbol][dateTimeStr] = historical
+		else:
+			historical = datesSeen[symbol][dateTimeStr]
 
 	return (historical, outOfRange)
 
@@ -118,7 +150,7 @@ def priceAtTime(dateTime, historical, outOfRange):
 def getBearBull(symbol):
 	url = "https://stocktwits.com/symbol/" + symbol
 	driver.get(url)
-	scroll(100)
+	scrollFor(3)
 
 	html = driver.page_source
 	soup = BeautifulSoup(html, 'html.parser')
@@ -183,6 +215,8 @@ def findPricesTickers(spans, datesSeen, dateTime):
 
 	for ticker in tickers:
 		(historical, outOfRange) = findHistoricalData(dateTime, ticker, datesSeen)
+		if (ticker == "WATT"):
+			print(historical)
 		if (len(historical) == 0):
 			noData = True
 			break
@@ -196,7 +230,7 @@ def findPricesTickers(spans, datesSeen, dateTime):
 def analyzeUser(username, days):
 	url = "https://stocktwits.com/" + username
 	driver.get(url)
-	scroll(50)
+	scroll(0)
 
 	html = driver.page_source
 	soup = BeautifulSoup(html, 'html.parser')
@@ -243,7 +277,7 @@ def analyzeUser(username, days):
 
 
 # def analyzeResultsUser(resUser):
-	
+
 
 
 # ------------------------------------------------------------------------
@@ -253,8 +287,8 @@ def analyzeUser(username, days):
 
 
 def main():
-	#resTVIX = getBearBull("TVIX")
-	#print(resTVIX)
+	# resTVIX = getBearBull("TVIX")
+	# print(resTVIX)
 
 	print("")
 
