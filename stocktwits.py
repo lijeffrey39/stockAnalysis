@@ -27,6 +27,10 @@ userPageAttr = 'UserHeader__username___33aun'
 messageTextAttr = 'MessageStreamView__body___2giLh'
 
 
+# Make cache for that symbol and date so don't have to keep calling api
+# Formatted like {"TVIX": {"2018-12-24": [historical_data], "2018-12-23": [more_data]}
+datesSeen = {} 
+
 
 # ------------------------------------------------------------------------
 # ----------------------- Useful helper functions ------------------------
@@ -55,12 +59,14 @@ def findDateTime(message):
 
 
 # Sroll for # days
-def scrollFor(days):
+def scrollFor(days, minBullBear):
 	elem = driver.find_element_by_tag_name("body")
 
 	dateTime = datetime.datetime.now() 
 	delta = datetime.timedelta(days)
 	oldTime = dateTime - delta
+	soup = None
+	prevSoup = None # Used to see if it ever scrolls to end of page
 
 	# check every 10 page downs
 	count = 0
@@ -69,7 +75,7 @@ def scrollFor(days):
 		count += 1
 		elem.send_keys(Keys.PAGE_DOWN)
 
-		if (count == 50):
+		if (count == 100):
 			html = driver.page_source
 			soup = BeautifulSoup(html, 'html.parser')
 			messages = soup.find_all('div', attrs={'class': messageStreamAttr})
@@ -77,6 +83,47 @@ def scrollFor(days):
 			lastMessage = messages[len(messages) - 1]
 			dateTime = findDateTime(lastMessage)
 			count = 0
+
+
+	# Make sure count of bull/bear tags are over certain number
+	messages = soup.find_all('div', attrs={'class': messageStreamAttr})
+	countBullBear = 0
+
+	for m in messages:
+		bull = m.find('span', attrs={'class': bullSentAttr})
+		bear = m.find('span', attrs={'class': bearSentAttr})
+		
+		if (bull or bear):
+			countBullBear += 1
+
+
+	# If less than number of min, keep scrolling, else leave loop
+	while (countBullBear < minBullBear):
+		count += 1
+		elem.send_keys(Keys.PAGE_DOWN)
+
+		if (count == 50):
+			count = 0
+			countBullBear = 0
+			html = driver.page_source
+			soup = BeautifulSoup(html, 'html.parser')
+
+			# If reached bottom of the page, the prev page should look the same
+			if (prevSoup == soup):
+				return False
+
+			messages = soup.find_all('div', attrs={'class': messageStreamAttr})
+			for m in messages:
+				bull = m.find('span', attrs={'class': bullSentAttr})
+				bear = m.find('span', attrs={'class': bearSentAttr})
+
+				if (bull or bear):
+					countBullBear += 1
+
+			prevSoup = soup
+
+	return True
+
 
 
 # Find username of a message
@@ -90,8 +137,9 @@ def findUser(message):
 		return user
 
 
+
 # Find historical stock data given date and ticker
-def findHistoricalData(dateTime, symbol, datesSeen):
+def findHistoricalData(dateTime, symbol):
 	dateTimeStr = dateTime.strftime("%Y-%m-%d")
 	day = dateTime.strftime("%w")
 	outOfRange = False
@@ -109,15 +157,21 @@ def findHistoricalData(dateTime, symbol, datesSeen):
 		outOfRange = True
 
 	if (symbol not in datesSeen):
-		historical = get_historical_intraday(symbol, dateTime)
-		newSymbolTime = {}
-		newSymbolTime[dateTimeStr] = historical
-		datesSeen[symbol] = newSymbolTime
+		try:
+			historical = get_historical_intraday(symbol, dateTime)
+			newSymbolTime = {}
+			newSymbolTime[dateTimeStr] = historical
+			datesSeen[symbol] = newSymbolTime
+		except:
+			print("Invalid ticker")
 	else:
 		datesForSymbol = datesSeen[symbol]
 		if (dateTimeStr not in datesForSymbol):
-			historical = get_historical_intraday(symbol, dateTime)
-			datesSeen[symbol][dateTimeStr] = historical
+			try:
+				historical = get_historical_intraday(symbol, dateTime)
+				datesSeen[symbol][dateTimeStr] = historical
+			except:
+				print("Invalid ticker")
 		else:
 			historical = datesSeen[symbol][dateTimeStr]
 
@@ -132,7 +186,7 @@ def priceAtTime(dateTime, historical, outOfRange):
         if (int(ts.get("minute").replace(":","")) >= int((dateTime.strftime("%X")[:5]).replace(":",""))):
             found = True
             foundAvg = ts.get('marketAverage')
-            if(foundAvg != -1):
+            if (foundAvg != -1):
                 break
             else:
                 continue
@@ -153,7 +207,7 @@ def priceAtTime(dateTime, historical, outOfRange):
 def getBearBull(symbol):
 	url = "https://stocktwits.com/symbol/" + symbol
 	driver.get(url)
-	scrollFor(1)
+	scrollFor(1, 5)
 
 	html = driver.page_source
 	soup = BeautifulSoup(html, 'html.parser')
@@ -162,7 +216,6 @@ def getBearBull(symbol):
 
 	bulls = []
 	bears = []
-	datesSeen = {} # make array for that date so don't have to keep calling api
 
 	messages = soup.find_all('div', attrs={'class': messageStreamAttr})
 
@@ -173,7 +226,7 @@ def getBearBull(symbol):
 		if (dateTime == None or user == None):
 			continue
 
-		(historical, outOfRange) = findHistoricalData(dateTime, symbol, datesSeen)
+		(historical, outOfRange) = findHistoricalData(dateTime, symbol)
 		foundAvg = priceAtTime(dateTime, historical, outOfRange)
 
 		res = [foundAvg, user]
@@ -198,32 +251,37 @@ def getBearBull(symbol):
 
 
 
-def findPricesTickers(spans, datesSeen, dateTime):
+def findPricesTickers(spans, dateTime):
 	tickers = []
 	foundTicker = False
 	for s in spans:
 		foundA = s.find('a')
 		ticker = foundA.text
+
+		if ('@' in ticker or '#' in ticker or '.X' in ticker):
+			continue
+
 		tickers.append(ticker[1:])
 
 		if ("$" in ticker):
 			foundTicker = True
 
-	# Never found a ticker
-	if (foundTicker == False):
-		return ({}, True)
+	# Never found a ticker or more than 1 ticker
+	if (foundTicker == False or len(tickers) > 1):
+		return ([], True)
 
-	prices = {}
+	prices = []
 	noData = False
 
+	# Should only have 1 ticker
 	for ticker in tickers:
-		(historical, outOfRange) = findHistoricalData(dateTime, ticker, datesSeen)
+		(historical, outOfRange) = findHistoricalData(dateTime, ticker)
 		if (len(historical) == 0):
 			noData = True
 			break
 
 		foundAvg = priceAtTime(dateTime, historical, outOfRange)
-		prices[ticker] = foundAvg
+		prices.append([ticker, foundAvg])
 
 	return (prices, noData)
 
@@ -232,7 +290,10 @@ def findPricesTickers(spans, datesSeen, dateTime):
 def findPageUser(username):
 	url = "https://stocktwits.com/" + username
 	driver.get(url)
-	scrollFor(5)
+	foundEnough = scrollFor(15, 5)
+
+	if (foundEnough == False):
+		return None
 
 	html = driver.page_source
 	soup = BeautifulSoup(html, 'html.parser')
@@ -241,7 +302,6 @@ def findPageUser(username):
 
 
 def analyzeUser(username, soup, days):
-	datesSeen = {} # make array for that date so don't have to keep calling api
 
 	messages = soup.find_all('div', attrs={'class': messageStreamAttr})
 	res = []
@@ -261,7 +321,7 @@ def analyzeUser(username, soup, days):
 		textM = m.find('div', attrs={'class': messageTextAttr})
 		spans = textM.find_all('span')
 
-		(prices, noDataTicker) = findPricesTickers(spans, datesSeen, dateTime)
+		(prices, noDataTicker) = findPricesTickers(spans, dateTime)
 
 		# Some stocks have no data?
 		if (noDataTicker):
@@ -271,25 +331,61 @@ def analyzeUser(username, soup, days):
 		delta = datetime.timedelta(days)
 		newTime = dateTime + delta
 
-		(newPrices, noDataTicker) = findPricesTickers(spans, datesSeen, newTime)
+		(newPrices, noDataTicker) = findPricesTickers(spans, newTime)
 
 		# If time + delta is too far in the future
 		if (noDataTicker):
 			print(dateTime.strftime("%Y-%m-%d"))
-			print("Too far in future")
+			print("Too far in future/not a stock trading day (holiday)")
 			continue
 
-		res.append([prices, newPrices, dateTime.strftime("%Y-%m-%d"), bullish])
+		correct = False
+		change = newPrices[0][1] - prices[0][1]
+		totalChange = abs(change)
+
+		if((change > 0 and bullish == True ) or (change < 0 and bullish == False)):
+			correct = True
+
+		res.append([prices, newPrices, dateTime.strftime("%Y-%m-%d %H:%M:%S"), bullish, correct, totalChange])
 
 	return res
 
 
 def analyzeResultsUser(username, days):
 	soup = findPageUser(username)
+	data = []
+
+	# If the page doesn't have enought bull/bear indicators
+	if (soup == None):
+		return False
 	
-	for i in range(days):
+	for i in range(1, days, 2):
 		print(i)
-		print(analyzeUser(username, soup, i))
+		data.append(analyzeUser(username, soup, i))
+
+	results = []
+	for dayLoop in data:
+		goodcents = 0
+		badcents = 0
+		totalGood = 0
+		totalBad = 0
+
+		for dataLoop in dayLoop:
+			if (dataLoop[4] == True):
+				goodcents += dataLoop[5]
+				totalGood += 1
+			else:
+				badcents += dataLoop[5]
+				totalBad += 1
+
+		ratio = goodcents/badcents
+		results.append([goodcents, badcents, totalBad, totalGood, ratio])
+	
+	print(results)
+
+	return True
+
+
 
 # ------------------------------------------------------------------------
 # --------------------------- Main Function ------------------------------
@@ -307,14 +403,19 @@ def parseUsers():
 		s = ''.join(e for e in user if e.isalnum())
 		users[i] = s
 
+	return users
 
 def main():
 	users = parseUsers()
+	users = users[2:3]
 
-	resTVIX = getBearBull("TVIX")
-	print(resTVIX)
+	# for user in users:
+	# 	analyzeResultsUser(user, 1)
 
-	analyzeResultsUser('donaldltrump', 2)
+	# resTVIX = getBearBull("TVIX")
+	# print(resTVIX)
+
+	analyzeResultsUser('LiveTradePro', 10)
 
 	driver.close()
 
