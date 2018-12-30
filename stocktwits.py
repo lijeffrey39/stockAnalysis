@@ -126,19 +126,22 @@ def findHistoricalData(dateTime, symbol, datesSeen):
 
 # Price of a stock at a certain time given historical data
 def priceAtTime(dateTime, historical, outOfRange):
-	foundAvg = ""
-	found = False
-	for ts in historical:
-		if (ts.get("minute") == dateTime.strftime("%X")[:5]):
-			found = True
-			foundAvg = ts.get('marketAverage')
+    foundAvg = ""
+    found = False
+    for ts in historical:
+        if (int(ts.get("minute").replace(":","")) >= int((dateTime.strftime("%X")[:5]).replace(":",""))):
+            found = True
+            foundAvg = ts.get('marketAverage')
+            if(foundAvg != -1):
+                break
+            else:
+                continue
 
-	if (found == False or outOfRange == True):
-		last = historical[len(historical) - 1]
-		foundAvg = last.get('marketAverage')
+    if (found == False or outOfRange == True):
+        last = historical[len(historical) - 1]
+        foundAvg = last.get('marketAverage')
 
-	return foundAvg
-
+    return foundAvg
 
 
 # ------------------------------------------------------------------------
@@ -215,8 +218,6 @@ def findPricesTickers(spans, datesSeen, dateTime):
 
 	for ticker in tickers:
 		(historical, outOfRange) = findHistoricalData(dateTime, ticker, datesSeen)
-		if (ticker == "WATT"):
-			print(historical)
 		if (len(historical) == 0):
 			noData = True
 			break
@@ -227,13 +228,19 @@ def findPricesTickers(spans, datesSeen, dateTime):
 	return (prices, noData)
 
 
-def analyzeUser(username, days):
+# Return soup object page of that user 
+def findPageUser(username):
 	url = "https://stocktwits.com/" + username
 	driver.get(url)
-	scroll(0)
+	scrollFor(5)
 
 	html = driver.page_source
 	soup = BeautifulSoup(html, 'html.parser')
+
+	return soup
+
+
+def analyzeUser(username, soup, days):
 	datesSeen = {} # make array for that date so don't have to keep calling api
 
 	messages = soup.find_all('div', attrs={'class': messageStreamAttr})
@@ -268,16 +275,21 @@ def analyzeUser(username, days):
 
 		# If time + delta is too far in the future
 		if (noDataTicker):
+			print(dateTime.strftime("%Y-%m-%d"))
 			print("Too far in future")
 			continue
 
-		res.append([prices, newPrices, dateTime, bullish])
+		res.append([prices, newPrices, dateTime.strftime("%Y-%m-%d"), bullish])
 
 	return res
 
 
-# def analyzeResultsUser(resUser):
-
+def analyzeResultsUser(username, days):
+	soup = findPageUser(username)
+	
+	for i in range(days):
+		print(i)
+		print(analyzeUser(username, soup, i))
 
 
 # ------------------------------------------------------------------------
@@ -290,10 +302,7 @@ def main():
 	# resTVIX = getBearBull("TVIX")
 	# print(resTVIX)
 
-	print("")
-
-	resUser = analyzeUser('donaldltrump', 1)
-	print(resUser)
+	analyzeResultsUser('donaldltrump', 1)
 
 	driver.close()
 
