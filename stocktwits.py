@@ -163,7 +163,8 @@ def findHistoricalData(dateTime, symbol):
 			newSymbolTime[dateTimeStr] = historical
 			datesSeen[symbol] = newSymbolTime
 		except:
-			print("Invalid ticker")
+			pass
+			# print("Invalid ticker")
 	else:
 		datesForSymbol = datesSeen[symbol]
 		if (dateTimeStr not in datesForSymbol):
@@ -171,7 +172,8 @@ def findHistoricalData(dateTime, symbol):
 				historical = get_historical_intraday(symbol, dateTime)
 				datesSeen[symbol][dateTimeStr] = historical
 			except:
-				print("Invalid ticker")
+				pass
+				# print("Invalid ticker")
 		else:
 			historical = datesSeen[symbol][dateTimeStr]
 
@@ -288,9 +290,18 @@ def findPricesTickers(spans, dateTime):
 
 # Return soup object page of that user 
 def findPageUser(username):
+
+	# if html is stored
+	path = 'usersPages/' + username + '.html'
+	if (os.path.isfile(path)):
+		print("File Exists")
+		# html = open(path, "r")
+		soup = BeautifulSoup(open(path), 'html.parser')
+		return soup
+
 	url = "https://stocktwits.com/" + username
 	driver.get(url)
-	foundEnough = scrollFor(15, 5)
+	foundEnough = scrollFor(30, 5)
 
 	if (foundEnough == False):
 		return None
@@ -298,10 +309,13 @@ def findPageUser(username):
 	html = driver.page_source
 	soup = BeautifulSoup(html, 'html.parser')
 
+	with open(path, "w") as file:
+	    file.write(str(soup))
+
 	return soup
 
 
-def analyzeUser(username, soup, days):
+def analyzeUser(username, soup, days, beginningOfDay):
 
 	messages = soup.find_all('div', attrs={'class': messageStreamAttr})
 	res = []
@@ -331,14 +345,19 @@ def analyzeUser(username, soup, days):
 		delta = datetime.timedelta(days)
 		newTime = dateTime + delta
 
+		# Find time at 9:30 am
+		if (beginningOfDay):
+			newTime = datetime.datetime(newTime.year, newTime.month, newTime.day, 9, 30)
+
 		(newPrices, noDataTicker) = findPricesTickers(spans, newTime)
 
 		# If time + delta is too far in the future
 		if (noDataTicker):
-			print(dateTime.strftime("%Y-%m-%d"))
-			print("Too far in future/not a stock trading day (holiday)")
+			# print(dateTime.strftime("%Y-%m-%d"))
+			# print("Too far in future/not a stock trading day (holiday)")
 			continue
 
+		print(prices, newPrices)
 		correct = False
 		change = newPrices[0][1] - prices[0][1]
 		totalChange = abs(change)
@@ -353,18 +372,15 @@ def analyzeUser(username, soup, days):
 
 def analyzeResultsUser(username, days):
 	soup = findPageUser(username)
-	data = []
+	results = []
 
 	# If the page doesn't have enought bull/bear indicators
 	if (soup == None):
 		return False
 	
-	for i in range(1, days, 2):
+	for i in range(1, days):
 		print(i)
-		data.append(analyzeUser(username, soup, i))
-
-	results = []
-	for dayLoop in data:
+		dayLoop = analyzeUser(username, soup, i, True)
 		goodcents = 0
 		badcents = 0
 		totalGood = 0
@@ -378,8 +394,8 @@ def analyzeResultsUser(username, days):
 				badcents += dataLoop[5]
 				totalBad += 1
 
-		ratio = goodcents/badcents
-		results.append([goodcents, badcents, totalBad, totalGood, ratio])
+		ratio = goodcents / badcents
+		results.append([totalGood, totalBad, round(ratio, 2)])
 	
 	print(results)
 
@@ -415,7 +431,7 @@ def main():
 	# resTVIX = getBearBull("TVIX")
 	# print(resTVIX)
 
-	analyzeResultsUser('LiveTradePro', 10)
+	analyzeResultsUser('LiveTradePro', 5)
 
 	driver.close()
 
