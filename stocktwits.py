@@ -75,7 +75,7 @@ def scrollFor(days, minBullBear):
 		count += 1
 		elem.send_keys(Keys.PAGE_DOWN)
 
-		if (count == 100):
+		if (count == 500):
 			html = driver.page_source
 			soup = BeautifulSoup(html, 'html.parser')
 			messages = soup.find_all('div', attrs={'class': messageStreamAttr})
@@ -138,23 +138,9 @@ def findUser(message):
 
 
 
-# Find historical stock data given date and ticker
-def findHistoricalData(dateTime, symbol):
+def historicalFromDict(symbol, dateTime):
+	historial = []
 	dateTimeStr = dateTime.strftime("%Y-%m-%d")
-	day = dateTime.strftime("%w")
-	outOfRange = False
-	historical = []
-	delta = None
-
-	# if it is a saturday or sunday, find friday's time
-	if (day == '6'):
-		delta = datetime.timedelta(1)
-	if (day == '0'):
-		delta = datetime.timedelta(2)
-
-	if (delta != None):
-		dateTime = dateTime - delta
-		outOfRange = True
 
 	if (symbol not in datesSeen):
 		try:
@@ -164,7 +150,7 @@ def findHistoricalData(dateTime, symbol):
 			datesSeen[symbol] = newSymbolTime
 		except:
 			pass
-			# print("Invalid ticker")
+			print("Invalid ticker1")
 	else:
 		datesForSymbol = datesSeen[symbol]
 		if (dateTimeStr not in datesForSymbol):
@@ -173,11 +159,43 @@ def findHistoricalData(dateTime, symbol):
 				datesSeen[symbol][dateTimeStr] = historical
 			except:
 				pass
-				# print("Invalid ticker")
+				print("Invalid ticker")
 		else:
 			historical = datesSeen[symbol][dateTimeStr]
 
-	return (historical, outOfRange)
+	return historical
+
+
+# Find historical stock data given date and ticker
+def findHistoricalData(dateTime, symbol, futurePrice):
+	day = dateTime.strftime("%w")
+	outOfRange = False
+	delta = None
+	historical = []
+
+	# if it is a saturday or sunday, find friday's time if futurePrice == False
+	# Else find monday's time if it's futurePrice
+	if (futurePrice):
+		historical = historicalFromDict(symbol, dateTime)
+		delta = datetime.timedelta(1)
+		# keep going until a day is found
+		while (len(historical) == 0):
+			dateTime = dateTime + delta
+			historical = historicalFromDict(symbol, dateTime)
+	else:
+		if (day == '6'):
+			delta = datetime.timedelta(1)
+		if (day == '0'):
+			delta = datetime.timedelta(2)
+
+	if (delta != None):
+		if (futurePrice == False):
+			dateTime = dateTime - delta
+		outOfRange = True
+
+	historical = historicalFromDict(symbol, dateTime)
+
+	return (historical, outOfRange, dateTime)
 
 
 # Price of a stock at a certain time given historical data
@@ -186,16 +204,21 @@ def priceAtTime(dateTime, historical, outOfRange):
     found = False
     for ts in historical:
         if (int(ts.get("minute").replace(":","")) >= int((dateTime.strftime("%X")[:5]).replace(":",""))):
-            found = True
-            foundAvg = ts.get('marketAverage')
+            foundAvg = ts.get('average')
+            foundAvg1 = ts.get('marketAverage')
             if (foundAvg != -1):
-                break
+            	found = True
+            	break
             else:
-                continue
+            	if (foundAvg1 != -1):
+            		found = True
+            		foundAvg = foundAvg1
+            	else:
+                	continue
 
     if (found == False or outOfRange == True):
         last = historical[len(historical) - 1]
-        foundAvg = last.get('marketAverage')
+        foundAvg = last.get('average')
 
     return foundAvg
 
@@ -205,45 +228,130 @@ def priceAtTime(dateTime, historical, outOfRange):
 # ------------------------------------------------------------------------
 
 
+# Return soup object page of that stock 
+def findPageStock(symbol):
 
-def getBearBull(symbol):
+	# if html is stored
+	path = 'stocks/' + symbol + '.html'
+	if (os.path.isfile(path)):
+		print("File Exists")
+		# html = open(path, "r")
+		soup = BeautifulSoup(open(path), 'html.parser')
+		return soup
+
 	url = "https://stocktwits.com/symbol/" + symbol
 	driver.get(url)
-	scrollFor(1, 5)
+	foundEnough = scrollFor(12, 5)
+
+	if (foundEnough == False):
+		return None
 
 	html = driver.page_source
 	soup = BeautifulSoup(html, 'html.parser')
-	currentPrice = soup.find('span', attrs={'class': priceAttr}).text
-	print("Current Price of %s: %s" % (symbol, currentPrice))
 
-	bulls = []
-	bears = []
+	with open(path, "w") as file:
+	    file.write(str(soup))
+
+	return soup
+
+
+
+def inTradingHours(dateTime, symbol):
+	day = dateTime.strftime("%w")
+	historical = historicalFromDict(symbol, dateTime)
+	strDate = dateTime.strftime("%X")[:5]
+	found = False
+
+	for ts in historical:
+		if (ts.get('minute') == strDate):
+			found = True
+
+	# if it's a weekend, ignore
+	if (day == "6" or day == "0" or found == False):
+		return False
+
+	return True 
+
+
+def getBearBull(symbol, daysInFuture, strict):
+	soup = findPageStock(symbol)
 
 	messages = soup.find_all('div', attrs={'class': messageStreamAttr})
+	users = []
 
-	for m in messages:
-		dateTime = findDateTime(m)
-		user = findUser(m)
+	for i in range(21, 30):
 
-		if (dateTime == None or user == None):
-			continue
+		bulls = []
+		bears = []
+		wrong = 0
+		right = 0
+		sumWrong = 0
+		sumRight = 0
 
-		(historical, outOfRange) = findHistoricalData(dateTime, symbol)
-		foundAvg = priceAtTime(dateTime, historical, outOfRange)
+		for m in messages:
+			dateTime = findDateTime(m)
+			dateNow = datetime.datetime.now()
+			user = findUser(m)
+			users.append(user)
 
-		res = [foundAvg, user]
+			bull = m.find('span', attrs={'class': bullSentAttr})
+			bear = m.find('span', attrs={'class': bearSentAttr})
 
-		bull = m.find('span', attrs={'class': bullSentAttr})
-		bear = m.find('span', attrs={'class': bearSentAttr})
+			if (dateTime == None or user == None or 
+				datetime.datetime(dateTime.year, dateTime.month, dateTime.day) >= 
+				datetime.datetime(dateNow.year, dateNow.month, dateNow.day) or
+				(bull == None and bear == None) or 
+				inTradingHours(dateTime, symbol) == False or 
+				dateTime.strftime("%m/%d") != "12/" + str(i)):
+				continue
 
-		if (bull):
-			bulls.append(res)
-		if (bear):
-			bears.append(res)
+			(historical, outOfRange, dateTimeAdjusted1) = findHistoricalData(dateTime, symbol, False)
+			foundAvg = priceAtTime(dateTime, historical, outOfRange)
 
-	print(len(bears))
-	print(len(bulls))
-	return {"bear": bears, "bull": bulls}
+			# Find price after # days
+			delta = datetime.timedelta(daysInFuture)
+			newTime = dateTime + delta
+
+			# if new time is too far in future
+			if (datetime.datetime(dateTime.year, dateTime.month, dateTime.day) 
+				>= datetime.datetime(dateNow.year, dateNow.month, dateNow.day)):
+				continue
+
+			newTime = datetime.datetime(newTime.year, newTime.month, newTime.day, 9, 30)
+			(historical, outOfRange, dateTimeAdjusted2) = findHistoricalData(newTime, symbol, True)
+
+			newFoundAvg = priceAtTime(newTime, historical, False)
+
+			res = [foundAvg, newFoundAvg]
+			change = newFoundAvg - foundAvg
+			totalChange = abs(change)
+			correct = 0
+			b = False
+
+			if ((change > 0 and bull) or (change <= 0 and bear)):
+				right += 1
+				sumRight += totalChange
+				correct = 1
+			else:
+				wrong += 1
+				sumWrong += totalChange
+
+			if (bull):
+				bulls.append(res)
+				b = True
+			if (bear):
+				bears.append(res)
+
+			#print(round(foundAvg, 2), dateTimeAdjusted1.strftime("%m/%d %H:%M:%S"), "-- ", correct, b, " --", round(newFoundAvg, 2), dateTimeAdjusted2.strftime("%m/%d %H:%M:%S"))
+
+		try:
+			print("12/" + str(i), right, wrong, len(bulls), len(bears), round(right/wrong, 2))
+		except:
+			if (right != 0 or wrong != 0):
+				print("12/" + str(i), right, wrong, len(bulls), len(bears))
+        
+	#print(len(set(users)))
+	#return {"bear": bears, "bull": bulls}
 
 
 
@@ -253,7 +361,7 @@ def getBearBull(symbol):
 
 
 
-def findPricesTickers(spans, dateTime):
+def findPricesTickers(spans, dateTime, futurePrice):
 	tickers = []
 	foundTicker = False
 	for s in spans:
@@ -277,7 +385,7 @@ def findPricesTickers(spans, dateTime):
 
 	# Should only have 1 ticker
 	for ticker in tickers:
-		(historical, outOfRange) = findHistoricalData(dateTime, ticker)
+		(historical, outOfRange, dateTimeAdjusted) = findHistoricalData(dateTime, ticker, futurePrice)
 		if (len(historical) == 0):
 			noData = True
 			break
@@ -301,7 +409,7 @@ def findPageUser(username):
 
 	url = "https://stocktwits.com/" + username
 	driver.get(url)
-	foundEnough = scrollFor(30, 5)
+	foundEnough = scrollFor(35, 5)
 
 	if (foundEnough == False):
 		return None
@@ -335,7 +443,7 @@ def analyzeUser(username, soup, days, beginningOfDay):
 		textM = m.find('div', attrs={'class': messageTextAttr})
 		spans = textM.find_all('span')
 
-		(prices, noDataTicker) = findPricesTickers(spans, dateTime)
+		(prices, noDataTicker) = findPricesTickers(spans, dateTime, False)
 
 		# Some stocks have no data?
 		if (noDataTicker):
@@ -349,7 +457,7 @@ def analyzeUser(username, soup, days, beginningOfDay):
 		if (beginningOfDay):
 			newTime = datetime.datetime(newTime.year, newTime.month, newTime.day, 9, 30)
 
-		(newPrices, noDataTicker) = findPricesTickers(spans, newTime)
+		(newPrices, noDataTicker) = findPricesTickers(spans, newTime, True)
 
 		# If time + delta is too far in the future
 		if (noDataTicker):
@@ -357,12 +465,12 @@ def analyzeUser(username, soup, days, beginningOfDay):
 			# print("Too far in future/not a stock trading day (holiday)")
 			continue
 
-		print(prices, newPrices)
+		print(prices + [dateTime.strftime("%m/%d %H:%M:%S")], newPrices + [newTime.strftime("%m/%d %H:%M:%S")])
 		correct = False
 		change = newPrices[0][1] - prices[0][1]
 		totalChange = abs(change)
 
-		if((change > 0 and bullish == True ) or (change < 0 and bullish == False)):
+		if((change > 0 and bullish == True ) or (change <= 0 and bullish == False)):
 			correct = True
 
 		res.append([prices, newPrices, dateTime.strftime("%Y-%m-%d %H:%M:%S"), bullish, correct, totalChange])
@@ -428,10 +536,9 @@ def main():
 	# for user in users:
 	# 	analyzeResultsUser(user, 1)
 
-	# resTVIX = getBearBull("TVIX")
-	# print(resTVIX)
+	getBearBull("UGAZ", 1, True)
 
-	analyzeResultsUser('LiveTradePro', 5)
+	# analyzeResultsUser('luckeee', 2)
 
 	driver.close()
 
