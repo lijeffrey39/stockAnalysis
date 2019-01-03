@@ -55,6 +55,9 @@ def findDateTime(message):
 		return None
 	else:
 		dateTime = parse(t.text)
+		test = datetime.datetime(2019, 2, 1)
+		if (dateTime > test):
+			return datetime.datetime(2018, dateTime.month, dateTime.day, dateTime.hour, dateTime.minute)
 		return dateTime
 
 
@@ -64,7 +67,9 @@ def scrollFor(days, minBullBear):
 
 	dateTime = datetime.datetime.now() 
 	delta = datetime.timedelta(days)
-	oldTime = dateTime - delta
+	# oldTime = dateTime - delta
+	oldTime = datetime.datetime(dateTime.year, dateTime.month, dateTime.day, 9, 30)
+
 	soup = None
 	prevSoup = None # Used to see if it ever scrolls to end of page
 
@@ -75,15 +80,18 @@ def scrollFor(days, minBullBear):
 		count += 1
 		elem.send_keys(Keys.PAGE_DOWN)
 
-		if (count == 500):
+		if (count == 50):
 			html = driver.page_source
 			soup = BeautifulSoup(html, 'html.parser')
 			messages = soup.find_all('div', attrs={'class': messageStreamAttr})
 
+			# page doesnt exist
+			if (len(messages) == 0):
+				return False
+
 			lastMessage = messages[len(messages) - 1]
 			dateTime = findDateTime(lastMessage)
 			count = 0
-
 
 	# Make sure count of bull/bear tags are over certain number
 	messages = soup.find_all('div', attrs={'class': messageStreamAttr})
@@ -95,7 +103,6 @@ def scrollFor(days, minBullBear):
 		
 		if (bull or bear):
 			countBullBear += 1
-
 
 	# If less than number of min, keep scrolling, else leave loop
 	while (countBullBear < minBullBear):
@@ -125,7 +132,6 @@ def scrollFor(days, minBullBear):
 	return True
 
 
-
 # Find username of a message
 def findUser(message):
 	u = message.find('a', attrs={'class': usernameAttr})
@@ -135,7 +141,6 @@ def findUser(message):
 	else:
 		user = u['href'][1:]
 		return user
-
 
 
 def historicalFromDict(symbol, dateTime):
@@ -229,7 +234,7 @@ def priceAtTime(dateTime, historical, outOfRange):
 
 
 # Return soup object page of that stock 
-def findPageStock(symbol):
+def findPageStock(symbol, daysInFuture):
 
 	# if html is stored
 	path = 'stocks/' + symbol + '.html'
@@ -237,14 +242,15 @@ def findPageStock(symbol):
 		print("File Exists")
 		# html = open(path, "r")
 		soup = BeautifulSoup(open(path), 'html.parser')
-		return soup
+		print("Finished Reading in")
+		return (soup, False)
 
 	url = "https://stocktwits.com/symbol/" + symbol
 	driver.get(url)
-	foundEnough = scrollFor(12, 5)
+	foundEnough = scrollFor(daysInFuture, 5)
 
 	if (foundEnough == False):
-		return None
+		return (None, True)
 
 	html = driver.page_source
 	soup = BeautifulSoup(html, 'html.parser')
@@ -252,8 +258,7 @@ def findPageStock(symbol):
 	with open(path, "w") as file:
 	    file.write(str(soup))
 
-	return soup
-
+	return (soup, False)
 
 
 def inTradingHours(dateTime, symbol):
@@ -273,85 +278,85 @@ def inTradingHours(dateTime, symbol):
 	return True 
 
 
-def getBearBull(symbol, daysInFuture, strict):
-	soup = findPageStock(symbol)
+# True if bull
+def isBullMessage(message):
+	bull = message.find('span', attrs={'class': bullSentAttr})
+	bear = message.find('span', attrs={'class': bearSentAttr})
 
+	if (bull == None and bear == None):
+		return None
+
+	if (bull):
+		return True 
+	else: 
+		return False
+
+
+def isValidMessage(dateTime, dateNow, isBull, user, symbol, daysInFuture):
+	dateCheck = datetime.datetime(dateTime.year, dateTime.month, dateTime.day)
+	dateNow = datetime.datetime(dateNow.year, dateNow.month, dateNow.day)
+
+	delta = datetime.timedelta(daysInFuture)
+	newTime = dateTime + delta
+	# If the next day at 9:30 am is < than the current time, then there is a stock price
+	newTime = datetime.datetime(newTime.year, newTime.month, newTime.day, 9, 30)
+
+	if (dateTime == None or 
+		user == None or 
+		isBull == None or 
+		inTradingHours(dateTime, symbol) == False or
+		(daysInFuture == 0 and dateCheck != dateNow) or
+		(daysInFuture > 0 and newTime > dateNow) or
+		(dateCheck > dateNow)): 
+		return False
+	return True
+
+
+def getBearBull(symbol, daysInFuture):
+	(soup, error) = findPageStock(symbol, daysInFuture)
+
+	if (error):
+		return []
+
+	dateNow = datetime.datetime.now()
 	messages = soup.find_all('div', attrs={'class': messageStreamAttr})
-	users = []
+	res = []
+	
+	for m in messages:
+		dateTime = findDateTime(m)
+		user = findUser(m)
+		isBull = isBullMessage(m)
 
-	for i in range(21, 30):
+		if (isValidMessage(dateTime, dateNow, isBull, user, symbol, daysInFuture) == False):
+			continue
 
-		bulls = []
-		bears = []
-		wrong = 0
-		right = 0
-		sumWrong = 0
-		sumRight = 0
+		(historical, outOfRange, dateTimeAdjusted1) = findHistoricalData(dateTime, symbol, False)
+		foundAvg = priceAtTime(dateTime, historical, outOfRange) # fix this function to take dateTimeadjusted
 
-		for m in messages:
-			dateTime = findDateTime(m)
-			dateNow = datetime.datetime.now()
-			user = findUser(m)
-			users.append(user)
+		# If only looking for current day's prices
+		if (daysInFuture == 0):
+			messageInfo = [user, isBull, dateTimeAdjusted1, foundAvg]
+			res.append(messageInfo)
+			continue
 
-			bull = m.find('span', attrs={'class': bullSentAttr})
-			bear = m.find('span', attrs={'class': bearSentAttr})
+		# Find price after # days
+		delta = datetime.timedelta(daysInFuture)
+		newTime = dateTime + delta
+		newTime = datetime.datetime(newTime.year, newTime.month, newTime.day, 9, 30)
 
-			if (dateTime == None or user == None or 
-				datetime.datetime(dateTime.year, dateTime.month, dateTime.day) >= 
-				datetime.datetime(dateNow.year, dateNow.month, dateNow.day) or
-				(bull == None and bear == None) or 
-				inTradingHours(dateTime, symbol) == False or 
-				dateTime.strftime("%m/%d") != "12/" + str(i)):
-				continue
+		(historical, outOfRange, dateTimeAdjusted2) = findHistoricalData(newTime, symbol, True)
+		newFoundAvg = priceAtTime(newTime, historical, False)
 
-			(historical, outOfRange, dateTimeAdjusted1) = findHistoricalData(dateTime, symbol, False)
-			foundAvg = priceAtTime(dateTime, historical, outOfRange)
+		change = abs(newFoundAvg - foundAvg)
+		correct = False
 
-			# Find price after # days
-			delta = datetime.timedelta(daysInFuture)
-			newTime = dateTime + delta
+		if ((change > 0 and bull) or (change <= 0 and bull == False)):
+			correct = True
 
-			# if new time is too far in future
-			if (datetime.datetime(dateTime.year, dateTime.month, dateTime.day) 
-				>= datetime.datetime(dateNow.year, dateNow.month, dateNow.day)):
-				continue
+		messageInfo = [user, isBull, dateTimeAdjusted1, foundAvg, dateTimeAdjusted2, correct, change]
+		res.append(messageInfo)
 
-			newTime = datetime.datetime(newTime.year, newTime.month, newTime.day, 9, 30)
-			(historical, outOfRange, dateTimeAdjusted2) = findHistoricalData(newTime, symbol, True)
-
-			newFoundAvg = priceAtTime(newTime, historical, False)
-
-			res = [foundAvg, newFoundAvg]
-			change = newFoundAvg - foundAvg
-			totalChange = abs(change)
-			correct = 0
-			b = False
-
-			if ((change > 0 and bull) or (change <= 0 and bear)):
-				right += 1
-				sumRight += totalChange
-				correct = 1
-			else:
-				wrong += 1
-				sumWrong += totalChange
-
-			if (bull):
-				bulls.append(res)
-				b = True
-			if (bear):
-				bears.append(res)
-
-			#print(round(foundAvg, 2), dateTimeAdjusted1.strftime("%m/%d %H:%M:%S"), "-- ", correct, b, " --", round(newFoundAvg, 2), dateTimeAdjusted2.strftime("%m/%d %H:%M:%S"))
-
-		try:
-			print("12/" + str(i), right, wrong, len(bulls), len(bears), round(right/wrong, 2))
-		except:
-			if (right != 0 or wrong != 0):
-				print("12/" + str(i), right, wrong, len(bulls), len(bears))
-        
-	#print(len(set(users)))
-	#return {"bear": bears, "bull": bulls}
+	return res
 
 
 
@@ -409,7 +414,7 @@ def findPageUser(username):
 
 	url = "https://stocktwits.com/" + username
 	driver.get(url)
-	foundEnough = scrollFor(35, 5)
+	foundEnough = scrollFor(1, 5)
 
 	if (foundEnough == False):
 		return None
@@ -529,16 +534,121 @@ def parseUsers():
 
 	return users
 
+
+def parseStocksList():
+	l = []
+	with open('stockList.csv') as f:
+		file = f.readlines()
+		for i in file:
+			l.append(''.join(e for e in i if e.isalnum()))
+
+	return l
+
+
+def analyzeStocksToday(listStocks):
+
+	result = []
+
+	for symbol in listStocks:
+		res = []
+		print(symbol)
+		res = getBearBull(symbol, 0)
+		# try:
+		# 	res = getBearBull(symbol, 0)
+		# except:
+		# 	print("ERROR")
+		# 	continue
+
+		bulls = 0
+		bears = 0
+
+		for d in res:
+			bull = d[1]
+			
+			if (bull):
+				bulls += 1
+			else:
+				bears += 1
+		
+		bullBearRatio = bulls
+		try:
+			bullBearRatio = round(bulls / bears, 2)
+		except:
+			pass
+
+		result.append([symbol, bulls, bears, bullBearRatio])
+
+	return result
+
+
+def pickStocks(result, cutOff):
+
+	sort = sorted(result, key=lambda x: x[3], reverse = True)
+	filtered = filter(lambda x: x[3] > cutOff,sort)
+
+	for res in filtered:
+		symbol = res[0]
+		bulls = res[1]
+		bears = res[2]
+		bullBearRatio = res[3]
+		print("%s: (%d/%d %0.2f)" % (symbol, bulls, bears, bullBearRatio))
+
+
+def analyzeStocksHistory(listStocks, daysBack):
+
+	result = []
+
+	for i in l:
+		res = []
+		try:
+			res = getBearBull(i, daysBack)
+			if (len(res) == 0):
+				print("error occured")
+				continue
+		except:
+			continue
+
+		correctCount = 0
+		for d in res:
+			c = d[1]
+			w = d[2]
+			bull = d[3]
+			bear = d[4]
+
+			correctRatio = 0
+			bullBearRatio = 0
+			try:
+				# correctRatio = round(c / w, 2)
+				bullBearRatio = round(bull / bear, 2)
+			except:
+				bullBearRatio = bull
+				pass
+
+			if (correctRatio > 1 or (c > 0 and w == 0)):
+				correctCount += 1
+
+			# print("%s: (%d/%d %0.2f), (%d/%d %0.2f)" % (d[0], c, w, correctRatio, bull, bear, bullBearRatio))
+
+			print("")
+			print(i, bull, bear, bullBearRatio)
+			result.append([i, bull, bear, bullBearRatio])
+
+	return result 
+
+
 def main():
-	users = parseUsers()
-	users = users[2:3]
+	# users = parseUsers()
+	# users = users[2:3]
 
 	# for user in users:
 	# 	analyzeResultsUser(user, 1)
 
-	getBearBull("UGAZ", 1, True)
+	l = parseStocksList()
 
-	# analyzeResultsUser('luckeee', 2)
+	res = analyzeStocksToday(l)
+	pickStocks(res, 0)
+
+	#analyzeStocksHistory(l, 9)
 
 	driver.close()
 
