@@ -157,12 +157,15 @@ def historicalFromDict(symbol, dateTime):
 	historial = []
 	dateTimeStr = dateTime.strftime("%Y-%m-%d")
 
-	if (useDatesSeen == False):
+	if (useDatesSeen == False):	
+		if (symbol == "DJIA" or symbol == "SPX" or symbol == "NDX" or symbol == "AAPLI" or symbol == "ACB.CA"):
+			return []
 		try:
 			historical = get_historical_intraday(symbol, dateTime)
 			return historical
 		except:
 			pass
+			print(symbol)
 			print("Invalid ticker2")
 			return []
 
@@ -352,35 +355,36 @@ def getBearBull(symbol, daysInFuture):
 		user = findUser(m)
 		isBull = isBullMessage(m)
 
-		if (isValidMessage(dateTime, dateNow, isBull, user, symbol, daysInFuture) == False):
+		if (isValidMessage(dateTime, dateNow, isBull, user, symbol, 0) == False):
 			continue
 
 
 		(historical, dateTimeAdjusted1) = findHistoricalData(dateTime, symbol, False)
 		foundAvg = priceAtTime(dateTime, historical) # fix this function to take dateTimeadjusted
 
+
 		# If only looking for current day's prices
-		if (daysInFuture == 0):
-			messageInfo = [user, isBull, dateTimeAdjusted1, foundAvg]
-			res.append(messageInfo)
-			continue
+		# if (daysInFuture >= 0):
+		messageInfo = [user, isBull, dateTimeAdjusted1, foundAvg]
+		res.append(messageInfo)
+			# continue
 
 		# Find price after # days
-		delta = datetime.timedelta(daysInFuture)
-		newTime = dateTime + delta
-		newTime = datetime.datetime(newTime.year, newTime.month, newTime.day, 9, 30)
+		# delta = datetime.timedelta(1)
+		# newTime = dateTime + delta
+		# newTime = datetime.datetime(newTime.year, newTime.month, newTime.day, 9, 30)
 
-		(historical, dateTimeAdjusted2) = findHistoricalData(newTime, symbol, True)
-		newFoundAvg = priceAtTime(newTime, historical)
+		# (historical, dateTimeAdjusted2) = findHistoricalData(newTime, symbol, True)
+		# newFoundAvg = priceAtTime(newTime, historical)
 
-		change = abs(newFoundAvg - foundAvg)
-		correct = False
+		# change = abs(newFoundAvg - foundAvg)
+		# correct = False
 
-		if ((change > 0 and bull) or (change <= 0 and bull == False)):
-			correct = True
+		# if ((change > 0 and isBull) or (change <= 0 and isBull == False)):
+		# 	correct = True
 
-		messageInfo = [user, isBull, dateTimeAdjusted1, foundAvg, dateTimeAdjusted2, correct, change]
-		res.append(messageInfo)
+		# messageInfo = [user, isBull, dateTimeAdjusted1, foundAvg, dateTimeAdjusted2, correct, change]
+		# res.append(messageInfo)
 
 	return res
 
@@ -515,9 +519,13 @@ def analyzeUser(username, soup, days, beginningOfDay):
 
 		correct = 0
 		change = round(newPrices - prices, 4)
-		percent = round(change / prices, 4)
+		percent = 0
+		try:
+			percent = round(change / prices, 4)
+		except:
+			pass
 
-		if((change > 0 and isBull == True ) or (change <= 0 and isBull == False)):
+		if ((change > 0 and isBull == True ) or (change <= 0 and isBull == False)):
 			correct = 1
 
 		res.append([symbol, dateTime.strftime("%Y-%m-%d %H:%M:%S"), prices, 
@@ -552,10 +560,23 @@ def saveUserInfo(username, result, otherInfo):
 			newResult[i][3] = float(newResult[i][3])
 		sortedResult = sorted(newResult, key=lambda x: x[3], reverse = True)
 
-		print(sortedResult)
 		with open(path2, 'w') as f1:
 		    writer = csv.writer(f1)
 		    writer.writerows(sortedResult)
+
+
+
+def analyzedAlready(username):
+	# Check to see if username already exists
+	l = []
+	with open("users.csv") as f:
+		file = f.readlines()
+		for i in file:
+			x = i.split(',')
+			l.append(x[0])
+
+	return (username in l)
+
 
 
 def analyzeResultsUser(username, days):
@@ -563,6 +584,7 @@ def analyzeResultsUser(username, days):
 
 	# If the page doesn't have enought bull/bear indicators
 	if (soup == None):
+		saveUserInfo(username, [], [username, 0, 0, 0])
 		return False
 
 	result = analyzeUser(username, soup, days, True)
@@ -571,7 +593,6 @@ def analyzeResultsUser(username, days):
 	totalGood = 0
 	totalBad = 0
 
-	print(username)
 	stocks = []
 	for r in result:
 		print(r)
@@ -688,40 +709,82 @@ def pickStocks(result, cutOff):
 def analyzeStocksHistory(listStocks, daysBack):
 	result = []
 
-	for i in l:
-		res = []
-		try:
-			res = getBearBull(i, daysBack)
-			if (len(res) == 0):
-				print("error occured")
-				continue
-		except:
-			continue
+	for symbol in listStocks:
+		# try:
+		# 	res = getBearBull(i, daysBack)
+		# 	if (len(res) == 0):
+		# 		print("error occured")
+		# 		continue
+		# except:
+		# 	continue
 
-		correctCount = 0
+		# correctCount = 0
+		# users = []
+		# for d in res:
+		# 	user = d[0]
+		# 	users.append(user)
+
+		# 	correct = d[5]
+
+
+		# # 	messageInfo = [user, isBull, dateTimeAdjusted1, foundAvg, dateTimeAdjusted2, correct, change]
+
+		# 	if (correct):
+		# 		correctCount += 1
+
+
+		# 	# c = d[1]
+		# 	# w = d[2]
+		# 	# bull = d[3]
+		# 	# bear = d[4]
+
+		# 	# correctRatio = 0
+		# 	# bullBearRatio = 0
+		# 	# try:
+		# 	# 	# correctRatio = round(c / w, 2)
+		# 	# 	bullBearRatio = round(bull / bear, 2)
+		# 	# except:
+		# 	# 	bullBearRatio = bull
+		# 	# 	pass
+
+		# 	# if (correctRatio > 1 or (c > 0 and w == 0)):
+		# 	# 	correctCount += 1
+
+		# 	# # print("%s: (%d/%d %0.2f), (%d/%d %0.2f)" % (d[0], c, w, correctRatio, bull, bear, bullBearRatio))
+
+		# 	# print("")
+		# 	# print(i, bull, bear, bullBearRatio)
+
+		res = getBearBull(symbol, daysBack)
+
+		bulls = 0
+		bears = 0
+		users = []
+
 		for d in res:
-			c = d[1]
-			w = d[2]
-			bull = d[3]
-			bear = d[4]
+			print(d)
+			user = d[0]
+			bull = d[1]
+			users.append(user)
+			if (bull):
+				bulls += 1
+			else:
+				bears += 1
+		
+		bullBearRatio = bulls
+		try:
+			bullBearRatio = round(bulls / bears, 2)
+		except:
+			pass
 
-			correctRatio = 0
-			bullBearRatio = 0
-			try:
-				# correctRatio = round(c / w, 2)
-				bullBearRatio = round(bull / bear, 2)
-			except:
-				bullBearRatio = bull
-				pass
+		result.append([symbol, bulls, bears, bullBearRatio])
+		users = list(set(users))
+		print(users)
+		addToNewList(users)
 
-			if (correctRatio > 1 or (c > 0 and w == 0)):
-				correctCount += 1
+		global datesSeen
+		datesSeen = {}
 
-			# print("%s: (%d/%d %0.2f), (%d/%d %0.2f)" % (d[0], c, w, correctRatio, bull, bear, bullBearRatio))
-
-			print("")
-			print(i, bull, bear, bullBearRatio)
-			result.append([i, bull, bear, bullBearRatio])
 
 	return result 
 
@@ -763,25 +826,27 @@ def parseSingleList(path):
 
 
 def main():
-	users = parseSingleList('testList.csv')
-	# users = users[2:3] 1Life
+	# users = parseSingleList('newUsersList.csv')
+	# # users = users[2:3] 1Life
 
 	# for user in users:
-	# 	analyzeResultsUser(user, 1)
+	# 	if (analyzedAlready(user) == False):
+	# 		print(user)
+	# 		analyzeResultsUser(user, 1)
 
 	#analyzeResultsUser("RudyPicks13", 1)
-	analyzeResultsUser("ATKTNC", 1)
 
-	# l = parseSingleList('stockList.csv')
+	l = parseSingleList('stockList.csv')
+	l = l[10:50]
 
-	# global useDatesSeen
-	# useDatesSeen = True
+	global useDatesSeen
+	useDatesSeen = True
 
-	# res = analyzeStocksToday(list)
+	# res = analyzeStocksToday(["UGAZ"])
 	# pickStocks(res, 0)
 
 
-	#analyzeStocksHistory(l, 9)
+	analyzeStocksHistory(l, 3)
 
 	driver.close()
 
