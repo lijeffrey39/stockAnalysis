@@ -322,11 +322,13 @@ def isValidMessage(dateTime, dateNow, isBull, user, symbol, daysInFuture):
 	newTime = dateTime + delta
 	# If the next day at 9:30 am is < than the current time, then there is a stock price
 	newTime = datetime.datetime(newTime.year, newTime.month, newTime.day, 9, 30)
+	newTimeDay = newTime.weekday()
 
 	if (dateTime == None or 
 		user == None or 
 		isBull == None or 
 		symbol == None or
+		newTimeDay == 5 or #if newtime is a saturday
 		inTradingHours(dateTime, symbol) == False or
 		# (daysInFuture == 0 and dateCheck != dateNow) or
 		(daysInFuture > 0 and newTime > dateNow) or
@@ -768,7 +770,7 @@ def main():
 	# 	analyzeResultsUser(user, 1)
 
 	#analyzeResultsUser("RudyPicks13", 1)
-	analyzeResultsUser("RudyPicks13", 1)
+	analyzeResultsUser("ATKTNC", 1)
 
 	# l = parseSingleList('stockList.csv')
 
