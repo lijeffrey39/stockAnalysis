@@ -546,9 +546,12 @@ def saveUserInfo(username, result, otherInfo):
 
 	if (username not in l):
 		newResult.append(otherInfo)
-		sortedResult = sorted(result, key=lambda x: x[3], reverse = True)
+		for i in range(len(newResult)):
+			newResult[i][3] = float(newResult[i][3])
+		sortedResult = sorted(newResult, key=lambda x: x[3], reverse = True)
 
-		with open(path2, 'a') as f1:
+		print(sortedResult)
+		with open(path2, 'w') as f1:
 		    writer = csv.writer(f1)
 		    writer.writerows(sortedResult)
 
