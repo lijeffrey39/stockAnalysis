@@ -6,6 +6,8 @@ import os
 import datetime
 from iexfinance.stocks import get_historical_intraday
 from dateutil.parser import parse
+import json
+import csv
 
 chrome_options = webdriver.ChromeOptions()
 prefs = {"profile.managed_default_content_settings.images": 2}
@@ -25,17 +27,19 @@ bullSentAttr = 'SentimentIndicator__SentimentIndicator-bullish___1WHAM Sentiment
 bearSentAttr = 'SentimentIndicator__SentimentIndicator-bearish___2KbIj SentimentIndicator__SentimentIndicator___3bEpt'
 userPageAttr = 'UserHeader__username___33aun'
 messageTextAttr = 'MessageStreamView__body___2giLh'
+likeCountAttr = 'LikeButton__count___1tZ74'
+commmentCountAttr = 'StreamItemFooter__count___1YAqr'
 
 
 # Make cache for that symbol and date so don't have to keep calling api
 # Formatted like {"TVIX": {"2018-12-24": [historical_data], "2018-12-23": [more_data]}
 datesSeen = {} 
+useDatesSeen = False
 
 
 # ------------------------------------------------------------------------
 # ----------------------- Useful helper functions ------------------------
 # ------------------------------------------------------------------------
-
 
 
 # Sroll down until length
@@ -67,8 +71,8 @@ def scrollFor(days, minBullBear):
 
 	dateTime = datetime.datetime.now() 
 	delta = datetime.timedelta(days)
-	# oldTime = dateTime - delta
-	oldTime = datetime.datetime(dateTime.year, dateTime.month, dateTime.day, 9, 30)
+	oldTime = dateTime - delta
+	oldTime = datetime.datetime(oldTime.year, oldTime.month, oldTime.day, 9, 30)
 
 	soup = None
 	prevSoup = None # Used to see if it ever scrolls to end of page
@@ -92,6 +96,12 @@ def scrollFor(days, minBullBear):
 			lastMessage = messages[len(messages) - 1]
 			dateTime = findDateTime(lastMessage)
 			count = 0
+
+			# If reached bottom of the page, the prev page should look the same
+			if (prevSoup == soup):
+				return True
+
+			prevSoup = soup
 
 	# Make sure count of bull/bear tags are over certain number
 	messages = soup.find_all('div', attrs={'class': messageStreamAttr})
@@ -147,6 +157,15 @@ def historicalFromDict(symbol, dateTime):
 	historial = []
 	dateTimeStr = dateTime.strftime("%Y-%m-%d")
 
+	if (useDatesSeen == False):
+		try:
+			historical = get_historical_intraday(symbol, dateTime)
+			return historical
+		except:
+			pass
+			print("Invalid ticker2")
+			return []
+
 	if (symbol not in datesSeen):
 		try:
 			historical = get_historical_intraday(symbol, dateTime)
@@ -156,6 +175,7 @@ def historicalFromDict(symbol, dateTime):
 		except:
 			pass
 			print("Invalid ticker1")
+			return []
 	else:
 		datesForSymbol = datesSeen[symbol]
 		if (dateTimeStr not in datesForSymbol):
@@ -173,9 +193,6 @@ def historicalFromDict(symbol, dateTime):
 
 # Find historical stock data given date and ticker
 def findHistoricalData(dateTime, symbol, futurePrice):
-	day = dateTime.strftime("%w")
-	outOfRange = False
-	delta = None
 	historical = []
 
 	# if it is a saturday or sunday, find friday's time if futurePrice == False
@@ -188,23 +205,13 @@ def findHistoricalData(dateTime, symbol, futurePrice):
 			dateTime = dateTime + delta
 			historical = historicalFromDict(symbol, dateTime)
 	else:
-		if (day == '6'):
-			delta = datetime.timedelta(1)
-		if (day == '0'):
-			delta = datetime.timedelta(2)
+		historical = historicalFromDict(symbol, dateTime)
 
-	if (delta != None):
-		if (futurePrice == False):
-			dateTime = dateTime - delta
-		outOfRange = True
-
-	historical = historicalFromDict(symbol, dateTime)
-
-	return (historical, outOfRange, dateTime)
+	return (historical, dateTime)
 
 
 # Price of a stock at a certain time given historical data
-def priceAtTime(dateTime, historical, outOfRange):
+def priceAtTime(dateTime, historical):
     foundAvg = ""
     found = False
     for ts in historical:
@@ -221,12 +228,27 @@ def priceAtTime(dateTime, historical, outOfRange):
             	else:
                 	continue
 
-    if (found == False or outOfRange == True):
+    if (found == False):
         last = historical[len(historical) - 1]
         foundAvg = last.get('average')
 
     return foundAvg
 
+
+def likeCount(message):
+	count = message.find('span', attrs={'class': likeCountAttr})
+	if (count == None):
+		return 0
+	else:
+		return int(count.text)
+
+
+def commentCount(message):
+	count = message.find('span', attrs={'class': commmentCountAttr})
+	if (count == None):
+		return 0
+	else:
+		return int(count.text)
 
 # ------------------------------------------------------------------------
 # ----------------------- Analyze Specific Stock -------------------------
@@ -304,8 +326,9 @@ def isValidMessage(dateTime, dateNow, isBull, user, symbol, daysInFuture):
 	if (dateTime == None or 
 		user == None or 
 		isBull == None or 
+		symbol == None or
 		inTradingHours(dateTime, symbol) == False or
-		(daysInFuture == 0 and dateCheck != dateNow) or
+		# (daysInFuture == 0 and dateCheck != dateNow) or
 		(daysInFuture > 0 and newTime > dateNow) or
 		(dateCheck > dateNow)): 
 		return False
@@ -330,8 +353,9 @@ def getBearBull(symbol, daysInFuture):
 		if (isValidMessage(dateTime, dateNow, isBull, user, symbol, daysInFuture) == False):
 			continue
 
-		(historical, outOfRange, dateTimeAdjusted1) = findHistoricalData(dateTime, symbol, False)
-		foundAvg = priceAtTime(dateTime, historical, outOfRange) # fix this function to take dateTimeadjusted
+
+		(historical, dateTimeAdjusted1) = findHistoricalData(dateTime, symbol, False)
+		foundAvg = priceAtTime(dateTime, historical) # fix this function to take dateTimeadjusted
 
 		# If only looking for current day's prices
 		if (daysInFuture == 0):
@@ -344,8 +368,8 @@ def getBearBull(symbol, daysInFuture):
 		newTime = dateTime + delta
 		newTime = datetime.datetime(newTime.year, newTime.month, newTime.day, 9, 30)
 
-		(historical, outOfRange, dateTimeAdjusted2) = findHistoricalData(newTime, symbol, True)
-		newFoundAvg = priceAtTime(newTime, historical, False)
+		(historical, dateTimeAdjusted2) = findHistoricalData(newTime, symbol, True)
+		newFoundAvg = priceAtTime(newTime, historical)
 
 		change = abs(newFoundAvg - foundAvg)
 		correct = False
@@ -366,7 +390,40 @@ def getBearBull(symbol, daysInFuture):
 
 
 
-def findPricesTickers(spans, dateTime, futurePrice):
+
+def readStocks():
+	l = []
+	with open('stockList.csv') as f:
+		file = f.readlines()
+		for i in file:
+			x = ''.join(e for e in i if e.isalnum())
+			l.append(x)
+
+	return l
+
+
+def writeStocks(stocks):
+	with open("stockList.csv","w+") as my_csv:
+	    csvWriter = csv.writer(my_csv, delimiter=',')
+	    csvWriter.writerows(stocks)
+
+
+def addNewStocks(stocks):
+	currList = readStocks()
+	currList.extend(stocks)
+	currList = list(set(currList))
+	currList.sort()
+
+	for i in range(len(currList)):
+		currList[i] = [currList[i]]
+
+	writeStocks(currList)
+
+
+def findSymbol(message):
+	textM = message.find('div', attrs={'class': messageTextAttr})
+	spans = textM.find_all('span')
+
 	tickers = []
 	foundTicker = False
 	for s in spans:
@@ -383,22 +440,19 @@ def findPricesTickers(spans, dateTime, futurePrice):
 
 	# Never found a ticker or more than 1 ticker
 	if (foundTicker == False or len(tickers) > 1):
-		return ([], True)
+		return None
+	else:
+		return tickers[0]
 
-	prices = []
-	noData = False
 
-	# Should only have 1 ticker
-	for ticker in tickers:
-		(historical, outOfRange, dateTimeAdjusted) = findHistoricalData(dateTime, ticker, futurePrice)
-		if (len(historical) == 0):
-			noData = True
-			break
+def findPricesTickers(symbol, dateTime, futurePrice):
 
-		foundAvg = priceAtTime(dateTime, historical, outOfRange)
-		prices.append([ticker, foundAvg])
+	(historical, dateTimeAdjusted) = findHistoricalData(dateTime, symbol, futurePrice)
+	if (len(historical) == 0):
+		return (0, True)
 
-	return (prices, noData)
+	foundAvg = priceAtTime(dateTime, historical)
+	return (foundAvg, False)
 
 
 # Return soup object page of that user 
@@ -414,7 +468,7 @@ def findPageUser(username):
 
 	url = "https://stocktwits.com/" + username
 	driver.get(url)
-	foundEnough = scrollFor(1, 5)
+	foundEnough = scrollFor(30, 5)
 
 	if (foundEnough == False):
 		return None
@@ -428,31 +482,24 @@ def findPageUser(username):
 	return soup
 
 
-def analyzeUser(username, soup, days, beginningOfDay):
 
+def analyzeUser(username, soup, days, beginningOfDay):
 	messages = soup.find_all('div', attrs={'class': messageStreamAttr})
+	dateNow = datetime.datetime.now()
 	res = []
 
 	for m in messages:
-		bull = m.find('span', attrs={'class': bullSentAttr})
-		bear = m.find('span', attrs={'class': bearSentAttr})
 		dateTime = findDateTime(m)
-		bullish = False
+		user = findUser(m)
+		isBull = isBullMessage(m)
+		symbol = findSymbol(m)
+		likeCnt = likeCount(m)
+		commentCnt = commentCount(m)
 
-		if ((bull == None and bear == None) or dateTime == None):
+		if (isValidMessage(dateTime, dateNow, isBull, user, symbol, days) == False):
 			continue
 
-		if (bear == None):
-			bullish = True
-
-		textM = m.find('div', attrs={'class': messageTextAttr})
-		spans = textM.find_all('span')
-
-		(prices, noDataTicker) = findPricesTickers(spans, dateTime, False)
-
-		# Some stocks have no data?
-		if (noDataTicker):
-			continue
+		(prices, noDataTicker) = findPricesTickers(symbol, dateTime, False)
 
 		# Find price after # days
 		delta = datetime.timedelta(days)
@@ -462,95 +509,131 @@ def analyzeUser(username, soup, days, beginningOfDay):
 		if (beginningOfDay):
 			newTime = datetime.datetime(newTime.year, newTime.month, newTime.day, 9, 30)
 
-		(newPrices, noDataTicker) = findPricesTickers(spans, newTime, True)
+		(newPrices, noDataTicker) = findPricesTickers(symbol, newTime, True)
 
-		# If time + delta is too far in the future
-		if (noDataTicker):
-			# print(dateTime.strftime("%Y-%m-%d"))
-			# print("Too far in future/not a stock trading day (holiday)")
-			continue
+		correct = 0
+		change = round(newPrices - prices, 4)
+		percent = round(change / prices, 4)
 
-		print(prices + [dateTime.strftime("%m/%d %H:%M:%S")], newPrices + [newTime.strftime("%m/%d %H:%M:%S")])
-		correct = False
-		change = newPrices[0][1] - prices[0][1]
-		totalChange = abs(change)
+		if((change > 0 and isBull == True ) or (change <= 0 and isBull == False)):
+			correct = 1
 
-		if((change > 0 and bullish == True ) or (change <= 0 and bullish == False)):
-			correct = True
-
-		res.append([prices, newPrices, dateTime.strftime("%Y-%m-%d %H:%M:%S"), bullish, correct, totalChange])
+		res.append([symbol, dateTime.strftime("%Y-%m-%d %H:%M:%S"), prices, 
+			newPrices, isBull, correct, change, percent, likeCnt, commentCnt])
 
 	return res
 
 
+
+def saveUserInfo(username, result, otherInfo):
+
+	path1 = "userinfo/" + username + ".csv"
+	path2 = "users.csv"
+
+	with open(path1, "w") as my_csv:
+	    csvWriter = csv.writer(my_csv, delimiter=',')
+	    csvWriter.writerows(result)
+
+	# Check to see if username already exists
+	l = []
+	newResult = []
+	with open(path2) as f:
+		file = f.readlines()
+		for i in file:
+			x = i.split(',')
+			l.append(x[0])
+			newResult.append(x)
+
+	if (username not in l):
+		newResult.append(otherInfo)
+		sortedResult = sorted(result, key=lambda x: x[3], reverse = True)
+
+		with open(path2, 'a') as f1:
+		    writer = csv.writer(f1)
+		    writer.writerows(sortedResult)
+
+
 def analyzeResultsUser(username, days):
 	soup = findPageUser(username)
-	results = []
 
 	# If the page doesn't have enought bull/bear indicators
 	if (soup == None):
 		return False
-	
-	for i in range(1, days):
-		print(i)
-		dayLoop = analyzeUser(username, soup, i, True)
-		goodcents = 0
-		badcents = 0
-		totalGood = 0
-		totalBad = 0
 
-		for dataLoop in dayLoop:
-			if (dataLoop[4] == True):
-				goodcents += dataLoop[5]
-				totalGood += 1
-			else:
-				badcents += dataLoop[5]
-				totalBad += 1
+	result = analyzeUser(username, soup, days, True)
 
-		ratio = goodcents / badcents
-		results.append([totalGood, totalBad, round(ratio, 2)])
-	
-	print(results)
+	ratio = 0
+	totalGood = 0
+	totalBad = 0
+
+	print(username)
+	stocks = []
+	for r in result:
+		print(r)
+		percent = abs(r[7])
+		stocks.append(r[0])
+		if (r[5] == True):
+			totalGood += 1
+			ratio += percent
+		else:
+			totalBad += 1
+			ratio -= percent	
+
+	stocks = list(set(stocks))
+	otherInfo = [username, totalGood, totalBad, round(ratio, 4)]
+
+	addNewStocks(stocks)
+	saveUserInfo(username, result, otherInfo)
 
 	return True
 
 
 
 # ------------------------------------------------------------------------
-# --------------------------- Main Function ------------------------------
+# ----------------------------- Analysis ---------------------------------
 # ------------------------------------------------------------------------
 
 
-
-def parseUsers():
-	with open('users.csv') as f:
-		file = f.readlines()
-		users = file[0].split(',')
-
-	for i in range(len(users)):
-		user = users[i]
-		s = ''.join(e for e in user if e.isalnum())
-		users[i] = s
-
-	return users
-
-
-def parseStocksList():
+def readUsers():
 	l = []
-	with open('stockList.csv') as f:
+	with open('newUsersList.csv') as f:
 		file = f.readlines()
 		for i in file:
-			l.append(''.join(e for e in i if e.isalnum()))
+			# x = i.split(',')
+			# for j in range(len(x)):
+			# 	x[j] = ''.join(e for e in x[j] if e.isalnum())
+			# l.append(x[0])
+
+			x = ''.join(e for e in i if e.isalnum())
+			l.append(x)
 
 	return l
 
 
-def analyzeStocksToday(listStocks):
+def writeUsers(users):
+	with open("newUsersList.csv","w+") as my_csv:
+	    csvWriter = csv.writer(my_csv, delimiter=',')
+	    csvWriter.writerows(users)
 
+
+def addToNewList(users):
+	currList = readUsers()
+	currList.extend(users)
+	currList = list(set(currList))
+	currList.sort()
+
+	for i in range(len(currList)):
+		currList[i] = [currList[i]]
+
+	writeUsers(currList) 
+
+
+def analyzeStocksToday(listStocks):
 	result = []
 
 	for symbol in listStocks:
 		res = []
+		users = []
 		print(symbol)
 		res = getBearBull(symbol, 0)
 		# try:
@@ -563,8 +646,9 @@ def analyzeStocksToday(listStocks):
 		bears = 0
 
 		for d in res:
+			user = d[0]
 			bull = d[1]
-			
+			users.append(user)
 			if (bull):
 				bulls += 1
 			else:
@@ -577,12 +661,13 @@ def analyzeStocksToday(listStocks):
 			pass
 
 		result.append([symbol, bulls, bears, bullBearRatio])
+		users = list(set(users))
+		addToNewList(users)
 
 	return result
 
 
 def pickStocks(result, cutOff):
-
 	sort = sorted(result, key=lambda x: x[3], reverse = True)
 	filtered = filter(lambda x: x[3] > cutOff,sort)
 
@@ -594,8 +679,8 @@ def pickStocks(result, cutOff):
 		print("%s: (%d/%d %0.2f)" % (symbol, bulls, bears, bullBearRatio))
 
 
-def analyzeStocksHistory(listStocks, daysBack):
 
+def analyzeStocksHistory(listStocks, daysBack):
 	result = []
 
 	for i in l:
@@ -636,17 +721,60 @@ def analyzeStocksHistory(listStocks, daysBack):
 	return result 
 
 
+
+
+# ------------------------------------------------------------------------
+# --------------------------- Main Function ------------------------------
+# ------------------------------------------------------------------------
+
+
+
+def parseSingleList(path):
+	l = []
+	with open(path) as f:
+		file = f.readlines()
+		for i in file:
+			l.append(''.join(e for e in i if e.isalnum()))
+	return l
+
+
+# def loadJson():
+# 	with open('datesSeen.json') as file:
+# 		datesSeen = json.load(file)
+
+# def saveJson():
+# 	with open('datesSeen.json', 'w') as file:
+# 		json.dump(datesSeen, file)
+
+
+
+# TODO
+# - When analyzing stocks, find new users and store list of users
+# - Make document for all users that stores info about them (accuracy)
+# - Store information for each day for each stock
+# - Use list of users to find new stocks 
+# - Find jumps in stocks of > 10% for the next day and see which users were the best at predicting these jumps
+
+
+
 def main():
-	# users = parseUsers()
-	# users = users[2:3]
+	users = parseSingleList('testList.csv')
+	# users = users[2:3] 1Life
 
 	# for user in users:
 	# 	analyzeResultsUser(user, 1)
 
-	l = parseStocksList()
+	#analyzeResultsUser("RudyPicks13", 1)
+	analyzeResultsUser("RudyPicks13", 1)
 
-	res = analyzeStocksToday(l)
-	pickStocks(res, 0)
+	# l = parseSingleList('stockList.csv')
+
+	# global useDatesSeen
+	# useDatesSeen = True
+
+	# res = analyzeStocksToday(list)
+	# pickStocks(res, 0)
+
 
 	#analyzeStocksHistory(l, 9)
 
