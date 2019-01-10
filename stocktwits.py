@@ -73,7 +73,7 @@ def scroll(length):
 
 
 # Find time of a message
-# TODO : add error checking to this (ValueError: day is out of range for month)
+# TODO : add error checking to this (ValueError: day is out of range for month) for parse()
 def findDateTime(message):
 
 	if (message == None):
@@ -125,6 +125,10 @@ def scrollFor(days, minBullBear):
 		time.sleep(SCROLL_PAUSE_TIME)
 
 		if (count % modCheck == 0):
+			for i in range(10):
+				driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+				new_height = driver.execute_script("return document.body.scrollHeight")
+
 			messages = driver.find_elements_by_class_name(messageStreamAttr)
 			
 			if (len(messages) == 0):
@@ -140,7 +144,7 @@ def scrollFor(days, minBullBear):
 				dateTime = findDateTime(t[1])
 
 			print(dateTime)
-
+			time.sleep(SCROLL_PAUSE_TIME)
 			if (analyzingStock == False and new_height == last_height):
 			    break
 
@@ -646,6 +650,7 @@ def addToNewList(users, path):
 
 def saveStockInfo(result, path):
 
+	# Add error checking for x[3] (empty lines at end)
 	currList = []
 	with open(path) as f:
 		file = f.readlines()
@@ -768,7 +773,7 @@ def main():
 	newUsersPath = "newUsersList4.csv"
 	users = readSingleList('allNewUsers.csv')
 
-	for user in users:			
+	for user in users[1600:1800]:			
 		if (analyzedAlready(user, "users.csv")):
 			continue
 		
@@ -777,14 +782,10 @@ def main():
 		driver.close()
 		driver = webdriver.Chrome(executable_path = DRIVER_BIN, chrome_options = chrome_options)
 
-	analyzeResultsUser('Aggiediehard10', 1)
-
-
-	# sortedResult = sorted(l)
-	# writeSingleList('newUsersList3.csv', sortedResult)
+	# analyzeResultsUser('MemeHub', 1)
 
 	# l = readSingleList('stockList.csv')
-	# l = l[300:400]
+	# l = l[1600:]
 
 	# global useDatesSeen
 	# useDatesSeen = True
