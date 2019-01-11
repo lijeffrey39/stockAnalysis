@@ -10,10 +10,12 @@ from dateutil.parser import parse
 import json
 import csv
 from multiprocessing import Process
+import threading
 
 chrome_options = webdriver.ChromeOptions()
 prefs = {"profile.managed_default_content_settings.images": 2}
 chrome_options.add_experimental_option("prefs", prefs)
+global_lock = threading.Lock()
 
 PROJECT_ROOT = os.getcwd()
 DRIVER_BIN = os.path.join(PROJECT_ROOT, "chromedriver.exe")
@@ -59,9 +61,17 @@ def readSingleList(path):
 
 # Write 1d array of items to CSV 
 def writeSingleList(path, items):
+
+	while global_lock.locked():
+        continue
+
+    global_lock.acquire()
+
 	with open(path, "w+") as my_csv:
 	    csvWriter = csv.writer(my_csv, delimiter=',')
 	    csvWriter.writerows(items)
+
+	global_lock.release()
 
 
 # Find time of a message
@@ -363,9 +373,6 @@ def isValidMessage(dateTime, dateNow, isBull, user, symbol, daysInFuture):
 	# If the next day at 9:30 am is < than the current time, then there is a stock price
 	newTime = datetime.datetime(newTime.year, newTime.month, newTime.day, 9, 30)
 	newTimeDay = newTime.weekday()
-
-	if (user and isBull and symbol and inTradingHours(dateTime, symbol)):
-		print(user, isBull, symbol, dateTime)
 
 	if (user == None or 
 		isBull == None or 
@@ -766,11 +773,11 @@ def chunks(seq, size):
     return (seq[i::size] for i in range(size))
 
 
-def computeStocksDay(path, processes):
-	newUsersPath = "newUsers/newUsersList-1-10-2019.csv"
+def computeStocksDay(date, processes):
+	path = date.strftime("stocksResults/%m-%d-%y.csv")
+	newUsersPath = d.strftime("newUsers/newUsersList-%m-%d-%y.csv")
 
 	# create empty file
-
 	if (os.path.isfile(path) == False):
 		with open(path, "w") as my_empty_csv:
 			pass
@@ -833,7 +840,8 @@ def main():
 	global invalidSymbols
 	invalidSymbols = readSingleList('invalidSymbols.csv')
 
-	# computeStocksDay('stocksResults/1-10-2019.csv', 2)
+	# date = datetime.datetime(2019, 1, 10)
+	# computeStocksDay(date, 2)
 	computeUsersDay('users.csv', 'allNewUsers.csv', 1, 2)
 
 	# driver = webdriver.Chrome(executable_path = DRIVER_BIN, chrome_options = chrome_options)
