@@ -8,6 +8,7 @@ from iexfinance.stocks import get_historical_intraday
 from dateutil.parser import parse
 import json
 import csv
+from multiprocessing import Process
 
 chrome_options = webdriver.ChromeOptions()
 prefs = {"profile.managed_default_content_settings.images": 2}
@@ -15,7 +16,6 @@ chrome_options.add_experimental_option("prefs", prefs)
 
 PROJECT_ROOT = os.path.abspath(os.path.dirname(__file__))
 DRIVER_BIN = os.path.join(PROJECT_ROOT, "chromedriver")
-driver = webdriver.Chrome(executable_path = DRIVER_BIN, chrome_options=chrome_options)
 
 
 # SET NAME ATTRIBUTES
@@ -63,23 +63,16 @@ def writeSingleList(path, items):
 	    csvWriter.writerows(items)
 
 
-# Sroll down until length
-def scroll(length):
-	elem = driver.find_element_by_tag_name("body")
-
-	for i in range(length):
-		elem.send_keys(Keys.PAGE_DOWN)
-		time.sleep(0.2)
-
-
 # Find time of a message
 # TODO : add error checking to this (ValueError: day is out of range for month) for parse()
 def findDateTime(message):
-
 	if (message == None):
 		return None
 	else:
-		dateTime = parse(message)
+		try:
+			dateTime = parse(message)
+		except:
+			return None
 		test = datetime.datetime(2019, 1, 15)
 		if (dateTime > test):
 			return datetime.datetime(2018, dateTime.month, dateTime.day, dateTime.hour, dateTime.minute)
@@ -87,7 +80,7 @@ def findDateTime(message):
 
 
 # Sroll for # days
-def scrollFor(days, minBullBear):
+def scrollFor(days, minBullBear, driver):
 	elem = driver.find_element_by_tag_name("body")
 
 	dateTime = datetime.datetime.now() 
@@ -292,7 +285,7 @@ def commentCount(message):
 
 
 # Return soup object page of that stock 
-def findPageStock(symbol, daysInFuture):
+def findPageStock(symbol, daysInFuture, driver):
 
 	# if html is stored
 	path = 'stocks/' + symbol + '.html'
@@ -305,7 +298,7 @@ def findPageStock(symbol, daysInFuture):
 
 	url = "https://stocktwits.com/symbol/" + symbol
 	driver.get(url)
-	foundEnough = scrollFor(daysInFuture, 5)
+	foundEnough = scrollFor(daysInFuture, 5, driver)
 
 	if (foundEnough == False):
 		return (None, True)
@@ -313,8 +306,8 @@ def findPageStock(symbol, daysInFuture):
 	html = driver.page_source
 	soup = BeautifulSoup(html, 'html.parser')
 
-	with open(path, "w") as file:
-	    file.write(str(soup))
+	# with open(path, "w") as file:
+	#     file.write(str(soup))
 
 	return (soup, False)
 
@@ -353,6 +346,9 @@ def isBullMessage(message):
 
 
 def isValidMessage(dateTime, dateNow, isBull, user, symbol, daysInFuture):
+	if (dateTime == None):
+		return False
+
 	dateCheck = datetime.datetime(dateTime.year, dateTime.month, dateTime.day)
 	dateNow = datetime.datetime(dateNow.year, dateNow.month, dateNow.day)
 	dateNowCheck = datetime.datetime(dateNow.year, dateNow.month, dateNow.day, 23, 59)
@@ -363,8 +359,7 @@ def isValidMessage(dateTime, dateNow, isBull, user, symbol, daysInFuture):
 	newTime = datetime.datetime(newTime.year, newTime.month, newTime.day, 9, 30)
 	newTimeDay = newTime.weekday()
 
-	if (dateTime == None or 
-		user == None or 
+	if (user == None or 
 		isBull == None or 
 		symbol == None or
 		inTradingHours(dateTime, symbol) == False or
@@ -375,8 +370,8 @@ def isValidMessage(dateTime, dateNow, isBull, user, symbol, daysInFuture):
 	return True
 
 
-def getBearBull(symbol, daysInFuture):
-	(soup, error) = findPageStock(symbol, daysInFuture)
+def getBearBull(symbol, daysInFuture, driver):
+	(soup, error) = findPageStock(symbol, daysInFuture, driver)
 
 	if (error):
 		return []
@@ -458,7 +453,7 @@ def findPricesTickers(symbol, dateTime, futurePrice):
 
 
 # Return soup object page of that user 
-def findPageUser(username):
+def findPageUser(username, driver):
 
 	# if html is stored
 	path = 'usersPages/' + username + '.html'
@@ -548,6 +543,8 @@ def saveUserInfo(username, result, otherInfo):
 		file = f.readlines()
 		for i in file:
 			x = i.split(',')
+			if (x[0] == "\n"):
+				continue
 			l.append(x[0])
 			newResult.append(x)
 
@@ -565,7 +562,6 @@ def saveUserInfo(username, result, otherInfo):
 	writeSingleList(path2, sortedResult)
 
 
-
 def analyzedAlready(username, path):
 	# Check to see if username already exists
 	l = []
@@ -578,10 +574,9 @@ def analyzedAlready(username, path):
 	return (username in l)
 
 
-
-def analyzeResultsUser(username, days):
+def analyzeResultsUser(username, days, driver):
 	print(username)
-	soup = findPageUser(username)
+	soup = findPageUser(username, driver)
 
 	# If the page doesn't have enought bull/bear indicators
 	if (soup == None):
@@ -593,8 +588,8 @@ def analyzeResultsUser(username, days):
 	ratio = 0
 	totalGood = 0
 	totalBad = 0
-
 	stocks = []
+
 	for r in result:
 		print(r)
 		percent = abs(r[7])
@@ -632,7 +627,6 @@ def readUsers(path):
 			# l.append(x[0])
 			x = ''.join(e for e in i if e.isalnum())
 			l.append(x)
-
 	return l
 
 
@@ -649,7 +643,6 @@ def addToNewList(users, path):
 
 
 def saveStockInfo(result, path):
-
 	# Add error checking for x[3] (empty lines at end)
 	currList = []
 	with open(path) as f:
@@ -665,7 +658,7 @@ def saveStockInfo(result, path):
 	return
 
 
-def analyzeStocksToday(listStocks, path, usersPath):
+def analyzeStocksToday(listStocks, path, usersPath, driver):
 	result = []
 
 	for symbol in listStocks:
@@ -675,7 +668,7 @@ def analyzeStocksToday(listStocks, path, usersPath):
 		print(symbol)
 
 		users = []
-		res = getBearBull(symbol, 0)
+		res = getBearBull(symbol, 0, driver)
 
 		bulls = 0
 		bears = 0
@@ -701,15 +694,15 @@ def analyzeStocksToday(listStocks, path, usersPath):
 		saveStockInfo([symbol, bulls, bears, bullBearRatio], path)
 		print("%s: (%d/%d %0.2f)" % (symbol, bulls, bears, bullBearRatio))
 
+	driver.close()
 	return result
 
 
-
-def analyzeStocksHistory(listStocks, daysBack, usersPath):
+def analyzeStocksHistory(listStocks, daysBack, usersPath, driver):
 	result = []
 
 	for symbol in listStocks:
-		res = getBearBull(symbol, daysBack)
+		res = getBearBull(symbol, daysBack, driver)
 
 		bulls = 0
 		bears = 0
@@ -739,6 +732,8 @@ def analyzeStocksHistory(listStocks, daysBack, usersPath):
 		global datesSeen
 		datesSeen = {}
 
+	driver.close()
+
 	return result 
 
 
@@ -748,41 +743,66 @@ def analyzeStocksHistory(listStocks, daysBack, usersPath):
 # ------------------------------------------------------------------------
 
 
+def chunks(seq, size):
+    return (seq[i::size] for i in range(size))
 
-# def loadJson():
-# 	with open('datesSeen.json') as file:
-# 		datesSeen = json.load(file)
 
-# def saveJson():
-# 	with open('datesSeen.json', 'w') as file:
-# 		json.dump(datesSeen, file)
+def computeStocksDay(path, processes):
+	newUsersPath = "newUsers/newUsersList-1-10-2019.csv"
 
+	# create empty file
+	with open(path, "w") as my_empty_csv:
+		pass
+
+	with open(newUsersPath, "w") as my_empty_csv:
+		pass
+
+	global useDatesSeen
+	useDatesSeen = True
+
+	stocks = readSingleList('stocksActual.csv')
+	stocks.sort()
+	splitEqual = list(chunks(stocks, processes))
+	allProcesses = []
+
+	for i in range(processes):
+		driver = webdriver.Chrome(executable_path = DRIVER_BIN, chrome_options = chrome_options)
+		arguments = [splitEqual[i], path, newUsersPath, driver]
+		allProcesses.append(Process(target = analyzeStocksToday, args = arguments))
+
+	for p in allProcesses:
+		p.start()
+
+	for p in allProcesses:
+		p.join()
 
 
 # TODO
 # - Store information for each day for each stock
 # - Use list of users to find new stocks 
 # - Find jumps in stocks of > 10% for the next day and see which users were the best at predicting these jumps
-# - Add caching 
+# - Add caching
 
 
 def main():
+
 	global invalidSymbols
-	global driver
 	invalidSymbols = readSingleList('invalidSymbols.csv')
-	newUsersPath = "newUsersList4.csv"
 	users = readSingleList('allNewUsers.csv')
 
-	for user in users[1600:1800]:			
-		if (analyzedAlready(user, "users.csv")):
-			continue
+	computeStocksDay('stocksResults/1-10-2019.csv', 2)
+
+	# driver = webdriver.Chrome(executable_path = DRIVER_BIN, chrome_options = chrome_options)
+	# for user in users:			
+	# 	if (analyzedAlready(user, "users.csv")):
+	# 		continue
 		
-		analyzeResultsUser(user, 1)
+	# 	analyzeResultsUser(user, 1, driver)
 
-		driver.close()
-		driver = webdriver.Chrome(executable_path = DRIVER_BIN, chrome_options = chrome_options)
+	# 	driver.close()
+	# 	driver = webdriver.Chrome(executable_path = DRIVER_BIN, chrome_options = chrome_options)
 
-	# analyzeResultsUser('MemeHub', 1)
+	# analyzeResultsUser('NineFingerMike', 1, driver)
 
 	# l = readSingleList('stockList.csv')
 	# l = l[1600:]
@@ -792,9 +812,9 @@ def main():
 
 	# res = analyzeStocksToday(l, "1-9-2019.csv", newUsersPath)
 
-	# analyzeStocksHistory(l, 3, newUsersPath)
+	# analyzeStocksHistory(l, 3, newUsersPath, driver)
 
-	driver.close()
+	# driver.close()
 
 
 main()
