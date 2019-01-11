@@ -11,14 +11,16 @@ import json
 import csv
 from multiprocessing import Process
 import threading
+import platform
 
 chrome_options = webdriver.ChromeOptions()
 prefs = {"profile.managed_default_content_settings.images": 2}
 chrome_options.add_experimental_option("prefs", prefs)
 global_lock = threading.Lock()
 
+chromedriverName = 'chromedriver' if (platform.system() == "Darwin") else 'chromedriver.exe'
 PROJECT_ROOT = os.getcwd()
-DRIVER_BIN = os.path.join(PROJECT_ROOT, "chromedriver.exe")
+DRIVER_BIN = os.path.join(PROJECT_ROOT, chromedriverName)
 
 
 # SET NAME ATTRIBUTES
@@ -91,7 +93,7 @@ def findDateTime(message):
 
 
 # Sroll for # days
-def scrollFor(days, minBullBear, driver):
+def scrollFor(days, driver):
 	elem = driver.find_element_by_tag_name("body")
 
 	dateTime = datetime.datetime.now() 
@@ -300,10 +302,10 @@ def commentCount(message):
 
 
 # Return soup object page of that stock 
-def findPageStock(symbol, daysInFuture, driver):
+def findPageStock(symbol, days, driver):
 
 	# if html is stored
-	path = 'stocks/' + symbol + '.html'
+	path = 'stocksPages/' + symbol + '.html'
 	if (os.path.isfile(path)):
 		print("File Exists")
 		# html = open(path, "r")
@@ -313,7 +315,7 @@ def findPageStock(symbol, daysInFuture, driver):
 
 	url = "https://stocktwits.com/symbol/" + symbol
 	driver.get(url)
-	foundEnough = scrollFor(daysInFuture, 5, driver)
+	foundEnough = scrollFor(days, driver)
 
 	if (foundEnough == False):
 		return (None, True)
@@ -366,7 +368,6 @@ def isValidMessage(dateTime, dateNow, isBull, user, symbol, daysInFuture):
 
 	dateCheck = datetime.datetime(dateTime.year, dateTime.month, dateTime.day)
 	dateNow = datetime.datetime(dateNow.year, dateNow.month, dateNow.day)
-	dateNowCheck = datetime.datetime(dateNow.year, dateNow.month, dateNow.day, 23, 59)
 
 	delta = datetime.timedelta(daysInFuture)
 	newTime = dateTime + delta
@@ -385,13 +386,15 @@ def isValidMessage(dateTime, dateNow, isBull, user, symbol, daysInFuture):
 	return True
 
 
-def getBearBull(symbol, daysInFuture, driver):
-	(soup, error) = findPageStock(symbol, daysInFuture, driver)
+def getBearBull(symbol, date, driver):
+	dateNow = datetime.datetime.now()
+	days = (dateNow - date).days
+
+	(soup, error) = findPageStock(symbol, days, driver)
 
 	if (error):
 		return []
 
-	dateNow = datetime.datetime.now()
 	messages = soup.find_all('div', attrs={'class': messageStreamAttr})
 	res = []
 	
@@ -401,7 +404,7 @@ def getBearBull(symbol, daysInFuture, driver):
 		user = findUser(m)
 		isBull = isBullMessage(m)
 
-		if (isValidMessage(dateTime, dateNow, isBull, user, symbol, 0) == False):
+		if (isValidMessage(dateTime, date, isBull, user, symbol, 0) == False):
 			continue
 
 		(historical, dateTimeAdjusted1) = findHistoricalData(dateTime, symbol, False)
@@ -480,7 +483,7 @@ def findPageUser(username, driver):
 
 	url = "https://stocktwits.com/" + username
 	driver.get(url)
-	foundEnough = scrollFor(36, 5, driver)
+	foundEnough = scrollFor(36, driver)
 
 	if (foundEnough == False):
 		return None
@@ -495,7 +498,7 @@ def findPageUser(username, driver):
 
 
 
-def analyzeUser(username, soup, days, beginningOfDay):
+def analyzeUser(username, soup, daysInFuture, beginningOfDay):
 	messages = soup.find_all('div', attrs={'class': messageStreamAttr})
 	dateNow = datetime.datetime.now()
 	res = []
@@ -509,13 +512,13 @@ def analyzeUser(username, soup, days, beginningOfDay):
 		likeCnt = likeCount(m)
 		commentCnt = commentCount(m)
 
-		if (isValidMessage(dateTime, dateNow, isBull, user, symbol, days) == False):
+		if (isValidMessage(dateTime, dateNow, isBull, user, symbol, daysInFuture) == False):
 			continue
 
 		(prices, noDataTicker) = findPricesTickers(symbol, dateTime, False)
 
 		# Find price after # days
-		delta = datetime.timedelta(days)
+		delta = datetime.timedelta(daysInFuture)
 		newTime = dateTime + delta
 
 		# Find time at 9:30 am
@@ -681,7 +684,7 @@ def saveStockInfo(result, path):
 	return
 
 
-def analyzeStocksToday(listStocks, path, usersPath, driver):
+def analyzeStocksToday(listStocks, date, path, usersPath):
 	result = []
 
 	for symbol in listStocks:
@@ -691,7 +694,8 @@ def analyzeStocksToday(listStocks, path, usersPath, driver):
 		print(symbol)
 
 		users = []
-		res = getBearBull(symbol, 0, driver)
+		driver = webdriver.Chrome(executable_path = DRIVER_BIN, chrome_options = chrome_options)
+		res = getBearBull(symbol, date, driver)
 
 		bulls = 0
 		bears = 0
@@ -718,9 +722,7 @@ def analyzeStocksToday(listStocks, path, usersPath, driver):
 		print("%s: (%d/%d %0.2f)" % (symbol, bulls, bears, bullBearRatio))
 
 		driver.close()
-		driver = webdriver.Chrome(executable_path = DRIVER_BIN, chrome_options = chrome_options)
 
-	driver.close()
 	return result
 
 
@@ -775,7 +777,7 @@ def chunks(seq, size):
 
 def computeStocksDay(date, processes):
 	path = date.strftime("stocksResults/%m-%d-%y.csv")
-	newUsersPath = d.strftime("newUsers/newUsersList-%m-%d-%y.csv")
+	newUsersPath = date.strftime("newUsers/newUsersList-%m-%d-%y.csv")
 
 	# create empty file
 	if (os.path.isfile(path) == False):
@@ -795,8 +797,7 @@ def computeStocksDay(date, processes):
 	allProcesses = []
 
 	for i in range(processes):
-		driver = webdriver.Chrome(executable_path = DRIVER_BIN, chrome_options = chrome_options)
-		arguments = [splitEqual[i], path, newUsersPath, driver]
+		arguments = [splitEqual[i], date, path, newUsersPath]
 		allProcesses.append(Process(target = analyzeStocksToday, args = arguments))
 
 	for p in allProcesses:
@@ -840,9 +841,9 @@ def main():
 	global invalidSymbols
 	invalidSymbols = readSingleList('invalidSymbols.csv')
 
-	# date = datetime.datetime(2019, 1, 10)
-	# computeStocksDay(date, 2)
-	computeUsersDay('users.csv', 'allNewUsers.csv', 1, 2)
+	date = datetime.datetime(2019, 1, 10)
+	computeStocksDay(date, 2)
+	# computeUsersDay('users.csv', 'allNewUsers.csv', 1, 2)
 
 	# driver = webdriver.Chrome(executable_path = DRIVER_BIN, chrome_options = chrome_options)
 	# analyzeResultsUser('NineFingerMike', 1, driver)
