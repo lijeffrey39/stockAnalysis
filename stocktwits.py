@@ -15,8 +15,8 @@ chrome_options = webdriver.ChromeOptions()
 prefs = {"profile.managed_default_content_settings.images": 2}
 chrome_options.add_experimental_option("prefs", prefs)
 
-PROJECT_ROOT = os.path.abspath(os.path.dirname(__file__))
-DRIVER_BIN = os.path.join(PROJECT_ROOT, "chromedriver")
+PROJECT_ROOT = os.getcwd()
+DRIVER_BIN = os.path.join(PROJECT_ROOT, "chromedriver.exe")
 
 
 # SET NAME ATTRIBUTES
@@ -618,9 +618,11 @@ def analyzeResultsUser(username, days, driver):
 	return True
 
 
-def analyzeUsers(users, days):
+def analyzeUsers(users, days, path):
 
 	for user in users:
+		if (analyzedAlready(user, path)):
+			continue
 		driver = webdriver.Chrome(executable_path = DRIVER_BIN, chrome_options = chrome_options)
 		analyzeResultsUser(user, days, driver)
 		driver.close()
@@ -808,7 +810,7 @@ def computeUsersDay(outputPath, inputPath, days, processes):
 	allProcesses = []
 
 	for i in range(processes):
-		arguments = [splitEqual[i], days]
+		arguments = [splitEqual[i], days, outputPath]
 		allProcesses.append(Process(target = analyzeUsers, args = arguments))
 
 	for p in allProcesses:
@@ -841,4 +843,5 @@ def main():
 
 	# driver.close()
 
-main()
+if __name__ == "__main__":
+	main()
