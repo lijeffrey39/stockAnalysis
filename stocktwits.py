@@ -311,8 +311,8 @@ def findPageStock(symbol, daysInFuture, driver):
 	html = driver.page_source
 	soup = BeautifulSoup(html, 'html.parser')
 
-	with open(path, "w") as file:
-	    file.write(str(soup))
+	# with open(path, "w") as file:
+	#     file.write(str(soup))
 
 	return (soup, False)
 
