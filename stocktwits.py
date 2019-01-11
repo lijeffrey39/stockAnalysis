@@ -842,7 +842,7 @@ def main():
 
 	# date = datetime.datetime(2019, 1, 10)
 	# computeStocksDay(date, 2)
-	computeUsersDay('users.csv', 'allNewUsers.csv', 1, 2)
+	computeUsersDay('users.csv', 'allNewUsers.csv', 1, 4)
 
 	# driver = webdriver.Chrome(executable_path = DRIVER_BIN, chrome_options = chrome_options)
 	# analyzeResultsUser('NineFingerMike', 1, driver)
