@@ -841,9 +841,15 @@ def main():
 	global invalidSymbols
 	invalidSymbols = readSingleList('invalidSymbols.csv')
 
+<<<<<<< HEAD
 	date = datetime.datetime(2019, 1, 10)
 	computeStocksDay(date, 2)
 	# computeUsersDay('users.csv', 'allNewUsers.csv', 1, 2)
+=======
+	# date = datetime.datetime(2019, 1, 10)
+	# computeStocksDay(date, 2)
+	computeUsersDay('users.csv', 'allNewUsers.csv', 1, 4)
+>>>>>>> 71fea03926e37423ceb961c04795631d1446e14f
 
 	# driver = webdriver.Chrome(executable_path = DRIVER_BIN, chrome_options = chrome_options)
 	# analyzeResultsUser('NineFingerMike', 1, driver)
