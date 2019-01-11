@@ -9,7 +9,7 @@ from iexfinance.stocks import get_historical_intraday
 from dateutil.parser import parse
 import json
 import csv
-from multiprocessing import Process
+from multiprocessing import Process, Pool, current_process
 import threading
 import platform
 
@@ -39,7 +39,7 @@ messagesCountAttr = 'UserPage__heading____tZJh'
 
 # Make cache for that symbol and date so don't have to keep calling api
 # Formatted like {"TVIX": {"2018-12-24": [historical_data], "2018-12-23": [more_data]}
-datesSeen = {} 
+datesSeenGlobal = {} 
 useDatesSeen = False
 
 # Invalid symbols so they aren't check again
@@ -204,6 +204,10 @@ def historicalFromDict(symbol, dateTime):
 			print("Invalid ticker2")
 			return []
 
+	# Find what process is using it
+	currentP = current_process().name
+	datesSeen = datesSeenGlobal[currentP]
+
 	if (symbol not in datesSeen):
 		try:
 			historical = get_historical_intraday(symbol, dateTime)
@@ -226,6 +230,7 @@ def historicalFromDict(symbol, dateTime):
 		else:
 			historical = datesSeen[symbol][dateTimeStr]
 
+	datesSeenGlobal[currentP] = datesSeen
 	return historical
 
 
@@ -387,6 +392,11 @@ def isValidMessage(dateTime, dateNow, isBull, user, symbol, daysInFuture):
 
 
 def getBearBull(symbol, date, driver):
+
+	# For caching
+	processName = current_process().name
+	datesSeenGlobal[processName] = {}
+
 	dateNow = datetime.datetime.now()
 	days = (dateNow - date).days
 
@@ -758,9 +768,6 @@ def analyzeStocksHistory(listStocks, daysBack, usersPath, driver):
 		print(users)
 		addToNewList(users, usersPath)
 
-		global datesSeen
-		datesSeen = {}
-
 	driver.close()
 
 	return result 
@@ -797,15 +804,24 @@ def computeStocksDay(date, processes):
 	splitEqual = list(chunks(stocks, processes))
 	allProcesses = []
 
+	pool = Pool()
+
 	for i in range(processes):
 		arguments = [splitEqual[i], date, path, newUsersPath]
-		allProcesses.append(Process(target = analyzeStocksToday, args = arguments))
+		pool.apply_async(analyzeStocksToday, arguments)
 
-	for p in allProcesses:
-		p.start()
+	pool.close()
+	pool.join()
 
-	for p in allProcesses:
-		p.join()
+	# for i in range(processes):
+	# 	arguments = [splitEqual[i], date, path, newUsersPath]
+	# 	allProcesses.append(Process(target = analyzeStocksToday, args = arguments))
+
+	# for p in allProcesses:
+	# 	p.start()
+
+	# for p in allProcesses:
+	# 	p.join()
 
 
 def computeUsersDay(outputPath, inputPath, days, processes):
@@ -843,7 +859,7 @@ def main():
 	invalidSymbols = readSingleList('invalidSymbols.csv')
 
 	date = datetime.datetime(2019, 1, 10)
-	computeStocksDay(date, 2)
+	computeStocksDay(date, 3)
 	# computeUsersDay('users.csv', 'allNewUsers.csv', 1, 2)
 
 	# driver = webdriver.Chrome(executable_path = DRIVER_BIN, chrome_options = chrome_options)
