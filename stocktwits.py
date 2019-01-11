@@ -124,10 +124,10 @@ def scrollFor(days, driver):
 	messageCount = driver.find_elements_by_class_name(messagesCountAttr)
 	if (len(messageCount) == 0):
 		analyzingStock = True
-		price = driver.find_elements_by_class_name(priceAttr)
-		ActionChains(driver).move_to_element(price[0]).perform()  
-	else:	
-		ActionChains(driver).move_to_element(messageCount[0]).perform()  
+	# 	price = driver.find_elements_by_class_name(priceAttr)
+	# 	ActionChains(driver).move_to_element(price[0]).perform()  
+	# else:	
+	# 	ActionChains(driver).move_to_element(messageCount[0]).perform()  
 
 	while (oldTime < dateTime):
 
@@ -842,7 +842,7 @@ def main():
 	invalidSymbols = readSingleList('invalidSymbols.csv')
 
 	date = datetime.datetime(2019, 1, 10)
-	computeStocksDay(date, 2)
+	computeStocksDay(date, 4)
 	# computeUsersDay('users.csv', 'allNewUsers.csv', 1, 2)
 
 	# driver = webdriver.Chrome(executable_path = DRIVER_BIN, chrome_options = chrome_options)
