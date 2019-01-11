@@ -2,6 +2,7 @@ from bs4 import BeautifulSoup
 import time
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.action_chains import ActionChains
 import os
 import datetime
 from iexfinance.stocks import get_historical_intraday
@@ -110,7 +111,11 @@ def scrollFor(days, minBullBear, driver):
 	analyzingStock = False
 	messageCount = driver.find_elements_by_class_name(messagesCountAttr)
 	if (len(messageCount) == 0):
-		analyzingStock = True 
+		analyzingStock = True
+		price = driver.find_elements_by_class_name(priceAttr)
+		ActionChains(driver).move_to_element(price[0]).perform()  
+	else:	
+		ActionChains(driver).move_to_element(messageCount[0]).perform()  
 
 	while (oldTime < dateTime):
 
@@ -306,18 +311,18 @@ def findPageStock(symbol, daysInFuture, driver):
 	html = driver.page_source
 	soup = BeautifulSoup(html, 'html.parser')
 
-	# with open(path, "w") as file:
-	#     file.write(str(soup))
+	with open(path, "w") as file:
+	    file.write(str(soup))
 
 	return (soup, False)
 
 
 def inTradingHours(dateTime, symbol):
-	day = dateTime.strftime("%w")
+	day = dateTime.weekday()
 	nineAM = datetime.datetime(dateTime.year, dateTime.month, dateTime.day, 9, 30)
 	fourPM = datetime.datetime(dateTime.year, dateTime.month, dateTime.day, 16, 0)
 
-	if (dateTime < nineAM or dateTime >= fourPM or day == "5" or day == "6"):
+	if (dateTime < nineAM or dateTime >= fourPM or day == "0" or day == "6"):
 		return False
 
 	historical = historicalFromDict(symbol, dateTime)
@@ -358,6 +363,9 @@ def isValidMessage(dateTime, dateNow, isBull, user, symbol, daysInFuture):
 	# If the next day at 9:30 am is < than the current time, then there is a stock price
 	newTime = datetime.datetime(newTime.year, newTime.month, newTime.day, 9, 30)
 	newTimeDay = newTime.weekday()
+
+	if (user and isBull and symbol and inTradingHours(dateTime, symbol)):
+		print(user, isBull, symbol, dateTime)
 
 	if (user == None or 
 		isBull == None or 
@@ -465,7 +473,7 @@ def findPageUser(username, driver):
 
 	url = "https://stocktwits.com/" + username
 	driver.get(url)
-	foundEnough = scrollFor(36, 5)
+	foundEnough = scrollFor(36, 5, driver)
 
 	if (foundEnough == False):
 		return None
@@ -610,6 +618,12 @@ def analyzeResultsUser(username, days, driver):
 	return True
 
 
+def analyzeUsers(users, days):
+
+	for user in users:
+		driver = webdriver.Chrome(executable_path = DRIVER_BIN, chrome_options = chrome_options)
+		analyzeResultsUser(user, days, driver)
+		driver.close()
 
 # ------------------------------------------------------------------------
 # ----------------------------- Analysis ---------------------------------
@@ -694,6 +708,9 @@ def analyzeStocksToday(listStocks, path, usersPath, driver):
 		saveStockInfo([symbol, bulls, bears, bullBearRatio], path)
 		print("%s: (%d/%d %0.2f)" % (symbol, bulls, bears, bullBearRatio))
 
+		driver.close()
+		driver = webdriver.Chrome(executable_path = DRIVER_BIN, chrome_options = chrome_options)
+
 	driver.close()
 	return result
 
@@ -751,11 +768,14 @@ def computeStocksDay(path, processes):
 	newUsersPath = "newUsers/newUsersList-1-10-2019.csv"
 
 	# create empty file
-	with open(path, "w") as my_empty_csv:
-		pass
 
-	with open(newUsersPath, "w") as my_empty_csv:
-		pass
+	if (os.path.isfile(path) == False):
+		with open(path, "w") as my_empty_csv:
+			pass
+
+	if (os.path.isfile(newUsersPath) == False):
+		with open(newUsersPath, "w") as my_empty_csv:
+			pass
 
 	global useDatesSeen
 	useDatesSeen = True
@@ -777,6 +797,28 @@ def computeStocksDay(path, processes):
 		p.join()
 
 
+def computeUsersDay(outputPath, inputPath, days, processes):
+
+	users = readSingleList('allNewUsers.csv')
+	users = list(set(users))
+	users.sort()
+	print(len(users))
+
+	splitEqual = list(chunks(users, processes))
+	allProcesses = []
+
+	for i in range(processes):
+		arguments = [splitEqual[i], days]
+		allProcesses.append(Process(target = analyzeUsers, args = arguments))
+
+	for p in allProcesses:
+		p.start()
+
+	for p in allProcesses:
+		p.join()
+
+
+
 # TODO
 # - Store information for each day for each stock
 # - Use list of users to find new stocks 
@@ -788,33 +830,15 @@ def main():
 
 	global invalidSymbols
 	invalidSymbols = readSingleList('invalidSymbols.csv')
-	users = readSingleList('allNewUsers.csv')
 
-	computeStocksDay('stocksResults/1-10-2019.csv', 2)
+	# computeStocksDay('stocksResults/1-10-2019.csv', 2)
+	computeUsersDay('users.csv', 'allNewUsers.csv', 1, 2)
 
 	# driver = webdriver.Chrome(executable_path = DRIVER_BIN, chrome_options = chrome_options)
-	# for user in users:			
-	# 	if (analyzedAlready(user, "users.csv")):
-	# 		continue
-		
-	# 	analyzeResultsUser(user, 1, driver)
-
-	# 	driver.close()
-	# 	driver = webdriver.Chrome(executable_path = DRIVER_BIN, chrome_options = chrome_options)
-
 	# analyzeResultsUser('NineFingerMike', 1, driver)
-
-	# l = readSingleList('stockList.csv')
-	# l = l[1600:]
-
-	# global useDatesSeen
-	# useDatesSeen = True
-
-	# res = analyzeStocksToday(l, "1-9-2019.csv", newUsersPath)
 
 	# analyzeStocksHistory(l, 3, newUsersPath, driver)
 
 	# driver.close()
-
 
 main()
