@@ -364,9 +364,6 @@ def isValidMessage(dateTime, dateNow, isBull, user, symbol, daysInFuture):
 	newTime = datetime.datetime(newTime.year, newTime.month, newTime.day, 9, 30)
 	newTimeDay = newTime.weekday()
 
-	if (user and isBull and symbol and inTradingHours(dateTime, symbol)):
-		print(user, isBull, symbol, dateTime)
-
 	if (user == None or 
 		isBull == None or 
 		symbol == None or
@@ -834,7 +831,7 @@ def main():
 	invalidSymbols = readSingleList('invalidSymbols.csv')
 
 	# computeStocksDay('stocksResults/1-10-2019.csv', 2)
-	computeUsersDay('users.csv', 'allNewUsers.csv', 1, 2)
+	computeUsersDay('users.csv', 'allNewUsers.csv', 1, 4)
 
 	# driver = webdriver.Chrome(executable_path = DRIVER_BIN, chrome_options = chrome_options)
 	# analyzeResultsUser('NineFingerMike', 1, driver)
