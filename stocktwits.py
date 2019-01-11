@@ -16,6 +16,8 @@ import platform
 chrome_options = webdriver.ChromeOptions()
 prefs = {"profile.managed_default_content_settings.images": 2}
 chrome_options.add_experimental_option("prefs", prefs)
+chrome_options.add_argument("--headless")
+chrome_options.add_argument('log-level=3')
 global_lock = threading.Lock()
 
 chromedriverName = 'chromedriver' if (platform.system() == "Darwin") else 'chromedriver.exe'
@@ -93,7 +95,7 @@ def findDateTime(message):
 
 
 # Sroll for # days
-def scrollFor(days, driver):
+def scrollFor(name, days, driver):
 	elem = driver.find_element_by_tag_name("body")
 
 	dateTime = datetime.datetime.now() 
@@ -153,7 +155,7 @@ def scrollFor(days, driver):
 			else:
 				dateTime = findDateTime(t[1])
 
-			print(dateTime)
+			print(name, dateTime)
 			time.sleep(SCROLL_PAUSE_TIME)
 			if (analyzingStock == False and new_height == last_height):
 			    break
@@ -320,7 +322,7 @@ def findPageStock(symbol, days, driver):
 
 	url = "https://stocktwits.com/symbol/" + symbol
 	driver.get(url)
-	foundEnough = scrollFor(days, driver)
+	foundEnough = scrollFor(symbol, days, driver)
 
 	if (foundEnough == False):
 		return (None, True)
@@ -493,7 +495,7 @@ def findPageUser(username, driver):
 
 	url = "https://stocktwits.com/" + username
 	driver.get(url)
-	foundEnough = scrollFor(36, driver)
+	foundEnough = scrollFor(username, 36, driver)
 
 	if (foundEnough == False):
 		return None
