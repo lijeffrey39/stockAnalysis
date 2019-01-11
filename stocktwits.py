@@ -63,9 +63,9 @@ def readSingleList(path):
 def writeSingleList(path, items):
 
 	while global_lock.locked():
-        continue
+		continue
 
-    global_lock.acquire()
+	global_lock.acquire()
 
 	with open(path, "w+") as my_csv:
 	    csvWriter = csv.writer(my_csv, delimiter=',')
