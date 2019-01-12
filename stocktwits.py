@@ -9,9 +9,11 @@ from iexfinance.stocks import get_historical_intraday
 from dateutil.parser import parse
 import json
 import csv
+import multiprocessing
 from multiprocessing import Process, Pool, current_process
 import threading
 import platform
+import sys
 
 chrome_options = webdriver.ChromeOptions()
 prefs = {"profile.managed_default_content_settings.images": 2}
@@ -19,6 +21,7 @@ chrome_options.add_experimental_option("prefs", prefs)
 chrome_options.add_argument("--headless")
 chrome_options.add_argument('log-level=3')
 global_lock = threading.Lock()
+cpuCount = multiprocessing.cpu_count()
 
 chromedriverName = 'chromedriver' if (platform.system() == "Darwin") else 'chromedriver.exe'
 PROJECT_ROOT = os.getcwd()
@@ -79,7 +82,6 @@ def writeSingleList(path, items):
 
 
 # Find time of a message
-# TODO : add error checking to this (ValueError: day is out of range for month) for parse()
 def findDateTime(message):
 	if (message == None):
 		return None
@@ -165,7 +167,7 @@ def scrollFor(name, days, driver):
 
 		count += 1
 
-	print("Finished Reading")
+	print("Finished Reading", name)
 	return True
 
 
@@ -409,9 +411,10 @@ def getBearBull(symbol, date, driver):
 
 	messages = soup.find_all('div', attrs={'class': messageStreamAttr})
 	res = []
-	
+
 	for m in messages:
 		t = m.find('a', attrs={'class': timeAttr})
+		textM = m.find('div', attrs={'class': messageTextAttr})
 		dateTime = findDateTime(t.text)
 		user = findUser(m)
 		isBull = isBullMessage(m)
@@ -422,7 +425,7 @@ def getBearBull(symbol, date, driver):
 		(historical, dateTimeAdjusted1) = findHistoricalData(dateTime, symbol, False)
 		foundAvg = priceAtTime(dateTime, historical) # fix this function to take dateTimeadjusted
 
-		messageInfo = [user, isBull, dateTimeAdjusted1, foundAvg]
+		messageInfo = [user, isBull, dateTimeAdjusted1, foundAvg, textM]
 		res.append(messageInfo)
 
 	return res
@@ -562,9 +565,7 @@ def saveUserInfo(username, result, otherInfo):
 	path1 = "userinfo/" + username + ".csv"
 	path2 = "users.csv"
 
-	with open(path1, "w") as my_csv:
-	    csvWriter = csv.writer(my_csv, delimiter=',')
-	    csvWriter.writerows(result)
+	writeSingleList(path1, result)
 
 	# Check to see if username already exists
 	l = []
@@ -697,8 +698,7 @@ def saveStockInfo(result, path):
 	return
 
 
-def analyzeStocksToday(listStocks, date, path, usersPath):
-	result = []
+def analyzeStocksToday(listStocks, date, path, usersPath, folderPath):
 
 	for symbol in listStocks:
 		if (analyzedAlready(symbol, path)):
@@ -708,12 +708,12 @@ def analyzeStocksToday(listStocks, date, path, usersPath):
 
 		users = []
 		driver = webdriver.Chrome(executable_path = DRIVER_BIN, chrome_options = chrome_options)
-		res = getBearBull(symbol, date, driver)
+		result = getBearBull(symbol, date, driver)
 
 		bulls = 0
 		bears = 0
 
-		for d in res:
+		for d in result:
 			user = d[0]
 			bull = d[1]
 			users.append(user)
@@ -728,15 +728,18 @@ def analyzeStocksToday(listStocks, date, path, usersPath):
 		except:
 			pass
 
-		result.append([symbol, bulls, bears, bullBearRatio])
 		users = list(set(users))
 		addToNewList(users, usersPath)
+
+		folderPath = folderPath + symbol + ".csv"
+		writeSingleList(folderPath, result)
+
 		saveStockInfo([symbol, bulls, bears, bullBearRatio], path)
 		print("%s: (%d/%d %0.2f)" % (symbol, bulls, bears, bullBearRatio))
 
 		driver.close()
 
-	return result
+	return
 
 
 def analyzeStocksHistory(listStocks, daysBack, usersPath, driver):
@@ -786,8 +789,14 @@ def chunks(seq, size):
 
 
 def computeStocksDay(date, processes):
+
 	path = date.strftime("stocksResults/%m-%d-%y.csv")
+	folderPath = date.strftime("stocksResults/%m-%d-%y/")
 	newUsersPath = date.strftime("newUsers/newUsersList-%m-%d-%y.csv")
+
+	# create empty folder
+	if not os.path.exists(folderPath):
+	    os.makedirs(folderPath)
 
 	# create empty file
 	if (os.path.isfile(path) == False):
@@ -809,21 +818,11 @@ def computeStocksDay(date, processes):
 	pool = Pool()
 
 	for i in range(processes):
-		arguments = [splitEqual[i], date, path, newUsersPath]
+		arguments = [splitEqual[i], date, path, newUsersPath, folderPath]
 		pool.apply_async(analyzeStocksToday, arguments)
 
 	pool.close()
 	pool.join()
-
-	# for i in range(processes):
-	# 	arguments = [splitEqual[i], date, path, newUsersPath]
-	# 	allProcesses.append(Process(target = analyzeStocksToday, args = arguments))
-
-	# for p in allProcesses:
-	# 	p.start()
-
-	# for p in allProcesses:
-	# 	p.join()
 
 
 def computeUsersDay(outputPath, inputPath, days, processes):
@@ -849,27 +848,25 @@ def computeUsersDay(outputPath, inputPath, days, processes):
 
 
 # TODO
-# - Store information for each day for each stock
 # - Use list of users to find new stocks 
 # - Find jumps in stocks of > 10% for the next day and see which users were the best at predicting these jumps
 # - Add caching
 
 
 def main():
+	args = sys.argv
+	if (len(args) > 1):
+		dayUser = args[1]
+		if (dayUser == "day"):
+			dateNow = datetime.datetime.now()
+			date = datetime.datetime(dateNow.year, dateNow.month, dateNow.day)
+			computeStocksDay(date, cpuCount - 1)
+		else:
+			computeUsersDay('users.csv', 'allNewUsers.csv', 1, 2)
+	else:
+		date = datetime.datetime(2019, 1, 11)
+		computeStocksDay(date, cpuCount - 1)
 
-	global invalidSymbols
-	invalidSymbols = readSingleList('invalidSymbols.csv')
-
-	date = datetime.datetime(2019, 1, 10)
-	# computeStocksDay(date, 3)
-	computeUsersDay('users.csv', 'allNewUsers.csv', 1, 3)
-
-	# driver = webdriver.Chrome(executable_path = DRIVER_BIN, chrome_options = chrome_options)
-	# analyzeResultsUser('NineFingerMike', 1, driver)
-
-	# analyzeStocksHistory(l, 3, newUsersPath, driver)
-
-	# driver.close()
 
 if __name__ == "__main__":
 	main()
