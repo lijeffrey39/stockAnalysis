@@ -14,6 +14,7 @@ from multiprocessing import Process, Pool, current_process
 import threading
 import platform
 import sys
+from functools import reduce
 
 chrome_options = webdriver.ChromeOptions()
 prefs = {"profile.managed_default_content_settings.images": 2}
@@ -56,13 +57,43 @@ invalidSymbols = []
 # ------------------------------------------------------------------------
 
 
+def removeSpecialCharacters(string):
+	return ''.join(e for e in string if e.isalnum())
+
+
+
 # Read a single item CSV
 def readSingleList(path):
 	l = []
+
+	if not os.path.exists(path):
+		return l
+
 	with open(path) as f:
 		file = f.readlines()
 		for i in file:
-			l.append(''.join(e for e in i if e.isalnum()))
+			l.append(removeSpecialCharacters(i))
+	return l
+
+
+# Read a multi item CSV
+def readMultiList(path):
+	l = []
+
+	if not os.path.exists(path):
+		return l
+
+	with open(path) as f:
+		file = f.readlines()
+		for i in file:
+			x = i.split(',')
+			if (x[0] == '\n' or len(x) == 1):
+				continue
+			for j in range(len(x)):
+				# remove new line
+				if ('\n' in x[j]):
+					x[j] = x[j][:len(x[j]) - 1]
+			l.append(x)
 	return l
 
 
@@ -396,7 +427,6 @@ def isValidMessage(dateTime, dateNow, isBull, user, symbol, daysInFuture):
 
 
 def getBearBull(symbol, date, driver):
-
 	# For caching
 	processName = current_process().name
 	datesSeenGlobal[processName] = {}
@@ -486,7 +516,7 @@ def findPricesTickers(symbol, dateTime, futurePrice):
 
 
 # Return soup object page of that user 
-def findPageUser(username, driver):
+def findPageUser(username, days, driver):
 
 	# if html is stored
 	path = 'usersPages/' + username + '.html'
@@ -498,7 +528,7 @@ def findPageUser(username, driver):
 
 	url = "https://stocktwits.com/" + username
 	driver.get(url)
-	foundEnough = scrollFor(username, 36, driver)
+	foundEnough = scrollFor(username, days, driver)
 
 	if (foundEnough == False):
 		return None
@@ -574,7 +604,7 @@ def saveUserInfo(username, result, otherInfo):
 		file = f.readlines()
 		for i in file:
 			x = i.split(',')
-			if (x[0] == "\n" or len(x) != 4):
+			if (x[0] == "\n"):
 				continue
 			l.append(x[0])
 			newResult.append(x)
@@ -593,21 +623,18 @@ def saveUserInfo(username, result, otherInfo):
 	writeSingleList(path2, sortedResult)
 
 
-def analyzedAlready(username, path):
+def analyzedAlready(name, path):
 	# Check to see if username already exists
-	l = []
-	with open(path) as f:
-		file = f.readlines()
-		for i in file:
-			x = i.split(',')
-			l.append(x[0])
+	users = readMultiList(path)
+	filtered = filter(lambda x: len(x) >= 2, users)
+	mappedUsers = map(lambda x: x[0], filtered)
 
-	return (username in l)
+	return (name in mappedUsers)
 
 
 def analyzeResultsUser(username, days, driver):
 	print(username)
-	soup = findPageUser(username, driver)
+	soup = findPageUser(username, 36, driver)
 
 	# If the page doesn't have enought bull/bear indicators
 	if (soup == None):
@@ -664,8 +691,7 @@ def readUsers(path):
 			# for j in range(len(x)):
 			# 	x[j] = ''.join(e for e in x[j] if e.isalnum())
 			# l.append(x[0])
-			x = ''.join(e for e in i if e.isalnum())
-			l.append(x)
+			l.append(removeSpecialCharacters(i))
 	return l
 
 
@@ -813,7 +839,6 @@ def computeStocksDay(date, processes):
 	stocks = readSingleList('stocksActual.csv')
 	stocks.sort()
 	splitEqual = list(chunks(stocks, processes))
-	allProcesses = []
 
 	pool = Pool()
 
@@ -846,6 +871,171 @@ def computeUsersDay(outputPath, inputPath, days, processes):
 		p.join()
 
 
+def createUsersCSV():
+	path = "userinfo/"
+	resPath = "userInfo.csv"
+	files = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))] 
+	names = list(map(lambda x: x[:len(x) - 4], files))
+	result = []
+
+	for user in names:
+		path = "userinfo/" + user + ".csv"
+		res = []
+
+		read = readMultiList(path)
+
+		print(len(read))
+		symbols = list(set(map(lambda x: x[0], read)))
+		total = float(len(read))
+
+		for s in symbols:
+			filterSymbol = list(filter(lambda x: x[0] == s, read))
+			totalCorrect = list(map(lambda x: abs(float(x[7])), list(filter(lambda x: x[5] == '1', filterSymbol))))
+			totalIncorrect = list(map(lambda x: abs(float(x[7])), list(filter(lambda x: x[5] == '0', filterSymbol))))
+			summedCorrect = reduce(lambda a, b: a + b, totalCorrect) if len(totalCorrect) > 0 else 0
+			summedIncorrect = reduce(lambda a, b: a + b, totalIncorrect) if len(totalIncorrect) > 0 else 0
+
+			res.append([s, round(100 * len(filterSymbol) / total, 2), len(totalCorrect), 
+				len(totalIncorrect), round(summedCorrect - summedIncorrect, 2)])
+
+		res.sort(key = lambda x: x[4], reverse = True)
+		total = round(reduce(lambda a, b: a + b, list(map(lambda x: x[4], res))), 4)
+		correct = round(reduce(lambda a, b: a + b, list(map(lambda x: x[2], res))), 4)
+		incorrect = round(reduce(lambda a, b: a + b, list(map(lambda x: x[3], res))), 4)
+
+		result.append([user, correct, incorrect, total])
+
+	result.sort(key = lambda x: x[3], reverse = True)
+	writeSingleList(resPath, result)
+
+
+def statsUsers():
+	users = readMultiList('users.csv')
+	filtered = filter(lambda x: len(x) >= 4, users)
+	mappedUsers = map(lambda x: x[0], filtered)
+
+	for user in mappedUsers:
+		path = "userinfo/" + user + ".csv"
+		res = []
+
+		read = readMultiList(path)
+		symbols = list(set(map(lambda x: x[0], read)))
+		total = float(len(read))
+
+		for s in symbols:
+			filterSymbol = list(filter(lambda x: x[0] == s, read))
+			totalCorrect = list(map(lambda x: abs(float(x[7])), list(filter(lambda x: x[5] == '1', filterSymbol))))
+			totalIncorrect = list(map(lambda x: abs(float(x[7])), list(filter(lambda x: x[5] == '0', filterSymbol))))
+			summedCorrect = reduce(lambda a, b: a + b, totalCorrect) if len(totalCorrect) > 0 else 0
+			summedIncorrect = reduce(lambda a, b: a + b, totalIncorrect) if len(totalIncorrect) > 0 else 0
+
+			res.append([s, round(100 * len(filterSymbol) / total, 2), len(totalCorrect), 
+				len(totalIncorrect), round(summedCorrect - summedIncorrect, 2)])
+
+		res.sort(key = lambda x: x[4], reverse = True)
+		total = round(reduce(lambda a, b: a + b, list(map(lambda x: x[4], res))), 4)
+
+		writeSingleList('userinfo/' + user + '_info.csv', res)
+
+
+def topUsersStock(stock, num):
+	users = readMultiList('users.csv')
+	filtered = list(filter(lambda x: len(x) >= 4, users))
+	mappedUsers = list(map(lambda x: x[0], filtered))
+	result = []
+
+	for user in mappedUsers:
+		path = 'userinfo/' + user + '_info.csv'
+		read = readMultiList(path)
+		filtered = list(filter(lambda x: x[0] == stock, read))
+		if (len(filtered) == 0):
+			continue
+		else:
+			percent = float(filtered[0][4])	
+			result.append([user, percent, float(filtered[0][1]), float(filtered[0][2]), float(filtered[0][3])])
+
+	result.sort(key = lambda x: x[1], reverse = True)
+	
+	if (num == 0):
+		return result
+	else:
+		return result[:num]
+
+
+# Ideal when enough user information collected
+def topStocks(date):
+	path = date.strftime("stocksResults/%m-%d-%y.csv")
+	pathWeighted = date.strftime("stocksResults/%m-%d-%y_weighted.csv")
+	folderPath = date.strftime("stocksResults/%m-%d-%y/")
+
+	# if not created yet
+	if ((not os.path.exists(folderPath)) or os.path.isfile(path) == False):
+	    return
+
+	users = readMultiList('users.csv')
+	filtered = list(filter(lambda x: len(x) >= 4, users))
+
+	maxPercent = float(filtered[0][3])
+	minPercent = float(filtered[len(filtered) - 1][3])
+
+	dict = {}
+	for l in filtered:
+		percent = float(l[3])
+		if (percent > 0):
+			dict[l[0]] = (maxPercent - percent) / maxPercent
+		else:
+			dict[l[0]] = -1 * (minPercent - percent) / minPercent
+
+	mappedUsers = set(list(map(lambda x: x[0], filtered)))
+	stocks = readMultiList(path)
+	result = []
+
+	for s in stocks:
+		symbol = s[0]
+		resPath = folderPath + symbol + ".csv"
+		resSymbol = readMultiList(resPath)
+		total = 0
+
+		# scale based on how accurate that user is
+		topUsersForStock = topUsersStock(symbol, 0)
+
+		# safety check cuz len(topUsersForStock) must be  > 1
+		maxPercent = float(topUsersForStock[0][11])
+		minPercent = float(topUsersForStock[len(topUsersForStock) - 1][1])
+
+		topUserDict = {}
+		for u in topUsersForStock:
+			user = u[0]
+			percent = u[1]
+			if (percent > 0):
+				topUserDict[user] = (maxPercent - percent) / maxPercent
+			else:
+				topUserDict[user] = -1 * (minPercent - percent) / minPercent
+
+		for r in resSymbol:
+			user = r[0]
+			isBull = bool(r[1])
+
+			# Only based no user info's that's been collected
+			if (user in mappedUsers):
+				if (isBull):
+					total += dict[user]
+				else:
+					total -= dict[user]
+
+			# Secondary weighting based on how accurate that user is for specific stocks
+			if (user in topUserDict):
+				if (isBull):
+					total += topUserDict[user]
+				else:
+					total -= topUserDict[user]
+
+		result.append([symbol, total])
+
+	result.sort(key = lambda x: x[1], reverse = True)
+	writeSingleList(pathWeighted, result)
+	
+	return
 
 # TODO
 # - Use list of users to find new stocks 
@@ -861,11 +1051,23 @@ def main():
 			dateNow = datetime.datetime.now()
 			date = datetime.datetime(dateNow.year, dateNow.month, dateNow.day)
 			computeStocksDay(date, cpuCount - 1)
+			# topStocks(date)
+			print("hi")
 		else:
-			computeUsersDay('users.csv', 'allNewUsers.csv', 1, 3)
+			computeUsersDay('users.csv', 'allNewUsers.csv', 1, 2)
 	else:
-		date = datetime.datetime(2019, 1, 11)
-		computeStocksDay(date, cpuCount - 1)
+		print("rip")
+		# date = datetime.datetime(2019, 1, 11)
+		# computeStocksDay(date, cpuCount - 1)
+
+		# res = topUsersStock('APHA', 0)
+		# print(res)
+		# for r in res:
+		# 	print(r)
+		# createUsersCSV()
+
+
+
 
 
 if __name__ == "__main__":
