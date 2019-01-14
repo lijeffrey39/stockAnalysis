@@ -757,8 +757,8 @@ def analyzeStocksToday(listStocks, date, path, usersPath, folderPath):
 		users = list(set(users))
 		addToNewList(users, usersPath)
 
-		folderPath = folderPath + symbol + ".csv"
-		writeSingleList(folderPath, result)
+		tempPath = folderPath + symbol + ".csv"
+		writeSingleList(tempPath, result)
 
 		saveStockInfo([symbol, bulls, bears, bullBearRatio], path)
 		print("%s: (%d/%d %0.2f)" % (symbol, bulls, bears, bullBearRatio))
