@@ -574,7 +574,7 @@ def saveUserInfo(username, result, otherInfo):
 		file = f.readlines()
 		for i in file:
 			x = i.split(',')
-			if (x[0] == "\n"):
+			if (x[0] == "\n" or len(x) != 4):
 				continue
 			l.append(x[0])
 			newResult.append(x)
@@ -862,7 +862,7 @@ def main():
 			date = datetime.datetime(dateNow.year, dateNow.month, dateNow.day)
 			computeStocksDay(date, cpuCount - 1)
 		else:
-			computeUsersDay('users.csv', 'allNewUsers.csv', 1, 2)
+			computeUsersDay('users.csv', 'allNewUsers.csv', 1, 3)
 	else:
 		date = datetime.datetime(2019, 1, 11)
 		computeStocksDay(date, cpuCount - 1)
