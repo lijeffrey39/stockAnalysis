@@ -121,7 +121,7 @@ def findDateTime(message):
 			dateTime = parse(message)
 		except:
 			return None
-		test = datetime.datetime(2019, 1, 15)
+		test = datetime.datetime(2019, 1, 20)
 		if (dateTime > test):
 			return datetime.datetime(2018, dateTime.month, dateTime.day, dateTime.hour, dateTime.minute)
 		return dateTime
@@ -165,7 +165,6 @@ def scrollFor(name, days, driver):
 		ActionChains(driver).move_to_element(messageCount[0]).perform()  
 
 	while(True):
-
 		new_height = driver.execute_script("return document.body.scrollHeight")
 		time.sleep(SCROLL_PAUSE_TIME)
 
@@ -197,7 +196,7 @@ def scrollFor(name, days, driver):
 		driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
 		count += 1
 
-		if (oldTime < dateTime):
+		if (dateTime < oldTime):
 			break
 
 
@@ -822,6 +821,8 @@ def computeStocksDay(date, processes):
 	path = date.strftime("stocksResults/%m-%d-%y.csv")
 	folderPath = date.strftime("stocksResults/%m-%d-%y/")
 	newUsersPath = date.strftime("newUsers/newUsersList-%m-%d-%y.csv")
+
+	# analyzeStocksToday(['AAPL'], date, path, newUsersPath, folderPath)
 
 	# create empty folder
 	if not os.path.exists(folderPath):
