@@ -164,7 +164,7 @@ def scrollFor(name, days, driver):
 	else:	
 		ActionChains(driver).move_to_element(messageCount[0]).perform()  
 
-	while (oldTime < dateTime):
+	while(True):
 
 		new_height = driver.execute_script("return document.body.scrollHeight")
 		time.sleep(SCROLL_PAUSE_TIME)
@@ -191,12 +191,15 @@ def scrollFor(name, days, driver):
 			print(name, dateTime)
 			time.sleep(SCROLL_PAUSE_TIME)
 			if (analyzingStock == False and new_height == last_height):
-			    break
+				break
 
 		last_height = new_height
 		driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-
 		count += 1
+
+		if (oldTime < dateTime):
+			break
+
 
 	print("Finished Reading", name)
 	return True
@@ -1050,6 +1053,7 @@ def main():
 		if (dayUser == "day"):
 			dateNow = datetime.datetime.now()
 			date = datetime.datetime(dateNow.year, dateNow.month, dateNow.day)
+			date = datetime.datetime(2019, 1, 14)
 			computeStocksDay(date, cpuCount - 1)
 			# topStocks(date)
 			print("hi")
