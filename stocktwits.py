@@ -843,8 +843,17 @@ def computeStocksDay(date, processes):
 
 	stocks = readSingleList('stocksActual.csv')
 	stocks.sort()
-	splitEqual = list(chunks(stocks, processes))
 
+	actual = []
+	for i in stocks:
+		if (analyzedAlready(i, path)):
+			continue
+		else:
+			actual.append(i)
+
+	splitEqual = list(chunks(actual, processes))
+
+	print(splitEqual)
 	pool = Pool()
 
 	for i in range(processes):
@@ -919,7 +928,7 @@ def createUsersCSV():
 
 
 def statsUsers():
-	users = readMultiList('users.csv')
+	users = readMultiList('userInfo.csv')
 	filtered = filter(lambda x: len(x) >= 4, users)
 	mappedUsers = map(lambda x: x[0], filtered)
 
@@ -948,7 +957,7 @@ def statsUsers():
 
 
 def topUsersStock(stock, num):
-	users = readMultiList('users.csv')
+	users = readMultiList('userInfo.csv')
 	filtered = list(filter(lambda x: len(x) >= 4, users))
 	mappedUsers = list(map(lambda x: x[0], filtered))
 	result = []
@@ -981,7 +990,7 @@ def topStocks(date):
 	if ((not os.path.exists(folderPath)) or os.path.isfile(path) == False):
 	    return
 
-	users = readMultiList('usersinfo.csv')
+	users = readMultiList('userInfo.csv')
 	filtered = list(filter(lambda x: len(x) >= 4, users))
 
 	maxPercent = float(filtered[0][3])
@@ -999,23 +1008,32 @@ def topStocks(date):
 	stocks = readMultiList(path)
 	result = []
 
+
+	topUsersDict = {}
+	stocks1 = readSingleList('stocksActual.csv')
+	for s in stocks1:
+		# res = topUsersStock(s, 0)
+		res = readMultiList('templists/' + s + '.csv')
+		topUsersDict[s] = res
+
 	for s in stocks:
 		symbol = s[0]
 		resPath = folderPath + symbol + ".csv"
 		resSymbol = readMultiList(resPath)
 		total = 0
+		print(s)
 
 		# scale based on how accurate that user is
-		topUsersForStock = topUsersStock(symbol, 0)
+		topUsersForStock = topUsersDict[symbol]
 
 		# safety check cuz len(topUsersForStock) must be  > 1
-		maxPercent = float(topUsersForStock[0][11])
+		maxPercent = float(topUsersForStock[0][1])
 		minPercent = float(topUsersForStock[len(topUsersForStock) - 1][1])
 
 		topUserDict = {}
 		for u in topUsersForStock:
 			user = u[0]
-			percent = u[1]
+			percent = float(u[1])
 			if (percent > 0):
 				topUserDict[user] = (maxPercent - percent) / maxPercent
 			else:
@@ -1046,6 +1064,33 @@ def topStocks(date):
 	
 	return
 
+
+def calcReturns(date):
+	pathWeighted = date.strftime("stocksResults/%m-%d-%y_weighted.csv")
+	res = readMultiList(pathWeighted)
+
+	print(res[:15])
+
+	percents = []
+	for i in range(20):
+		total = 0
+		for j in range(i):
+			symbol = res[j][0]
+			beforeDate = datetime.datetime(2019, 1, 14, 15, 59)
+			(historical, dateTimeAdjusted1) = findHistoricalData(beforeDate, symbol, False)
+			pricebefore = priceAtTime(beforeDate, historical) # fix this function to take dateTimeadjusted
+
+			afterDate = datetime.datetime(2019, 1, 15, 9, 0)
+			(historical, dateTimeAdjusted1) = findHistoricalData(afterDate, symbol, False)
+			priceafter = priceAtTime(afterDate, historical) # fix this function to take dateTimeadjusted
+			print(symbol, pricebefore, priceafter)
+
+			percent = 100.0 * (priceafter - pricebefore) / pricebefore
+			total += percent
+
+		percents.append(round(total, 4))
+
+	print(percents)
 # TODO
 # - Use list of users to find new stocks 
 # - Find jumps in stocks of > 10% for the next day and see which users were the best at predicting these jumps
@@ -1059,12 +1104,12 @@ def main():
 		if (dayUser == "day"):
 			dateNow = datetime.datetime.now()
 			date = datetime.datetime(dateNow.year, dateNow.month, dateNow.day)
-			date = datetime.datetime(2019, 1, 14)
+			date = datetime.datetime(2019, 1, 15)
 			computeStocksDay(date, cpuCount - 1)
 			# topStocks(date)
 			print("hi")
 		else:
-			computeUsersDay('usersinfo.csv', 'allNewUsers.csv', 1, 2)
+			computeUsersDay('userInfo.csv', 'allNewUsers.csv', 1, 2)
 	else:
 		print("rip")
 		# date = datetime.datetime(2019, 1, 11)
@@ -1074,7 +1119,15 @@ def main():
 		# print(res)
 		# for r in res:
 		# 	print(r)
-		createUsersCSV()
+		res = topUsersStock('MSFT', 0)
+
+		for i in res:
+			print(i)
+
+		# date = datetime.datetime(2019, 1, 14)
+		# calcReturns(date)
+		# topStocks(date)
+
 
 
 
