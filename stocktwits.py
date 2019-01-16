@@ -365,8 +365,8 @@ def findPageStock(symbol, days, driver):
 	html = driver.page_source
 	soup = BeautifulSoup(html, 'html.parser')
 
-	# with open(path, "w") as file:
-	#     file.write(str(soup))
+	with open(path, "w") as file:
+	    file.write(str(soup))
 
 	return (soup, False)
 
@@ -595,34 +595,35 @@ def analyzeUser(username, soup, daysInFuture, beginningOfDay):
 def saveUserInfo(username, result, otherInfo):
 
 	path1 = "userinfo/" + username + ".csv"
-	path2 = "users.csv"
-
 	writeSingleList(path1, result)
 
-	# Check to see if username already exists
-	l = []
-	newResult = []
-	with open(path2) as f:
-		file = f.readlines()
-		for i in file:
-			x = i.split(',')
-			if (x[0] == "\n"):
-				continue
-			l.append(x[0])
-			newResult.append(x)
+	createUsersCSV()
 
-	if (username not in l):
-		newResult.append(otherInfo)
-	else:
-		for i in range(len(newResult)):
-			if (newResult[i][0] == username):
-				newResult[i] = otherInfo
-				break
+	# path2 = "users.csv"
+	# # Check to see if username already exists
+	# l = []
+	# newResult = []
+	# with open(path2) as f:
+	# 	file = f.readlines()
+	# 	for i in file:
+	# 		x = i.split(',')
+	# 		if (x[0] == "\n"):
+	# 			continue
+	# 		l.append(x[0])
+	# 		newResult.append(x)
 
-	for i in range(len(newResult)):
-			newResult[i][3] = float(newResult[i][3])
-	sortedResult = sorted(newResult, key=lambda x: x[3], reverse = True)
-	writeSingleList(path2, sortedResult)
+	# if (username not in l):
+	# 	newResult.append(otherInfo)
+	# else:
+	# 	for i in range(len(newResult)):
+	# 		if (newResult[i][0] == username):
+	# 			newResult[i] = otherInfo
+	# 			break
+
+	# for i in range(len(newResult)):
+	# 		newResult[i][3] = float(newResult[i][3])
+	# sortedResult = sorted(newResult, key=lambda x: x[3], reverse = True)
+	# writeSingleList(path2, sortedResult)
 
 
 def analyzedAlready(name, path):
@@ -883,12 +884,16 @@ def createUsersCSV():
 	result = []
 
 	for user in names:
+		# if (user != "Rocketman810"):
+		# 	continue
 		path = "userinfo/" + user + ".csv"
 		res = []
 
 		read = readMultiList(path)
 
-		print(len(read))
+		if (len(read) == 0):
+			continue
+
 		symbols = list(set(map(lambda x: x[0], read)))
 		total = float(len(read))
 
@@ -976,7 +981,7 @@ def topStocks(date):
 	if ((not os.path.exists(folderPath)) or os.path.isfile(path) == False):
 	    return
 
-	users = readMultiList('users.csv')
+	users = readMultiList('usersinfo.csv')
 	filtered = list(filter(lambda x: len(x) >= 4, users))
 
 	maxPercent = float(filtered[0][3])
@@ -1059,7 +1064,7 @@ def main():
 			# topStocks(date)
 			print("hi")
 		else:
-			computeUsersDay('users.csv', 'allNewUsers.csv', 1, 2)
+			computeUsersDay('usersinfo.csv', 'allNewUsers.csv', 1, 2)
 	else:
 		print("rip")
 		# date = datetime.datetime(2019, 1, 11)
@@ -1069,7 +1074,9 @@ def main():
 		# print(res)
 		# for r in res:
 		# 	print(r)
-		# createUsersCSV()
+		createUsersCSV()
+
+
 
 
 
