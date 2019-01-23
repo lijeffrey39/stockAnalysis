@@ -19,14 +19,15 @@ from functools import reduce
 chrome_options = webdriver.ChromeOptions()
 prefs = {"profile.managed_default_content_settings.images": 2}
 chrome_options.add_experimental_option("prefs", prefs)
-chrome_options.add_argument("--headless")
-chrome_options.add_argument('log-level=3')
+# chrome_options.add_argument("--headless")
+# chrome_options.add_argument('log-level=3')
 global_lock = threading.Lock()
 cpuCount = multiprocessing.cpu_count()
 
 chromedriverName = 'chromedriver' if (platform.system() == "Darwin") else 'chromedriver.exe'
 PROJECT_ROOT = os.getcwd()
 DRIVER_BIN = os.path.join(PROJECT_ROOT, chromedriverName)
+DAYS_BACK = 75
 
 
 # SET NAME ATTRIBUTES
@@ -105,7 +106,7 @@ def writeSingleList(path, items):
 
 	global_lock.acquire()
 
-	with open(path, "w+") as my_csv:
+	with open(path, "w", newline='') as my_csv:
 	    csvWriter = csv.writer(my_csv, delimiter=',')
 	    csvWriter.writerows(items)
 
@@ -136,7 +137,7 @@ def scrollFor(name, days, driver):
 	oldTime = dateTime - delta
 	oldTime = datetime.datetime(oldTime.year, oldTime.month, oldTime.day, 9, 30)
 
-	SCROLL_PAUSE_TIME = 1
+	SCROLL_PAUSE_TIME = 2
 	time.sleep(SCROLL_PAUSE_TIME)
 
 	last_height = driver.execute_script("return document.body.scrollHeight")
@@ -172,6 +173,7 @@ def scrollFor(name, days, driver):
 			for i in range(10):
 				driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
 				new_height = driver.execute_script("return document.body.scrollHeight")
+				time.sleep(0.1)
 
 			messages = driver.find_elements_by_class_name(messageStreamAttr)
 			
@@ -305,6 +307,7 @@ def priceAtTime(dateTime, historical):
         if (int(ts.get("minute").replace(":","")) >= int((dateTime.strftime("%X")[:5]).replace(":",""))):
             foundAvg = ts.get('average')
             foundAvg1 = ts.get('marketAverage')
+            foundAvg2 = ts.get('marketHigh')
             if (foundAvg != -1):
             	found = True
             	break
@@ -316,9 +319,18 @@ def priceAtTime(dateTime, historical):
             	else:
                 	continue
 
+	# Go from end to front
     if (found == False):
-        last = historical[len(historical) - 1]
-        foundAvg = last.get('average')
+    	lastPos = len(historical) - 1
+    	foundAvg = -1
+    	while (foundAvg == -1 and lastPos > 0):	
+    		last = historical[lastPos]
+    		foundAvg = last.get('average')
+    		foundAvg1 = last.get('marketAverage')
+    		if (foundAvg1 != -1):
+    			foundAvg = foundAvg1
+    			break
+    		lastPos = lastPos - 1
 
     return foundAvg
 
@@ -365,8 +377,8 @@ def findPageStock(symbol, days, driver):
 	html = driver.page_source
 	soup = BeautifulSoup(html, 'html.parser')
 
-	with open(path, "w") as file:
-	    file.write(str(soup))
+	# with open(path, "w") as file:
+	#     file.write(str(soup))
 
 	return (soup, False)
 
@@ -457,7 +469,7 @@ def getBearBull(symbol, date, driver):
 		(historical, dateTimeAdjusted1) = findHistoricalData(dateTime, symbol, False)
 		foundAvg = priceAtTime(dateTime, historical) # fix this function to take dateTimeadjusted
 
-		messageInfo = [user, isBull, dateTimeAdjusted1, foundAvg, textM]
+		messageInfo = [user, isBull, dateTimeAdjusted1, foundAvg]
 		res.append(messageInfo)
 
 	return res
@@ -507,16 +519,6 @@ def findSymbol(message):
 		return tickers[0]
 
 
-def findPricesTickers(symbol, dateTime, futurePrice):
-
-	(historical, dateTimeAdjusted) = findHistoricalData(dateTime, symbol, futurePrice)
-	if (len(historical) == 0):
-		return (0, True)
-
-	foundAvg = priceAtTime(dateTime, historical)
-	return (foundAvg, False)
-
-
 # Return soup object page of that user 
 def findPageUser(username, days, driver):
 
@@ -544,8 +546,7 @@ def findPageUser(username, days, driver):
 	return soup
 
 
-
-def analyzeUser(username, soup, daysInFuture, beginningOfDay):
+def analyzeUser(username, soup, daysInFuture):
 	messages = soup.find_all('div', attrs={'class': messageStreamAttr})
 	dateNow = datetime.datetime.now()
 	res = []
@@ -562,17 +563,23 @@ def analyzeUser(username, soup, daysInFuture, beginningOfDay):
 		if (isValidMessage(dateTime, dateNow, isBull, user, symbol, daysInFuture) == False):
 			continue
 
-		(prices, noDataTicker) = findPricesTickers(symbol, dateTime, False)
+		(historical, dateTimeAdjusted) = findHistoricalData(dateTime, symbol, False)
+		priceAtPost = priceAtTime(dateTime, historical) # Price at the time of posting
+		# Price at 3:59 PM
+		prices = priceAtTime(datetime.datetime(dateTime.year, dateTime.month, dateTime.day, 15, 59), historical)
+
 
 		# Find price after # days
 		delta = datetime.timedelta(daysInFuture)
 		newTime = dateTime + delta
+		newTime = datetime.datetime(newTime.year, newTime.month, newTime.day, 9, 30)
 
-		# Find time at 9:30 am
-		if (beginningOfDay):
-			newTime = datetime.datetime(newTime.year, newTime.month, newTime.day, 9, 30)
-
-		(newPrices, noDataTicker) = findPricesTickers(symbol, newTime, True)
+		(historical, dateTimeAdjusted) = findHistoricalData(newTime, symbol, True)
+		newPrices = priceAtTime(newTime, historical) # Find price at 9:30 AM
+		# Find price at 10:00 AM
+		price10 = priceAtTime(datetime.datetime(newTime.year, newTime.month, newTime.day, 10, 0), historical)
+		# Find price at 10:30 AM
+		price1030 = priceAtTime(datetime.datetime(newTime.year, newTime.month, newTime.day, 10, 30), historical)
 
 		correct = 0
 		change = round(newPrices - prices, 4)
@@ -586,44 +593,16 @@ def analyzeUser(username, soup, daysInFuture, beginningOfDay):
 			correct = 1
 
 		res.append([symbol, dateTime.strftime("%Y-%m-%d %H:%M:%S"), prices, 
-			newPrices, isBull, correct, change, percent, likeCnt, commentCnt])
+			newPrices, isBull, correct, change, percent, likeCnt, commentCnt, priceAtPost, price10, price1030])
 
 	return res
 
 
 
-def saveUserInfo(username, result, otherInfo):
+def saveUserInfo(username, result):
 
 	path1 = "userinfo/" + username + ".csv"
 	writeSingleList(path1, result)
-
-	createUsersCSV()
-
-	# path2 = "users.csv"
-	# # Check to see if username already exists
-	# l = []
-	# newResult = []
-	# with open(path2) as f:
-	# 	file = f.readlines()
-	# 	for i in file:
-	# 		x = i.split(',')
-	# 		if (x[0] == "\n"):
-	# 			continue
-	# 		l.append(x[0])
-	# 		newResult.append(x)
-
-	# if (username not in l):
-	# 	newResult.append(otherInfo)
-	# else:
-	# 	for i in range(len(newResult)):
-	# 		if (newResult[i][0] == username):
-	# 			newResult[i] = otherInfo
-	# 			break
-
-	# for i in range(len(newResult)):
-	# 		newResult[i][3] = float(newResult[i][3])
-	# sortedResult = sorted(newResult, key=lambda x: x[3], reverse = True)
-	# writeSingleList(path2, sortedResult)
 
 
 def analyzedAlready(name, path):
@@ -637,44 +616,35 @@ def analyzedAlready(name, path):
 
 def analyzeResultsUser(username, days, driver):
 	print(username)
-	soup = findPageUser(username, 36, driver)
+	soup = findPageUser(username, DAYS_BACK, driver)
 
 	# If the page doesn't have enought bull/bear indicators
 	if (soup == None):
-		saveUserInfo(username, [], [username, 0, 0, 0])
+		saveUserInfo(username, [])
 		return False
 
-	result = analyzeUser(username, soup, days, True)
-
-	ratio = 0
-	totalGood = 0
-	totalBad = 0
+	result = analyzeUser(username, soup, days)
 	stocks = []
 
 	for r in result:
-		print(r)
-		percent = abs(r[7])
 		stocks.append(r[0])
-		if (r[5] == True):
-			totalGood += 1
-			ratio += percent
-		else:
-			totalBad += 1
-			ratio -= percent	
 
 	stocks = list(set(stocks))
-	otherInfo = [username, totalGood, totalBad, round(ratio, 4)]
-
 	addNewStocks(stocks)
-	saveUserInfo(username, result, otherInfo)
-
+	saveUserInfo(username, result)
 	return True
+
+
+def analyzedUserAlready(name):
+	# Check to see if username already exists
+	path = 'userinfo/' + name + '.csv'
+	return os.path.exists(path)
 
 
 def analyzeUsers(users, days, path):
 
 	for user in users:
-		if (analyzedAlready(user, path)):
+		if (analyzedUserAlready(user)):
 			continue
 		driver = webdriver.Chrome(executable_path = DRIVER_BIN, chrome_options = chrome_options)
 		analyzeResultsUser(user, days, driver)
@@ -823,6 +793,9 @@ def computeStocksDay(date, processes):
 	folderPath = date.strftime("stocksResults/%m-%d-%y/")
 	newUsersPath = date.strftime("newUsers/newUsersList-%m-%d-%y.csv")
 
+	global useDatesSeen
+	useDatesSeen = True
+
 	# analyzeStocksToday(['AAPL'], date, path, newUsersPath, folderPath)
 
 	# create empty folder
@@ -838,9 +811,6 @@ def computeStocksDay(date, processes):
 		with open(newUsersPath, "w") as my_empty_csv:
 			pass
 
-	global useDatesSeen
-	useDatesSeen = True
-
 	stocks = readSingleList('stocksActual.csv')
 	stocks.sort()
 
@@ -852,8 +822,6 @@ def computeStocksDay(date, processes):
 			actual.append(i)
 
 	splitEqual = list(chunks(actual, processes))
-
-	print(splitEqual)
 	pool = Pool()
 
 	for i in range(processes):
@@ -867,22 +835,31 @@ def computeStocksDay(date, processes):
 def computeUsersDay(outputPath, inputPath, days, processes):
 
 	users = readSingleList('allNewUsers.csv')
-	users = list(set(users))
 	users.sort()
-	print(len(users))
 
-	splitEqual = list(chunks(users, processes))
-	allProcesses = []
+	actual = []
+	for user in users:
+		if (analyzedUserAlready(user)):
+			continue
+		else:
+			actual.append(user)
+
+	print('USERS: ', len(actual))
+
+	# analyzeUsers(['1st2Mkt'], days, outputPath)
+	# return
+
+	splitEqual = list(chunks(actual, processes))
+	pool = Pool()
 
 	for i in range(processes):
 		arguments = [splitEqual[i], days, outputPath]
-		allProcesses.append(Process(target = analyzeUsers, args = arguments))
+		pool.apply_async(analyzeUsers, arguments)
 
-	for p in allProcesses:
-		p.start()
+	pool.close()
+	pool.join()
 
-	for p in allProcesses:
-		p.join()
+	createUsersCSV()
 
 
 def createUsersCSV():
@@ -893,8 +870,6 @@ def createUsersCSV():
 	result = []
 
 	for user in names:
-		# if (user != "Rocketman810"):
-		# 	continue
 		path = "userinfo/" + user + ".csv"
 		res = []
 
@@ -953,7 +928,7 @@ def statsUsers():
 		res.sort(key = lambda x: x[4], reverse = True)
 		total = round(reduce(lambda a, b: a + b, list(map(lambda x: x[4], res))), 4)
 
-		writeSingleList('userinfo/' + user + '_info.csv', res)
+		writeSingleList('userCalculated/' + user + '_info.csv', res)
 
 
 def topUsersStock(stock, num):
@@ -963,7 +938,7 @@ def topUsersStock(stock, num):
 	result = []
 
 	for user in mappedUsers:
-		path = 'userinfo/' + user + '_info.csv'
+		path = 'userCalculated/' + user + '_info.csv'
 		read = readMultiList(path)
 		filtered = list(filter(lambda x: x[0] == stock, read))
 		if (len(filtered) == 0):
@@ -980,8 +955,28 @@ def topUsersStock(stock, num):
 		return result[:num]
 
 
+def recommendStocks(result, date, money):
+	picked = result[:10]
+	totalWeight = reduce(lambda a, b: a + b, list(map(lambda x: x[1], picked)))
+	ratios = list(map(lambda x: x[1] * money / totalWeight, picked))
+	stocksNum = []
+
+	date = datetime.datetime(date.year, date.month, date.day, 15, 59)
+
+	for i in range(len(picked)):
+		symbol = picked[i][0]
+		(historical, dateTimeAdjusted) = findHistoricalData(date, symbol, False)
+		priceAtPost = priceAtTime(date, historical) # Price at the time of posting
+		numStocks = int(ratios[i] / priceAtPost)
+
+		stocksNum.append([symbol, priceAtPost, ratios[i], numStocks])
+		
+
+	return stocksNum
+
+
 # Ideal when enough user information collected
-def topStocks(date):
+def topStocks(date, money):
 	path = date.strftime("stocksResults/%m-%d-%y.csv")
 	pathWeighted = date.strftime("stocksResults/%m-%d-%y_weighted.csv")
 	folderPath = date.strftime("stocksResults/%m-%d-%y/")
@@ -1021,7 +1016,6 @@ def topStocks(date):
 		resPath = folderPath + symbol + ".csv"
 		resSymbol = readMultiList(resPath)
 		total = 0
-		print(s)
 
 		# scale based on how accurate that user is
 		topUsersForStock = topUsersDict[symbol]
@@ -1060,9 +1054,11 @@ def topStocks(date):
 		result.append([symbol, total])
 
 	result.sort(key = lambda x: x[1], reverse = True)
+
+	res = recommendStocks(result, date, money)
 	writeSingleList(pathWeighted, result)
 	
-	return
+	return res
 
 
 def calcReturns(date):
@@ -1071,19 +1067,33 @@ def calcReturns(date):
 
 	print(res[:15])
 
+	dictBefore = {}
+	dictAfter = {}
 	percents = []
-	for i in range(20):
+	for i in range(30):
 		total = 0
 		for j in range(i):
 			symbol = res[j][0]
-			beforeDate = datetime.datetime(2019, 1, 14, 15, 59)
-			(historical, dateTimeAdjusted1) = findHistoricalData(beforeDate, symbol, False)
-			pricebefore = priceAtTime(beforeDate, historical) # fix this function to take dateTimeadjusted
+			if (symbol == "SNAP"):
+				continue
+			pricebefore = 0
+			if (symbol in dictBefore):
+				pricebefore = dictBefore[symbol]
+			else:
+				beforeDate = datetime.datetime(2019, 1, date.day, 15, 59)
+				(historical, dateTimeAdjusted1) = findHistoricalData(beforeDate, symbol, False)
+				pricebefore = priceAtTime(beforeDate, historical) # fix this function to take dateTimeadjusted
+				dictBefore[symbol] = pricebefore
 
-			afterDate = datetime.datetime(2019, 1, 15, 9, 0)
-			(historical, dateTimeAdjusted1) = findHistoricalData(afterDate, symbol, False)
-			priceafter = priceAtTime(afterDate, historical) # fix this function to take dateTimeadjusted
-			print(symbol, pricebefore, priceafter)
+			if (symbol in dictAfter):
+				priceafter = dictAfter[symbol]
+			else:
+				afterDate = datetime.datetime(2019, 1, date.day + 1, 9, 30)
+				(historical, dateTimeAdjusted1) = findHistoricalData(afterDate, symbol, False)
+				priceafter = 0
+				priceafter = priceAtTime(afterDate, historical) # fix this function to take dateTimeadjusted
+				dictAfter[symbol] = priceafter
+				print(symbol, pricebefore, priceafter, 100.0 * (priceafter - pricebefore) / pricebefore)
 
 			percent = 100.0 * (priceafter - pricebefore) / pricebefore
 			total += percent
@@ -1091,10 +1101,81 @@ def calcReturns(date):
 		percents.append(round(total, 4))
 
 	print(percents)
+
+
+def calcReturnBasedResults(date, result):
+
+	dictAfter = {}	
+	totalsReturns = []
+	afterDate = datetime.datetime(date.year, date.month, date.day + 1, 9, 30)
+	historical = []
+
+	for i in range(120):
+		totalReturn = 0
+		afterDate = afterDate + datetime.timedelta(minutes = 1)
+		for x in result:
+			symbol = x[0]
+			priceBefore = x[1]
+			shares = x[3]
+			totalBefore = priceBefore * shares
+			diff = 0
+			priceAfter = 0
+
+			if (symbol in dictAfter):
+				priceAfter = priceAtTime(afterDate, dictAfter[symbol])
+			else:
+				(historical, dateTimeAdjusted1) = findHistoricalData(afterDate, symbol, False)
+				priceAfter = priceAtTime(afterDate, historical) # fix this function to take dateTimeadjusted
+				dictAfter[symbol] = historical
+
+			totalAfter = priceAfter * shares
+			diff = totalAfter - totalBefore
+
+			totalReturn += diff
+
+		if (i % 5 == 0):
+			totalReturn = round(totalReturn, 2)
+			totalsReturns.append([totalReturn, afterDate])
+			print(afterDate, totalReturn)
+
+
+
+def removeOnDate():
+	# Remove all dates that are on the 18th
+	result = []
+	names = allUsers()
+	for user in names:
+
+		path = "userinfo/" + user + ".csv"
+		res = []
+		read = readMultiList(path)
+
+		for r in read:
+			date = parse(r[1])
+			if (date.year == 2019 and date.month == 1 and date.day == 18):
+				continue
+			else:
+				res.append(r)
+
+		writeSingleList(path, res)
+
+
+
+def allUsers():
+	path = "userinfo/"
+	files = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))] 
+	names = list(map(lambda x: x[:len(x) - 4], files))
+
+	return names
+
+
+
 # TODO
 # - Use list of users to find new stocks 
 # - Find jumps in stocks of > 10% for the next day and see which users were the best at predicting these jumps
 # - Add caching
+
+# SHOULD IGNORE DIFF if it is 0? count as correct
 
 
 def main():
@@ -1103,32 +1184,136 @@ def main():
 		dayUser = args[1]
 		if (dayUser == "day"):
 			dateNow = datetime.datetime.now()
-			date = datetime.datetime(dateNow.year, dateNow.month, dateNow.day)
-			date = datetime.datetime(2019, 1, 15)
-			computeStocksDay(date, cpuCount - 1)
+			date = datetime.datetime(dateNow.year, dateNow.month, 22)
+			computeStocksDay(date, 1)
 			# topStocks(date)
 			print("hi")
 		else:
-			computeUsersDay('userInfo.csv', 'allNewUsers.csv', 1, 2)
+			computeUsersDay('userInfo.csv', 'allNewUsers.csv', 1, cpuCount - 1)
 	else:
 		print("rip")
 		# date = datetime.datetime(2019, 1, 11)
 		# computeStocksDay(date, cpuCount - 1)
 
-		# res = topUsersStock('APHA', 0)
+		# res = topUsersStock('BIOC', 0)
 		# print(res)
 		# for r in res:
 		# 	print(r)
-		res = topUsersStock('MSFT', 0)
+		# res = topUsersStock('MSFT', 0)
 
-		for i in res:
-			print(i)
+		# for i in res:
+		# 	print(i)
+		# path = "userinfo/"
+		# files = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))] 
+		# names = list(map(lambda x: x[:len(x) - 4], files))
+		# names = list(filter(lambda x: x[len(x) - 4:] == 'info', names))
 
-		# date = datetime.datetime(2019, 1, 14)
+		# for name in names:
+		# 	os.remove('userinfo/' + name + '.csv')
+
+
+
+		# createUsersCSV()
+		# date = datetime.datetime(2019, 1, 17)
+		# res = topStocks(date, 2000)
+		# calcReturnBasedResults(date, res)
 		# calcReturns(date)
-		# topStocks(date)
 
 
+		# newUsers = readSingleList('allNewUsers.csv')
+		# newUsers2 = readSingleList('newUsers/newUsersList-01-18-19.csv')
+		# newUsers.extend(newUsers2)
+		# newUsers = list(map(lambda x: [x], sorted(list(set(newUsers)))))
+
+		# writeSingleList('officialList.csv', newUsers)
+		
+		# print(len(newUsers))
+
+		# removeOnDate()
+
+
+		users = allUsers()
+		count = 0
+		count1 = 0
+		count2 = 0
+		count3 = 0
+		for name in users:
+			l = readMultiList('userInfo/' + name + '.csv')
+			res = []
+			
+			for r in l:
+				# symbol = r[0]
+				four = r[2]
+				nine = r[3]
+				# isBull = bool(r[4])
+				# date = parse(r[1])
+				ten = r[11]
+				ten30 = r[12]
+
+				if (four != '-1' and nine != '-1' and ten != '-1' and ten30 != '-1'):
+					# res.append(r)
+					continue
+
+				# print(name)
+
+				# (historical, dateTimeAdjusted) = findHistoricalData(date, symbol, False)
+				# priceAtPost = priceAtTime(date, historical) # Price at the time of posting
+				# # Price at 3:59 PM
+				# prices = priceAtTime(datetime.datetime(date.year, date.month, date.day, 15, 59), historical)
+
+				# # print(symbol, prices)
+
+				# # Find price after # days
+				# delta = datetime.timedelta(1)
+				# newTime = date + delta
+				# newTime = datetime.datetime(newTime.year, newTime.month, newTime.day, 9, 30)
+				# (historical, dateTimeAdjusted) = findHistoricalData(newTime, symbol, True)
+
+				# newPrices = priceAtTime(newTime, historical) # Find price at 9:30 AM
+
+				# # Find price at 10:00 AM
+				# price10 = priceAtTime(datetime.datetime(newTime.year, newTime.month, newTime.day, 10, 0), historical)
+				# # Find price at 10:30 AM
+				# price1030 = priceAtTime(datetime.datetime(newTime.year, newTime.month, newTime.day, 10, 30), historical)
+
+				if (four == '-1'):
+					count += 1
+
+				if (nine == '-1'):
+					count1 += 1
+
+				if (ten == '-1'):
+					count2 += 1
+
+				if (ten30 == '-1'):
+					count3 += 1
+
+			# 	correct = 0
+			# 	change = round(newPrices - prices, 4)
+			# 	percent = 0
+			# 	try:
+			# 		percent = round((change * 100.0 / prices), 5)
+			# 	except:
+			# 		pass
+
+			# 	if ((change > 0 and isBull == True) or (change <= 0 and isBull == False)):
+			# 		correct = 1
+
+			# 	r[2] = prices
+			# 	r[3] = newPrices
+			# 	r[5] = correct
+			# 	r[6] = change
+			# 	r[7] = percent
+			# 	r[10] = priceAtPost
+			# 	r[11] = price10
+			# 	r[12] = price1030
+
+			# 	res.append(r)
+			# 	print(r)
+
+			# writeSingleList('userInfo/' + name + '.csv', res)
+
+		print(count, count1, count2, count3)
 
 
 
