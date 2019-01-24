@@ -19,8 +19,8 @@ from functools import reduce
 chrome_options = webdriver.ChromeOptions()
 prefs = {"profile.managed_default_content_settings.images": 2}
 chrome_options.add_experimental_option("prefs", prefs)
-# chrome_options.add_argument("--headless")
-# chrome_options.add_argument('log-level=3')
+chrome_options.add_argument("--headless")
+chrome_options.add_argument('log-level=3')
 global_lock = threading.Lock()
 cpuCount = multiprocessing.cpu_count()
 
@@ -122,7 +122,8 @@ def findDateTime(message):
 			dateTime = parse(message)
 		except:
 			return None
-		test = datetime.datetime(2019, 1, 20)
+		currDay = datetime.datetime.now()
+		test = currDay + datetime.timedelta(1)
 		if (dateTime > test):
 			return datetime.datetime(2018, dateTime.month, dateTime.day, dateTime.hour, dateTime.minute)
 		return dateTime
@@ -392,6 +393,10 @@ def inTradingHours(dateTime, symbol):
 		return False
 
 	historical = historicalFromDict(symbol, dateTime)
+
+	if (len(historical) == 0):
+		return False
+
 	strDate = dateTime.strftime("%X")[:5]
 	found = False
 
@@ -451,6 +456,7 @@ def getBearBull(symbol, date, driver):
 	(soup, error) = findPageStock(symbol, days, driver)
 
 	if (error):
+		print("ERROR BAD")
 		return []
 
 	messages = soup.find_all('div', attrs={'class': messageStreamAttr})
@@ -589,8 +595,12 @@ def analyzeUser(username, soup, daysInFuture):
 		except:
 			pass
 
-		if ((change > 0 and isBull == True ) or (change <= 0 and isBull == False)):
+		if ((change > 0 and isBull == True) or (change <= 0 and isBull == False)):
 			correct = 1
+
+		# If result of any price is a 0
+		if (prices == 0 or priceAtPost == 0 or newPrices == 0 or price10 == 0 or price1030 == 0):
+			continue
 
 		res.append([symbol, dateTime.strftime("%Y-%m-%d %H:%M:%S"), prices, 
 			newPrices, isBull, correct, change, percent, likeCnt, commentCnt, priceAtPost, price10, price1030])
@@ -1160,6 +1170,34 @@ def removeOnDate():
 		writeSingleList(path, res)
 
 
+def checkInvalid():
+	users = allUsers()
+	count4 = 0
+
+	for name in users:
+		l = readMultiList('userInfo/' + name + '.csv')
+		res = []
+
+		for r in l:
+			symbol = r[0]
+			four = r[2]
+			nine = r[3]
+
+			date = parse(r[1])
+			priceAtPost = r[10]
+			ten = r[11]
+			ten30 = r[12]
+
+			if (four != '-1' and nine != '-1' and ten != '-1' and ten30 != '-1' and priceAtPost != '-1'):
+				continue
+
+			count4 += 1
+
+		# writeSingleList('userInfo/' + name + '.csv', res)
+
+	print(count4)
+
+
 
 def allUsers():
 	path = "userinfo/"
@@ -1184,8 +1222,8 @@ def main():
 		dayUser = args[1]
 		if (dayUser == "day"):
 			dateNow = datetime.datetime.now()
-			date = datetime.datetime(dateNow.year, dateNow.month, 22)
-			computeStocksDay(date, 1)
+			date = datetime.datetime(dateNow.year, dateNow.month, 23)
+			computeStocksDay(date, cpuCount - 1)
 			# topStocks(date)
 			print("hi")
 		else:
@@ -1213,7 +1251,7 @@ def main():
 
 
 
-		# createUsersCSV()
+		createUsersCSV()
 		# date = datetime.datetime(2019, 1, 17)
 		# res = topStocks(date, 2000)
 		# calcReturnBasedResults(date, res)
@@ -1221,100 +1259,17 @@ def main():
 
 
 		# newUsers = readSingleList('allNewUsers.csv')
-		# newUsers2 = readSingleList('newUsers/newUsersList-01-18-19.csv')
+		# newUsers2 = readSingleList('newUsers/newUsersList-01-22-19.csv')
 		# newUsers.extend(newUsers2)
 		# newUsers = list(map(lambda x: [x], sorted(list(set(newUsers)))))
+
+		# print(len(newUsers))
 
 		# writeSingleList('officialList.csv', newUsers)
 		
 		# print(len(newUsers))
 
 		# removeOnDate()
-
-
-		users = allUsers()
-		count = 0
-		count1 = 0
-		count2 = 0
-		count3 = 0
-		for name in users:
-			l = readMultiList('userInfo/' + name + '.csv')
-			res = []
-			
-			for r in l:
-				# symbol = r[0]
-				four = r[2]
-				nine = r[3]
-				# isBull = bool(r[4])
-				# date = parse(r[1])
-				ten = r[11]
-				ten30 = r[12]
-
-				if (four != '-1' and nine != '-1' and ten != '-1' and ten30 != '-1'):
-					# res.append(r)
-					continue
-
-				# print(name)
-
-				# (historical, dateTimeAdjusted) = findHistoricalData(date, symbol, False)
-				# priceAtPost = priceAtTime(date, historical) # Price at the time of posting
-				# # Price at 3:59 PM
-				# prices = priceAtTime(datetime.datetime(date.year, date.month, date.day, 15, 59), historical)
-
-				# # print(symbol, prices)
-
-				# # Find price after # days
-				# delta = datetime.timedelta(1)
-				# newTime = date + delta
-				# newTime = datetime.datetime(newTime.year, newTime.month, newTime.day, 9, 30)
-				# (historical, dateTimeAdjusted) = findHistoricalData(newTime, symbol, True)
-
-				# newPrices = priceAtTime(newTime, historical) # Find price at 9:30 AM
-
-				# # Find price at 10:00 AM
-				# price10 = priceAtTime(datetime.datetime(newTime.year, newTime.month, newTime.day, 10, 0), historical)
-				# # Find price at 10:30 AM
-				# price1030 = priceAtTime(datetime.datetime(newTime.year, newTime.month, newTime.day, 10, 30), historical)
-
-				if (four == '-1'):
-					count += 1
-
-				if (nine == '-1'):
-					count1 += 1
-
-				if (ten == '-1'):
-					count2 += 1
-
-				if (ten30 == '-1'):
-					count3 += 1
-
-			# 	correct = 0
-			# 	change = round(newPrices - prices, 4)
-			# 	percent = 0
-			# 	try:
-			# 		percent = round((change * 100.0 / prices), 5)
-			# 	except:
-			# 		pass
-
-			# 	if ((change > 0 and isBull == True) or (change <= 0 and isBull == False)):
-			# 		correct = 1
-
-			# 	r[2] = prices
-			# 	r[3] = newPrices
-			# 	r[5] = correct
-			# 	r[6] = change
-			# 	r[7] = percent
-			# 	r[10] = priceAtPost
-			# 	r[11] = price10
-			# 	r[12] = price1030
-
-			# 	res.append(r)
-			# 	print(r)
-
-			# writeSingleList('userInfo/' + name + '.csv', res)
-
-		print(count, count1, count2, count3)
-
 
 
 
