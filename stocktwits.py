@@ -31,17 +31,16 @@ DAYS_BACK = 75
 
 
 # SET NAME ATTRIBUTES
-priceAttr = 'StockHeader__bid___2BF7L'
-messageStreamAttr = 'MessageStreamView__message___2o0za'
-timeAttr = 'MessageStreamView__created-at___HsSv2'
-usernameAttr = 'MessageStreamView__username___x9n-9'
-bullSentAttr = 'SentimentIndicator__SentimentIndicator-bullish___1WHAM SentimentIndicator__SentimentIndicator___3bEpt'
-bearSentAttr = 'SentimentIndicator__SentimentIndicator-bearish___2KbIj SentimentIndicator__SentimentIndicator___3bEpt'
-userPageAttr = 'UserHeader__username___33aun'
-messageTextAttr = 'MessageStreamView__body___2giLh'
-likeCountAttr = 'LikeButton__count___1tZ74'
-commmentCountAttr = 'StreamItemFooter__count___1YAqr'
-messagesCountAttr = 'UserPage__heading____tZJh'
+priceAttr = 'st_2BF7LWC'
+messageStreamAttr = 'st_1m1w96g'
+timeAttr = 'st_HsSv26f'
+usernameAttr = 'st_x9n-9YN'
+bullSentAttr = 'st_1WHAM8- st_3bEptPi'
+bearSentAttr = 'st_2KbIj7l st_3bEptPi'
+messageTextAttr = 'st_2giLhWN'
+likeCountAttr = 'st_1tZ744c'
+commmentCountAttr = 'st_1YAqrKR'
+messagesCountAttr = 'st__tZJhLh'
 
 
 # Make cache for that symbol and date so don't have to keep calling api
@@ -378,8 +377,8 @@ def findPageStock(symbol, days, driver):
 	html = driver.page_source
 	soup = BeautifulSoup(html, 'html.parser')
 
-	# with open(path, "w") as file:
-	#     file.write(str(soup))
+	with open(path, "w") as file:
+	    file.write(str(soup))
 
 	return (soup, False)
 
@@ -463,7 +462,9 @@ def getBearBull(symbol, date, driver):
 	res = []
 
 	for m in messages:
-		t = m.find('a', attrs={'class': timeAttr})
+		t = m.find('a', {'class': timeAttr})
+		if (t == None):
+			continue
 		textM = m.find('div', attrs={'class': messageTextAttr})
 		dateTime = findDateTime(t.text)
 		user = findUser(m)
@@ -806,8 +807,6 @@ def computeStocksDay(date, processes):
 	global useDatesSeen
 	useDatesSeen = True
 
-	# analyzeStocksToday(['AAPL'], date, path, newUsersPath, folderPath)
-
 	# create empty folder
 	if not os.path.exists(folderPath):
 	    os.makedirs(folderPath)
@@ -965,8 +964,8 @@ def topUsersStock(stock, num):
 		return result[:num]
 
 
-def recommendStocks(result, date, money):
-	picked = result[:10]
+def recommendStocks(result, date, money, numStocks):
+	picked = result[:numStocks]
 	totalWeight = reduce(lambda a, b: a + b, list(map(lambda x: x[1], picked)))
 	ratios = list(map(lambda x: x[1] * money / totalWeight, picked))
 	stocksNum = []
@@ -980,13 +979,14 @@ def recommendStocks(result, date, money):
 		numStocks = int(ratios[i] / priceAtPost)
 
 		stocksNum.append([symbol, priceAtPost, ratios[i], numStocks])
-		
 
+		print([symbol, priceAtPost, ratios[i], numStocks])
+		
 	return stocksNum
 
 
 # Ideal when enough user information collected
-def topStocks(date, money):
+def topStocks(date, money, numStocks):
 	path = date.strftime("stocksResults/%m-%d-%y.csv")
 	pathWeighted = date.strftime("stocksResults/%m-%d-%y_weighted.csv")
 	folderPath = date.strftime("stocksResults/%m-%d-%y/")
@@ -1065,11 +1065,20 @@ def topStocks(date, money):
 
 	result.sort(key = lambda x: x[1], reverse = True)
 
-	res = recommendStocks(result, date, money)
+	res = recommendStocks(result, date, money, numStocks)
 	writeSingleList(pathWeighted, result)
 	
 	return res
 
+
+def writeTempListStocks():
+	stocks1 = readSingleList('stocksActual.csv')
+	stocks1.sort()
+	for s in stocks1:
+		res = topUsersStock(s, 0)
+		print(s)
+		writeSingleList('templists/' + s + '.csv', res)
+ 
 
 def calcReturns(date):
 	pathWeighted = date.strftime("stocksResults/%m-%d-%y_weighted.csv")
@@ -1120,7 +1129,7 @@ def calcReturnBasedResults(date, result):
 	afterDate = datetime.datetime(date.year, date.month, date.day + 1, 9, 30)
 	historical = []
 
-	for i in range(120):
+	for i in range(5):
 		totalReturn = 0
 		afterDate = afterDate + datetime.timedelta(minutes = 1)
 		for x in result:
@@ -1214,6 +1223,9 @@ def allUsers():
 # - Add caching
 
 # SHOULD IGNORE DIFF if it is 0? count as correct
+# Remove outliers that are obviously not true prices
+# Some stocks barely get any users so ignore them and look at others
+
 
 
 def main():
@@ -1222,9 +1234,17 @@ def main():
 		dayUser = args[1]
 		if (dayUser == "day"):
 			dateNow = datetime.datetime.now()
-			date = datetime.datetime(dateNow.year, dateNow.month, 23)
+			date = datetime.datetime(dateNow.year, dateNow.month, 25)
 			computeStocksDay(date, cpuCount - 1)
-			# topStocks(date)
+
+
+			# RUN everytime
+			# statsUsers()
+			# writeTempListStocks()
+
+			# res = topStocks(date, 2000, 10)
+			# calcReturnBasedResults(date, res)
+
 			print("hi")
 		else:
 			computeUsersDay('userInfo.csv', 'allNewUsers.csv', 1, cpuCount - 1)
@@ -1251,7 +1271,7 @@ def main():
 
 
 
-		createUsersCSV()
+		# createUsersCSV()
 		# date = datetime.datetime(2019, 1, 17)
 		# res = topStocks(date, 2000)
 		# calcReturnBasedResults(date, res)
@@ -1260,6 +1280,7 @@ def main():
 
 		# newUsers = readSingleList('allNewUsers.csv')
 		# newUsers2 = readSingleList('newUsers/newUsersList-01-22-19.csv')
+		# newUsers2 = readSingleList('newUsers/newUsersList-01-23-19.csv')
 		# newUsers.extend(newUsers2)
 		# newUsers = list(map(lambda x: [x], sorted(list(set(newUsers)))))
 
