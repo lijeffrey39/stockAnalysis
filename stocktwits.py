@@ -15,6 +15,7 @@ import threading
 import platform
 import sys
 from functools import reduce
+import traceback
 
 chrome_options = webdriver.ChromeOptions()
 prefs = {"profile.managed_default_content_settings.images": 2}
@@ -28,7 +29,8 @@ chromedriverName = 'chromedriver' if (platform.system() == "Darwin") else 'chrom
 PROJECT_ROOT = os.getcwd()
 DRIVER_BIN = os.path.join(PROJECT_ROOT, chromedriverName)
 DAYS_BACK = 75
-
+SAVE_USER_PAGE = False
+SAVE_STOCK_PAGE = False
 
 # SET NAME ATTRIBUTES
 priceAttr = 'st_2BF7LWC'
@@ -59,7 +61,6 @@ invalidSymbols = []
 
 def removeSpecialCharacters(string):
 	return ''.join(e for e in string if e.isalnum())
-
 
 
 # Read a single item CSV
@@ -357,7 +358,6 @@ def commentCount(message):
 
 # Return soup object page of that stock 
 def findPageStock(symbol, days, driver):
-
 	# if html is stored
 	path = 'stocksPages/' + symbol + '.html'
 	if (os.path.isfile(path)):
@@ -377,8 +377,9 @@ def findPageStock(symbol, days, driver):
 	html = driver.page_source
 	soup = BeautifulSoup(html, 'html.parser')
 
-	with open(path, "w") as file:
-	    file.write(str(soup))
+	if (SAVE_STOCK_PAGE):
+		with open(path, "w") as file:
+		    file.write(str(soup))
 
 	return (soup, False)
 
@@ -528,7 +529,6 @@ def findSymbol(message):
 
 # Return soup object page of that user 
 def findPageUser(username, days, driver):
-
 	# if html is stored
 	path = 'usersPages/' + username + '.html'
 	if (os.path.isfile(path)):
@@ -547,8 +547,9 @@ def findPageUser(username, days, driver):
 	html = driver.page_source
 	soup = BeautifulSoup(html, 'html.parser')
 
-	# with open(path, "w") as file:
-	#     file.write(str(soup))
+	if (SAVE_USER_PAGE):
+		with open(path, "w") as file:
+		    file.write(str(soup))
 
 	return soup
 
@@ -600,7 +601,7 @@ def analyzeUser(username, soup, daysInFuture):
 			correct = 1
 
 		# If result of any price is a 0
-		if (prices == 0 or priceAtPost == 0 or newPrices == 0 or price10 == 0 or price1030 == 0):
+		if (prices == 0 or priceAtPost == 0 or newPrices == 0 or price10 == 0 or price1030 == 0 or newPrices == -1):
 			continue
 
 		res.append([symbol, dateTime.strftime("%Y-%m-%d %H:%M:%S"), prices, 
@@ -609,41 +610,12 @@ def analyzeUser(username, soup, daysInFuture):
 	return res
 
 
-
-def saveUserInfo(username, result):
-
-	path1 = "userinfo/" + username + ".csv"
-	writeSingleList(path1, result)
-
-
-def analyzedAlready(name, path):
+def analyzedSymbolAlready(name, path):
 	# Check to see if username already exists
 	users = readMultiList(path)
 	filtered = filter(lambda x: len(x) >= 2, users)
 	mappedUsers = map(lambda x: x[0], filtered)
-
 	return (name in mappedUsers)
-
-
-def analyzeResultsUser(username, days, driver):
-	print(username)
-	soup = findPageUser(username, DAYS_BACK, driver)
-
-	# If the page doesn't have enought bull/bear indicators
-	if (soup == None):
-		saveUserInfo(username, [])
-		return False
-
-	result = analyzeUser(username, soup, days)
-	stocks = []
-
-	for r in result:
-		stocks.append(r[0])
-
-	stocks = list(set(stocks))
-	addNewStocks(stocks)
-	saveUserInfo(username, result)
-	return True
 
 
 def analyzedUserAlready(name):
@@ -652,13 +624,31 @@ def analyzedUserAlready(name):
 	return os.path.exists(path)
 
 
-def analyzeUsers(users, days, path):
 
+def analyzeUsers(users, days, path):
 	for user in users:
 		if (analyzedUserAlready(user)):
 			continue
+
+		print(user)
 		driver = webdriver.Chrome(executable_path = DRIVER_BIN, chrome_options = chrome_options)
-		analyzeResultsUser(user, days, driver)
+		soup = findPageUser(user, DAYS_BACK, driver)
+		path = "userinfo/" + user + ".csv"
+
+		# If the page doesn't have enought bull/bear indicators
+		if (soup == None):
+			writeSingleList(path, [])
+			continue
+
+		result = analyzeUser(user, soup, days)
+		stocks = []
+
+		for r in result:
+			stocks.append(r[0])
+
+		stocks = list(set(stocks))
+		addNewStocks(stocks)
+		writeSingleList(path, result)
 		driver.close()
 
 # ------------------------------------------------------------------------
@@ -666,21 +656,8 @@ def analyzeUsers(users, days, path):
 # ------------------------------------------------------------------------
 
 
-def readUsers(path):
-	l = []
-	with open(path) as f:
-		file = f.readlines()
-		for i in file:
-			# x = i.split(',')
-			# for j in range(len(x)):
-			# 	x[j] = ''.join(e for e in x[j] if e.isalnum())
-			# l.append(x[0])
-			l.append(removeSpecialCharacters(i))
-	return l
-
-
 def addToNewList(users, path):
-	currList = readUsers(path)
+	currList = readSingleList(path)
 	currList.extend(users)
 	currList = list(set(currList))
 	currList.sort()
@@ -709,9 +686,8 @@ def saveStockInfo(result, path):
 
 
 def analyzeStocksToday(listStocks, date, path, usersPath, folderPath):
-
 	for symbol in listStocks:
-		if (analyzedAlready(symbol, path)):
+		if (analyzedSymbolAlready(symbol, path)):
 			continue
 
 		print(symbol)
@@ -752,43 +728,6 @@ def analyzeStocksToday(listStocks, date, path, usersPath, folderPath):
 	return
 
 
-def analyzeStocksHistory(listStocks, daysBack, usersPath, driver):
-	result = []
-
-	for symbol in listStocks:
-		res = getBearBull(symbol, daysBack, driver)
-
-		bulls = 0
-		bears = 0
-		users = []
-
-		for d in res:
-			print(d)
-			user = d[0]
-			bull = d[1]
-			users.append(user)
-			if (bull):
-				bulls += 1
-			else:
-				bears += 1
-		
-		bullBearRatio = bulls
-		try:
-			bullBearRatio = round(bulls / bears, 2)
-		except:
-			pass
-
-		result.append([symbol, bulls, bears, bullBearRatio])
-		users = list(set(users))
-		print(users)
-		addToNewList(users, usersPath)
-
-	driver.close()
-
-	return result 
-
-
-
 # ------------------------------------------------------------------------
 # --------------------------- Main Function ------------------------------
 # ------------------------------------------------------------------------
@@ -825,7 +764,7 @@ def computeStocksDay(date, processes):
 
 	actual = []
 	for i in stocks:
-		if (analyzedAlready(i, path)):
+		if (analyzedSymbolAlready(i, path)):
 			continue
 		else:
 			actual.append(i)
@@ -842,7 +781,6 @@ def computeStocksDay(date, processes):
 
 
 def computeUsersDay(outputPath, inputPath, days, processes):
-
 	users = readSingleList('allNewUsers.csv')
 	users.sort()
 
@@ -854,9 +792,6 @@ def computeUsersDay(outputPath, inputPath, days, processes):
 			actual.append(user)
 
 	print('USERS: ', len(actual))
-
-	# analyzeUsers(['1st2Mkt'], days, outputPath)
-	# return
 
 	splitEqual = list(chunks(actual, processes))
 	pool = Pool()
@@ -872,35 +807,14 @@ def computeUsersDay(outputPath, inputPath, days, processes):
 
 
 def createUsersCSV():
-	path = "userinfo/"
-	resPath = "userInfo.csv"
-	files = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))] 
-	names = list(map(lambda x: x[:len(x) - 4], files))
+	users = allUsers()
 	result = []
 
-	for user in names:
-		path = "userinfo/" + user + ".csv"
-		res = []
-
-		read = readMultiList(path)
-
-		if (len(read) == 0):
-			continue
-
-		symbols = list(set(map(lambda x: x[0], read)))
-		total = float(len(read))
-
-		for s in symbols:
-			filterSymbol = list(filter(lambda x: x[0] == s, read))
-			totalCorrect = list(map(lambda x: abs(float(x[7])), list(filter(lambda x: x[5] == '1', filterSymbol))))
-			totalIncorrect = list(map(lambda x: abs(float(x[7])), list(filter(lambda x: x[5] == '0', filterSymbol))))
-			summedCorrect = reduce(lambda a, b: a + b, totalCorrect) if len(totalCorrect) > 0 else 0
-			summedIncorrect = reduce(lambda a, b: a + b, totalIncorrect) if len(totalIncorrect) > 0 else 0
-
-			res.append([s, round(100 * len(filterSymbol) / total, 2), len(totalCorrect), 
-				len(totalIncorrect), round(summedCorrect - summedIncorrect, 2)])
-
+	for user in users:
+		path = 'userCalculated/' + user + '_info.csv'
+		res = readMultiList(path)
 		res.sort(key = lambda x: x[4], reverse = True)
+
 		total = round(reduce(lambda a, b: a + b, list(map(lambda x: x[4], res))), 4)
 		correct = round(reduce(lambda a, b: a + b, list(map(lambda x: x[2], res))), 4)
 		incorrect = round(reduce(lambda a, b: a + b, list(map(lambda x: x[3], res))), 4)
@@ -911,15 +825,17 @@ def createUsersCSV():
 	writeSingleList(resPath, result)
 
 
+
+# Creates userxxx_info.csv for each user
 def statsUsers():
-	users = readMultiList('userInfo.csv')
-	filtered = filter(lambda x: len(x) >= 4, users)
-	mappedUsers = map(lambda x: x[0], filtered)
+	users = allUsers()
 
-	for user in mappedUsers:
+	for user in users:
 		path = "userinfo/" + user + ".csv"
-		res = []
+		if (os.path.isfile(path)):
+			continue
 
+		res = []
 		read = readMultiList(path)
 		symbols = list(set(map(lambda x: x[0], read)))
 		total = float(len(read))
@@ -941,12 +857,10 @@ def statsUsers():
 
 
 def topUsersStock(stock, num):
-	users = readMultiList('userInfo.csv')
-	filtered = list(filter(lambda x: len(x) >= 4, users))
-	mappedUsers = list(map(lambda x: x[0], filtered))
+	users = allUsers()
 	result = []
 
-	for user in mappedUsers:
+	for user in users:
 		path = 'userCalculated/' + user + '_info.csv'
 		read = readMultiList(path)
 		filtered = list(filter(lambda x: x[0] == stock, read))
@@ -995,9 +909,7 @@ def topStocks(date, money, numStocks):
 	if ((not os.path.exists(folderPath)) or os.path.isfile(path) == False):
 	    return
 
-	users = readMultiList('userInfo.csv')
-	filtered = list(filter(lambda x: len(x) >= 4, users))
-
+	users = allUsers()
 	maxPercent = float(filtered[0][3])
 	minPercent = float(filtered[len(filtered) - 1][3])
 
@@ -1012,7 +924,6 @@ def topStocks(date, money, numStocks):
 	mappedUsers = set(list(map(lambda x: x[0], filtered)))
 	stocks = readMultiList(path)
 	result = []
-
 
 	topUsersDict = {}
 	stocks1 = readSingleList('stocksActual.csv')
@@ -1129,7 +1040,7 @@ def calcReturnBasedResults(date, result):
 	afterDate = datetime.datetime(date.year, date.month, date.day + 1, 9, 30)
 	historical = []
 
-	for i in range(5):
+	for i in range(50):
 		totalReturn = 0
 		afterDate = afterDate + datetime.timedelta(minutes = 1)
 		for x in result:
@@ -1159,51 +1070,24 @@ def calcReturnBasedResults(date, result):
 
 
 
-def removeOnDate():
-	# Remove all dates that are on the 18th
-	result = []
-	names = allUsers()
-	for user in names:
-
-		path = "userinfo/" + user + ".csv"
-		res = []
-		read = readMultiList(path)
-
-		for r in read:
-			date = parse(r[1])
-			if (date.year == 2019 and date.month == 1 and date.day == 18):
-				continue
-			else:
-				res.append(r)
-
-		writeSingleList(path, res)
-
-
 def checkInvalid():
 	users = allUsers()
-	count4 = 0
+	count = 0
 
 	for name in users:
 		l = readMultiList('userInfo/' + name + '.csv')
 		res = []
 
 		for r in l:
-			symbol = r[0]
 			four = r[2]
 			nine = r[3]
-
-			date = parse(r[1])
 			priceAtPost = r[10]
 			ten = r[11]
 			ten30 = r[12]
-
 			if (four != '-1' and nine != '-1' and ten != '-1' and ten30 != '-1' and priceAtPost != '-1'):
 				continue
 
-			count4 += 1
-
-		# writeSingleList('userInfo/' + name + '.csv', res)
-
+			count += 1
 	print(count4)
 
 
@@ -1212,20 +1096,23 @@ def allUsers():
 	path = "userinfo/"
 	files = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))] 
 	names = list(map(lambda x: x[:len(x) - 4], files))
-
 	return names
 
 
 
 # TODO
-# - Use list of users to find new stocks 
-# - Find jumps in stocks of > 10% for the next day and see which users were the best at predicting these jumps
-# - Add caching
-
-# SHOULD IGNORE DIFF if it is 0? count as correct
-# Remove outliers that are obviously not true prices
-# Some stocks barely get any users so ignore them and look at others
-
+# 1. SHOULD IGNORE DIFF if it is 0? count as correct
+# 2. Remove outliers that are obviously not true prices
+# 3. Some stocks barely get any users so ignore them and look at others (#1 priority)
+# 4. Weight likes/comments into the accuracy of user
+# 5. Weight predictions by these and find the argmax
+# 	 - the times that it was sold at (9:30, 9:35...)
+#	 - how accurate the user is in general, past history of the stock
+#	 - number of stocks to pick from (currently 10)
+#    - number of total predictions made
+# 6. Figure out why some invalid symbols are not actually invalid
+# 7. View which stocks should be removed based on # users
+# 8. Implement better caching
 
 
 def main():
@@ -1234,20 +1121,21 @@ def main():
 		dayUser = args[1]
 		if (dayUser == "day"):
 			dateNow = datetime.datetime.now()
-			date = datetime.datetime(dateNow.year, dateNow.month, 25)
-			computeStocksDay(date, cpuCount - 1)
+			date = datetime.datetime(dateNow.year, dateNow.month, 24)
+			# computeStocksDay(date, cpuCount - 1)
 
 
 			# RUN everytime
 			# statsUsers()
 			# writeTempListStocks()
 
-			# res = topStocks(date, 2000, 10)
-			# calcReturnBasedResults(date, res)
+			res = topStocks(date, 2000, 10)
+			print(res)
+			calcReturnBasedResults(date, res)
 
 			print("hi")
 		else:
-			computeUsersDay('userInfo.csv', 'allNewUsers.csv', 1, cpuCount - 1)
+			computeUsersDay('userInfo.csv', 'allNewUsers.csv', 1, 1)
 	else:
 		print("rip")
 		# date = datetime.datetime(2019, 1, 11)
@@ -1271,7 +1159,7 @@ def main():
 
 
 
-		# createUsersCSV()
+		createUsersCSV()
 		# date = datetime.datetime(2019, 1, 17)
 		# res = topStocks(date, 2000)
 		# calcReturnBasedResults(date, res)
@@ -1289,8 +1177,6 @@ def main():
 		# writeSingleList('officialList.csv', newUsers)
 		
 		# print(len(newUsers))
-
-		# removeOnDate()
 
 
 
