@@ -16,6 +16,7 @@ import platform
 import sys
 from functools import reduce
 import traceback
+import math
 
 chrome_options = webdriver.ChromeOptions()
 prefs = {"profile.managed_default_content_settings.images": 2}
@@ -738,7 +739,6 @@ def chunks(seq, size):
 
 
 def computeStocksDay(date, processes):
-
 	path = date.strftime("stocksResults/%m-%d-%y.csv")
 	folderPath = date.strftime("stocksResults/%m-%d-%y/")
 	newUsersPath = date.strftime("newUsers/newUsersList-%m-%d-%y.csv")
@@ -779,6 +779,14 @@ def computeStocksDay(date, processes):
 	pool.close()
 	pool.join()
 
+	# Extend allNewUsers list
+	newUsers = readSingleList('allNewUsers.csv')
+	newUsersList = readSingleList(newUsersPath)
+	newUsers.extend(newUsersList)
+	newUsers = list(map(lambda x: [x], sorted(list(set(newUsers)))))
+	writeSingleList('allNewUsers.csv', newUsers)
+		
+
 
 def computeUsersDay(outputPath, inputPath, days, processes):
 	users = readSingleList('allNewUsers.csv')
@@ -809,11 +817,19 @@ def computeUsersDay(outputPath, inputPath, days, processes):
 def createUsersCSV():
 	users = allUsers()
 	result = []
+	resPath = 'userInfo.csv'
 
 	for user in users:
 		path = 'userCalculated/' + user + '_info.csv'
+		if (os.path.isfile(path) == False):
+			continue
+
 		res = readMultiList(path)
+		if (len(res) == 0):
+			continue
+
 		res.sort(key = lambda x: x[4], reverse = True)
+		res = list(map(lambda x: [x[0], float(x[1]), float(x[2]), float(x[3]), float(x[4])], res))
 
 		total = round(reduce(lambda a, b: a + b, list(map(lambda x: x[4], res))), 4)
 		correct = round(reduce(lambda a, b: a + b, list(map(lambda x: x[2], res))), 4)
@@ -832,7 +848,7 @@ def statsUsers():
 
 	for user in users:
 		path = "userinfo/" + user + ".csv"
-		if (os.path.isfile(path)):
+		if (os.path.isfile(path) == False):
 			continue
 
 		res = []
@@ -851,7 +867,7 @@ def statsUsers():
 				len(totalIncorrect), round(summedCorrect - summedIncorrect, 2)])
 
 		res.sort(key = lambda x: x[4], reverse = True)
-		total = round(reduce(lambda a, b: a + b, list(map(lambda x: x[4], res))), 4)
+		#total = round(reduce(lambda a, b: a + b, list(map(lambda x: x[4], res))), 4)
 
 		writeSingleList('userCalculated/' + user + '_info.csv', res)
 
@@ -878,6 +894,35 @@ def topUsersStock(stock, num):
 		return result[:num]
 
 
+
+def savedPricesStocks(date, stock):
+	path = date.strftime("stocksResults/%m-%d-%y-%I_savedStocks.csv")
+	dateStock = date.strftime("%m-%d-%y-%I:%M_") + stock
+
+	# create empty file
+	if (os.path.isfile(path) == False):
+		with open(path, "w") as my_empty_csv:
+			pass
+
+	stockList = readMultiList(path)
+	foundStock = list(filter(lambda x: x[0] == dateStock, stockList))
+
+	# If stock price exists
+	if (len(foundStock) == 1):
+		return float(foundStock[0][1])
+
+	(historical, dateTimeAdjusted) = findHistoricalData(date, stock, False)
+	priceAtPost = priceAtTime(date, historical) # Price at the time of posting
+
+	stockList.append([dateStock, priceAtPost])
+	stockList.sort(key = lambda x: x[0])
+	writeSingleList(path, stockList)
+
+	return priceAtPost
+
+
+
+
 def recommendStocks(result, date, money, numStocks):
 	picked = result[:numStocks]
 	totalWeight = reduce(lambda a, b: a + b, list(map(lambda x: x[1], picked)))
@@ -888,19 +933,24 @@ def recommendStocks(result, date, money, numStocks):
 
 	for i in range(len(picked)):
 		symbol = picked[i][0]
-		(historical, dateTimeAdjusted) = findHistoricalData(date, symbol, False)
-		priceAtPost = priceAtTime(date, historical) # Price at the time of posting
+		priceAtPost = savedPricesStocks(date, symbol)
 		numStocks = int(ratios[i] / priceAtPost)
 
 		stocksNum.append([symbol, priceAtPost, ratios[i], numStocks])
 
-		print([symbol, priceAtPost, ratios[i], numStocks])
+		#print([symbol, priceAtPost, ratios[i], numStocks])
 		
 	return stocksNum
 
 
 # Ideal when enough user information collected
-def topStocks(date, money, numStocks):
+def topStocks(date, money, weights):
+	numStocks = weights[0]
+	uAccW = weights[1]
+	uStockAccW = weights[2]
+	uPredW = weights[3]
+	uStockPredW = weights[4]
+
 	path = date.strftime("stocksResults/%m-%d-%y.csv")
 	pathWeighted = date.strftime("stocksResults/%m-%d-%y_weighted.csv")
 	folderPath = date.strftime("stocksResults/%m-%d-%y/")
@@ -909,29 +959,42 @@ def topStocks(date, money, numStocks):
 	if ((not os.path.exists(folderPath)) or os.path.isfile(path) == False):
 	    return
 
-	users = allUsers()
-	maxPercent = float(filtered[0][3])
-	minPercent = float(filtered[len(filtered) - 1][3])
-
-	dict = {}
-	for l in filtered:
-		percent = float(l[3])
-		if (percent > 0):
-			dict[l[0]] = (maxPercent - percent) / maxPercent
-		else:
-			dict[l[0]] = -1 * (minPercent - percent) / minPercent
-
-	mappedUsers = set(list(map(lambda x: x[0], filtered)))
+	users = readMultiList('userInfo.csv')
 	stocks = readMultiList(path)
+	users = list(filter(lambda x: len(x) >= 4, users))
+	mappedUsers = list(map(lambda x: x[0], users))
 	result = []
 
-	topUsersDict = {}
-	stocks1 = readSingleList('stocksActual.csv')
-	for s in stocks1:
-		# res = topUsersStock(s, 0)
-		res = readMultiList('templists/' + s + '.csv')
-		topUsersDict[s] = res
+	# Want to scale between the top cutoff with > 0 return and bottom cutoff with < 0 return
+	dictAccuracy = {}
+	dictPredictions = {}
+	cutoff = 0.98
+	topPercent = list(filter(lambda x: float(x[3]) > 0, users))
+	topPercentIndex = int(len(topPercent) * (cutoff))
+	maxPercent = float(topPercent[len(topPercent) - topPercentIndex][3])
 
+	bottomPercent = list(filter(lambda x: float(x[3]) < 0, users))
+	bottomPercentIndex = int(len(bottomPercent) * (cutoff))
+	minPercent = float(bottomPercent[bottomPercentIndex][3])
+
+	totalPredictionsList = list(map(lambda x: int(float(x[1]) + float(x[2])), users))
+	maxNumPredictionsLog = math.log(max(totalPredictionsList))
+
+	# Find user's accuracy scaled by max and min percent as well as number of prediction
+	for user in users:
+		username = user[0]
+		percent = float(user[3])
+		numPredictions = int(float(user[1]) + float(user[2]))
+		dictPredictions[username] = (math.log(numPredictions) / maxNumPredictionsLog) - 0.5
+		if (percent > 0):
+			percent = maxPercent if (percent >= maxPercent) else percent
+			dictAccuracy[username] = percent / maxPercent
+		else:
+			percent = minPercent if (percent <= minPercent) else percent
+			dictAccuracy[username] = percent / minPercent
+
+
+	# Find weight for each stock
 	for s in stocks:
 		symbol = s[0]
 		resPath = folderPath + symbol + ".csv"
@@ -939,20 +1002,33 @@ def topStocks(date, money, numStocks):
 		total = 0
 
 		# scale based on how accurate that user is
-		topUsersForStock = topUsersDict[symbol]
+		topUsersForStock = readMultiList('templists/' + symbol + '.csv')
 
 		# safety check cuz len(topUsersForStock) must be  > 1
-		maxPercent = float(topUsersForStock[0][1])
-		minPercent = float(topUsersForStock[len(topUsersForStock) - 1][1])
+		if (len(topUsersForStock) < 2):
+			continue
 
-		topUserDict = {}
+		try:
+			maxPercent = math.log(float(topUsersForStock[0][1]))
+		except:
+			maxPercent = 0.0
+		minPercent = -1 * math.log(abs(float(topUsersForStock[len(topUsersForStock) - 1][1])))
+
+		dictUserStockAccuracy = {}
+		dictUserStockPredictions = {}
 		for u in topUsersForStock:
 			user = u[0]
 			percent = float(u[1])
+			dictUserStockPredictions[user] = (float(u[2]) / 100.0) - 0.5
+			if (percent == 0.0):
+				dictUserStockAccuracy[user] = 0
+				continue
+
+			percentLog = math.log(abs(percent))
 			if (percent > 0):
-				topUserDict[user] = (maxPercent - percent) / maxPercent
+				dictUserStockAccuracy[user] = percentLog / maxPercent
 			else:
-				topUserDict[user] = -1 * (minPercent - percent) / minPercent
+				dictUserStockAccuracy[user] = -1 * percentLog / minPercent
 
 		for r in resSymbol:
 			user = r[0]
@@ -960,24 +1036,29 @@ def topStocks(date, money, numStocks):
 
 			# Only based no user info's that's been collected
 			if (user in mappedUsers):
-				if (isBull):
-					total += dict[user]
-				else:
-					total -= dict[user]
+				userAccuracy = dictAccuracy[user] # How much return the user had overall
+				userPredictions = dictPredictions[user] # Number of predictions user made overall
 
-			# Secondary weighting based on how accurate that user is for specific stocks
-			if (user in topUserDict):
-				if (isBull):
-					total += topUserDict[user]
+				totalWeight = 0
+				if (user in dictUserStockAccuracy):
+					userStockAccuracy = dictUserStockAccuracy[user]
+					userStockPredictions = dictUserStockPredictions[user]
+					totalWeight = (uAccW * userAccuracy) + (uStockAccW * userStockAccuracy) + (uPredW * userPredictions) + (uStockPredW * userStockPredictions)
 				else:
-					total -= topUserDict[user]
+					totalWeight = (uAccW * userAccuracy) + (uPredW * userPredictions)
 
+				if (isBull):
+					total += totalWeight
+				else:
+					total -= totalWeight
+
+		if (symbol == 'AMZN' or symbol == 'AMD' or symbol == 'TSLA'):
+			continue
 		result.append([symbol, total])
 
 	result.sort(key = lambda x: x[1], reverse = True)
-
 	res = recommendStocks(result, date, money, numStocks)
-	writeSingleList(pathWeighted, result)
+	#writeSingleList(pathWeighted, result)
 	
 	return res
 
@@ -991,83 +1072,34 @@ def writeTempListStocks():
 		writeSingleList('templists/' + s + '.csv', res)
  
 
-def calcReturns(date):
-	pathWeighted = date.strftime("stocksResults/%m-%d-%y_weighted.csv")
-	res = readMultiList(pathWeighted)
-
-	print(res[:15])
-
-	dictBefore = {}
-	dictAfter = {}
-	percents = []
-	for i in range(30):
-		total = 0
-		for j in range(i):
-			symbol = res[j][0]
-			if (symbol == "SNAP"):
-				continue
-			pricebefore = 0
-			if (symbol in dictBefore):
-				pricebefore = dictBefore[symbol]
-			else:
-				beforeDate = datetime.datetime(2019, 1, date.day, 15, 59)
-				(historical, dateTimeAdjusted1) = findHistoricalData(beforeDate, symbol, False)
-				pricebefore = priceAtTime(beforeDate, historical) # fix this function to take dateTimeadjusted
-				dictBefore[symbol] = pricebefore
-
-			if (symbol in dictAfter):
-				priceafter = dictAfter[symbol]
-			else:
-				afterDate = datetime.datetime(2019, 1, date.day + 1, 9, 30)
-				(historical, dateTimeAdjusted1) = findHistoricalData(afterDate, symbol, False)
-				priceafter = 0
-				priceafter = priceAtTime(afterDate, historical) # fix this function to take dateTimeadjusted
-				dictAfter[symbol] = priceafter
-				print(symbol, pricebefore, priceafter, 100.0 * (priceafter - pricebefore) / pricebefore)
-
-			percent = 100.0 * (priceafter - pricebefore) / pricebefore
-			total += percent
-
-		percents.append(round(total, 4))
-
-	print(percents)
-
 
 def calcReturnBasedResults(date, result):
-
-	dictAfter = {}	
 	totalsReturns = []
-	afterDate = datetime.datetime(date.year, date.month, date.day + 1, 9, 30)
-	historical = []
+	afterDate = datetime.datetime(date.year, date.month, date.day + 3, 9, 30)
 
-	for i in range(50):
-		totalReturn = 0
-		afterDate = afterDate + datetime.timedelta(minutes = 1)
-		for x in result:
-			symbol = x[0]
-			priceBefore = x[1]
-			shares = x[3]
-			totalBefore = priceBefore * shares
-			diff = 0
-			priceAfter = 0
-
-			if (symbol in dictAfter):
-				priceAfter = priceAtTime(afterDate, dictAfter[symbol])
-			else:
-				(historical, dateTimeAdjusted1) = findHistoricalData(afterDate, symbol, False)
-				priceAfter = priceAtTime(afterDate, historical) # fix this function to take dateTimeadjusted
-				dictAfter[symbol] = historical
-
-			totalAfter = priceAfter * shares
-			diff = totalAfter - totalBefore
-
-			totalReturn += diff
-
+	for i in range(5):
 		if (i % 5 == 0):
+			totalReturn = 0
+			for x in result:
+				symbol = x[0]
+				priceBefore = x[1]
+				shares = x[3]
+				totalBefore = priceBefore * shares
+				diff = 0
+				priceAfter = savedPricesStocks(afterDate, symbol)
+
+				totalAfter = priceAfter * shares
+				diff = totalAfter - totalBefore
+
+				#print(symbol, diff, priceBefore, priceAfter)
+				totalReturn += diff
+
 			totalReturn = round(totalReturn, 2)
 			totalsReturns.append([totalReturn, afterDate])
-			print(afterDate, totalReturn)
+			# print(afterDate, totalReturn)
+			return totalReturn
 
+		afterDate = afterDate + datetime.timedelta(minutes = 1)
 
 
 def checkInvalid():
@@ -1091,12 +1123,34 @@ def checkInvalid():
 	print(count4)
 
 
-
 def allUsers():
 	path = "userinfo/"
 	files = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))] 
 	names = list(map(lambda x: x[:len(x) - 4], files))
+	names = list(filter(lambda x: x != '.DS_S', names))
 	return names
+
+
+def findNewUserChange():
+	path = "newUsers/"
+	files = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))] 
+	files = sorted(list(filter(lambda x: x != '.DS_Store', files)))
+
+	users = []
+	prevLen = 0
+	for file in files:
+		print(file)
+		res = readSingleList(path + file)
+		res = list(filter(lambda x: len(x) > 0, res))
+
+		users.extend(res)
+		users = list(set(users))
+
+		print(len(users) - prevLen)
+		prevLen = len(users)
+
+
+
 
 
 
@@ -1110,10 +1164,13 @@ def allUsers():
 #	 - how accurate the user is in general, past history of the stock
 #	 - number of stocks to pick from (currently 10)
 #    - number of total predictions made
+#	 - how much the user predicts for that stock
 # 6. Figure out why some invalid symbols are not actually invalid
 # 7. View which stocks should be removed based on # users
 # 8. Implement better caching
-
+# 9. View graph of number of new users added each day to see when feasible to also find user info when predictings
+# 10. Find faster way to update templists folder
+# 11. Look at past prediction weights and see if there is a huge jump
 
 def main():
 	args = sys.argv
@@ -1121,64 +1178,48 @@ def main():
 		dayUser = args[1]
 		if (dayUser == "day"):
 			dateNow = datetime.datetime.now()
-			date = datetime.datetime(dateNow.year, dateNow.month, 24)
-			# computeStocksDay(date, cpuCount - 1)
-
+			date = datetime.datetime(dateNow.year, dateNow.month, 25)
+			computeStocksDay(date, 1)
 
 			# RUN everytime
 			# statsUsers()
 			# writeTempListStocks()
 
-			res = topStocks(date, 2000, 10)
-			print(res)
-			calcReturnBasedResults(date, res)
+			foundWeights = []
+			maxReturn = 0
+			count = 0
+
+			for i in range(10, 11):
+				numStocks = i 
+				for j in range(2, 8):
+					w1 = j * 0.1
+					for k in range(5, 8):
+						w2 = k * 0.1
+						for l in range(7, 10):
+							w3 = l * 0.3
+							for m in range(7, 10):
+								w4 = m * 0.3
+
+								count += 1
+								weights = [numStocks, w1, w2, w3, w4]
+								res = topStocks(date, 2000, weights)
+								foundReturn = calcReturnBasedResults(date, res)
+
+								print(count, foundReturn, weights)
+								if (foundReturn > maxReturn):
+									maxReturn = foundReturn
+									foundWeights = weights
+
+			print(maxReturn, foundWeights)
 
 			print("hi")
 		else:
 			computeUsersDay('userInfo.csv', 'allNewUsers.csv', 1, 1)
 	else:
 		print("rip")
-		# date = datetime.datetime(2019, 1, 11)
-		# computeStocksDay(date, cpuCount - 1)
 
+		findNewUserChange()
 		# res = topUsersStock('BIOC', 0)
-		# print(res)
-		# for r in res:
-		# 	print(r)
-		# res = topUsersStock('MSFT', 0)
-
-		# for i in res:
-		# 	print(i)
-		# path = "userinfo/"
-		# files = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))] 
-		# names = list(map(lambda x: x[:len(x) - 4], files))
-		# names = list(filter(lambda x: x[len(x) - 4:] == 'info', names))
-
-		# for name in names:
-		# 	os.remove('userinfo/' + name + '.csv')
-
-
-
-		createUsersCSV()
-		# date = datetime.datetime(2019, 1, 17)
-		# res = topStocks(date, 2000)
-		# calcReturnBasedResults(date, res)
-		# calcReturns(date)
-
-
-		# newUsers = readSingleList('allNewUsers.csv')
-		# newUsers2 = readSingleList('newUsers/newUsersList-01-22-19.csv')
-		# newUsers2 = readSingleList('newUsers/newUsersList-01-23-19.csv')
-		# newUsers.extend(newUsers2)
-		# newUsers = list(map(lambda x: [x], sorted(list(set(newUsers)))))
-
-		# print(len(newUsers))
-
-		# writeSingleList('officialList.csv', newUsers)
-		
-		# print(len(newUsers))
-
-
 
 
 
