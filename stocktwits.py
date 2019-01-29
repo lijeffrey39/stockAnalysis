@@ -32,6 +32,9 @@ DRIVER_BIN = os.path.join(PROJECT_ROOT, chromedriverName)
 DAYS_BACK = 75
 SAVE_USER_PAGE = False
 SAVE_STOCK_PAGE = False
+CREATED_DICT_USERS = False
+dictAccuracy = {}
+dictPredictions = {}
 
 # SET NAME ATTRIBUTES
 priceAttr = 'st_2BF7LWC'
@@ -894,7 +897,6 @@ def topUsersStock(stock, num):
 		return result[:num]
 
 
-
 def savedPricesStocks(date, stock):
 	path = date.strftime("stocksResults/%m-%d-%y-%I_savedStocks.csv")
 	dateStock = date.strftime("%m-%d-%y-%I:%M_") + stock
@@ -921,8 +923,6 @@ def savedPricesStocks(date, stock):
 	return priceAtPost
 
 
-
-
 def recommendStocks(result, date, money, numStocks):
 	picked = result[:numStocks]
 	totalWeight = reduce(lambda a, b: a + b, list(map(lambda x: x[1], picked)))
@@ -937,37 +937,19 @@ def recommendStocks(result, date, money, numStocks):
 		numStocks = int(ratios[i] / priceAtPost)
 
 		stocksNum.append([symbol, priceAtPost, ratios[i], numStocks])
-
 		#print([symbol, priceAtPost, ratios[i], numStocks])
 		
 	return stocksNum
 
 
-# Ideal when enough user information collected
-def topStocks(date, money, weights):
-	numStocks = weights[0]
-	uAccW = weights[1]
-	uStockAccW = weights[2]
-	uPredW = weights[3]
-	uStockPredW = weights[4]
-
-	path = date.strftime("stocksResults/%m-%d-%y.csv")
-	pathWeighted = date.strftime("stocksResults/%m-%d-%y_weighted.csv")
-	folderPath = date.strftime("stocksResults/%m-%d-%y/")
-
-	# if not created yet
-	if ((not os.path.exists(folderPath)) or os.path.isfile(path) == False):
-	    return
+# Want to scale between the top cutoff with > 0 return and bottom cutoff with < 0 return
+def createDictUsers():
+	global dictAccuracy
+	global dictPredictions
 
 	users = readMultiList('userInfo.csv')
-	stocks = readMultiList(path)
 	users = list(filter(lambda x: len(x) >= 4, users))
-	mappedUsers = list(map(lambda x: x[0], users))
-	result = []
 
-	# Want to scale between the top cutoff with > 0 return and bottom cutoff with < 0 return
-	dictAccuracy = {}
-	dictPredictions = {}
 	cutoff = 0.98
 	topPercent = list(filter(lambda x: float(x[3]) > 0, users))
 	topPercentIndex = int(len(topPercent) * (cutoff))
@@ -992,6 +974,35 @@ def topStocks(date, money, weights):
 		else:
 			percent = minPercent if (percent <= minPercent) else percent
 			dictAccuracy[username] = percent / minPercent
+	return
+
+
+# Ideal when enough user information collected
+def topStocks(date, money, weights):
+	numStocks = weights[0]
+	uAccW = weights[1]
+	uStockAccW = weights[2]
+	uPredW = weights[3]
+	uStockPredW = weights[4]
+
+	path = date.strftime("stocksResults/%m-%d-%y.csv")
+	pathWeighted = date.strftime("stocksResults/%m-%d-%y_weighted.csv")
+	folderPath = date.strftime("stocksResults/%m-%d-%y/")
+
+	# if not created yet
+	if ((not os.path.exists(folderPath)) or os.path.isfile(path) == False):
+	    return
+
+	users = readMultiList('userInfo.csv')
+	stocks = readMultiList(path)
+	users = list(filter(lambda x: len(x) >= 4, users))
+	mappedUsers = set(list(map(lambda x: x[0], users)))
+	result = []
+
+	global CREATED_DICT_USERS
+	if (CREATED_DICT_USERS == False):
+		createDictUsers()
+		CREATED_DICT_USERS = True
 
 
 	# Find weight for each stock
@@ -1075,7 +1086,9 @@ def writeTempListStocks():
 
 def calcReturnBasedResults(date, result):
 	totalsReturns = []
-	afterDate = datetime.datetime(date.year, date.month, date.day + 3, 9, 30)
+	afterDate = datetime.datetime(date.year, date.month, date.day + 1, 9, 30)
+	while (isTradingDay(afterDate) == False):
+		afterDate += datetime.timedelta(1)
 
 	for i in range(5):
 		if (i % 5 == 0):
@@ -1091,7 +1104,7 @@ def calcReturnBasedResults(date, result):
 				totalAfter = priceAfter * shares
 				diff = totalAfter - totalBefore
 
-				#print(symbol, diff, priceBefore, priceAfter)
+				# print(symbol, diff, priceBefore, priceAfter)
 				totalReturn += diff
 
 			totalReturn = round(totalReturn, 2)
@@ -1131,6 +1144,7 @@ def allUsers():
 	return names
 
 
+# Find the change in the number of new users each day
 def findNewUserChange():
 	path = "newUsers/"
 	files = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))] 
@@ -1150,7 +1164,24 @@ def findNewUserChange():
 		prevLen = len(users)
 
 
+def isTradingDay(date):
+	historical = get_historical_intraday('TVIX', date)
+	return len(historical) > 0
 
+# Return list of valid trading days from date on
+def findTradingDays(date):
+	currDate = datetime.datetime.now()
+	delta = datetime.timedelta(1)
+	dates = []
+
+	while (date < currDate - delta):
+		# See if it's a valid trading day
+		if (isTradingDay(date)):
+			dates.append(date)
+
+		date += delta
+
+	return dates
 
 
 
@@ -1171,6 +1202,8 @@ def findNewUserChange():
 # 9. View graph of number of new users added each day to see when feasible to also find user info when predictings
 # 10. Find faster way to update templists folder
 # 11. Look at past prediction weights and see if there is a huge jump
+# 12. Start looking at users throughout day for stocks so bulk of work is done before 4pm
+# 13. For dictPredictions, find the middle number of users for prediction rate
 
 def main():
 	args = sys.argv
@@ -1178,39 +1211,42 @@ def main():
 		dayUser = args[1]
 		if (dayUser == "day"):
 			dateNow = datetime.datetime.now()
-			date = datetime.datetime(dateNow.year, dateNow.month, 25)
-			computeStocksDay(date, 1)
+			date = datetime.datetime(dateNow.year, dateNow.month, 14)
+			dates = findTradingDays(date)
+			# computeStocksDay(date, 1)
 
 			# RUN everytime
 			# statsUsers()
 			# writeTempListStocks()
 
-			foundWeights = []
-			maxReturn = 0
 			count = 0
+			result = []
 
-			for i in range(10, 11):
+			for i in range(8, 11):
 				numStocks = i 
 				for j in range(2, 8):
 					w1 = j * 0.1
-					for k in range(5, 8):
+					for k in range(2, 8):
 						w2 = k * 0.1
-						for l in range(7, 10):
+						for l in range(2, 8):
 							w3 = l * 0.3
-							for m in range(7, 10):
+							for m in range(2, 8):
 								w4 = m * 0.3
 
 								count += 1
 								weights = [numStocks, w1, w2, w3, w4]
-								res = topStocks(date, 2000, weights)
-								foundReturn = calcReturnBasedResults(date, res)
+								# res = topStocks(date, 2000, weights)
+								# foundReturn = calcReturnBasedResults(date, res)
+								totalReturn = 0
 
-								print(count, foundReturn, weights)
-								if (foundReturn > maxReturn):
-									maxReturn = foundReturn
-									foundWeights = weights
+								for date in dates:
+									res = topStocks(date, 2000, weights)
+									foundReturn = calcReturnBasedResults(date, res)
+									totalReturn += foundReturn
 
-			print(maxReturn, foundWeights)
+								print(count, totalReturn, weights)
+								result.append([count, totalReturn, weights])
+								writeSingleList('argMax.csv', result)
 
 			print("hi")
 		else:
@@ -1218,8 +1254,23 @@ def main():
 	else:
 		print("rip")
 
-		findNewUserChange()
+		# findNewUserChange()
 		# res = topUsersStock('BIOC', 0)
+
+		dateNow = datetime.datetime.now()
+		date = datetime.datetime(dateNow.year, dateNow.month, 14)
+		dates = findTradingDays(date)
+		totalReturn = 0
+
+		for date in dates:
+			weights = [9, 0.5, 0.9, 2.1, 2.1]
+
+			res = topStocks(date, 2000, weights)
+			foundReturn = calcReturnBasedResults(date, res)
+			print(date, foundReturn)
+			totalReturn += foundReturn
+
+		print(totalReturn)
 
 
 
