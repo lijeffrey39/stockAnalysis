@@ -1257,20 +1257,22 @@ def main():
 		# findNewUserChange()
 		# res = topUsersStock('BIOC', 0)
 
-		dateNow = datetime.datetime.now()
-		date = datetime.datetime(dateNow.year, dateNow.month, 14)
-		dates = findTradingDays(date)
-		totalReturn = 0
 
-		for date in dates:
-			weights = [9, 0.5, 0.9, 2.1, 2.1]
 
-			res = topStocks(date, 2000, weights)
-			foundReturn = calcReturnBasedResults(date, res)
-			print(date, foundReturn)
-			totalReturn += foundReturn
+		# dateNow = datetime.datetime.now()
+		# date = datetime.datetime(dateNow.year, dateNow.month, 14)
+		# dates = findTradingDays(date)
+		# totalReturn = 0
 
-		print(totalReturn)
+		# for date in dates:
+		# 	weights = [9, 0.5, 0.9, 2.1, 2.1]
+
+		# 	res = topStocks(date, 2000, weights)
+		# 	foundReturn = calcReturnBasedResults(date, res)
+		# 	print(date, foundReturn)
+		# 	totalReturn += foundReturn
+
+		# print(totalReturn)
 
 
 
