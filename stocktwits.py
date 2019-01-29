@@ -1222,15 +1222,15 @@ def main():
 			count = 0
 			result = []
 
-			for i in range(8, 11):
+			for i in range(8, 9):
 				numStocks = i 
-				for j in range(2, 8):
+				for j in range(3, 8):
 					w1 = j * 0.1
-					for k in range(2, 8):
+					for k in range(1, 7):
 						w2 = k * 0.1
-						for l in range(2, 8):
+						for l in range(2, 5):
 							w3 = l * 0.3
-							for m in range(2, 8):
+							for m in range(5, 11):
 								w4 = m * 0.3
 
 								count += 1
@@ -1265,7 +1265,7 @@ def main():
 		# totalReturn = 0
 
 		# for date in dates:
-		# 	weights = [9, 0.5, 0.9, 2.1, 2.1]
+		# 	weights = [9, 0.48, 0.43, 0.64, 1.76]
 
 		# 	res = topStocks(date, 2000, weights)
 		# 	foundReturn = calcReturnBasedResults(date, res)
@@ -1274,6 +1274,27 @@ def main():
 
 		# print(totalReturn)
 
+
+		# res = readMultiList('argMax.csv')
+		# res.sort(key = lambda x: float(x[1]), reverse = True)
+		
+		# result = []
+
+		# for i in range(20):
+		# 	temp = res[i]
+		# 	numStocks = int(temp[2][2])
+		# 	w1 = round(float(temp[3]), 2)
+		# 	w2 = round(float(temp[4]), 2)
+		# 	w3 = round(float(temp[5]), 2)
+		# 	w4 = round(float(temp[6][:4]), 2)
+		# 	temp = [round(float(temp[1]), 2), numStocks, w1, w2, w3, w4]
+		# 	print(temp)
+		# 	result.append(temp)
+
+		# for i in range(2, 6):
+		# 	w1Total = list(map(lambda x: x[i],result))
+		# 	avg = sum(w1Total) / len(w1Total)
+		# 	print(avg)
 
 
 if __name__ == "__main__":
