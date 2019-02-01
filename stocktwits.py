@@ -772,6 +772,10 @@ def computeStocksDay(date, processes):
 		else:
 			actual.append(i)
 
+
+	actual.remove('MNGA')
+	actual.remove('MSFT')
+
 	splitEqual = list(chunks(actual, processes))
 	pool = Pool()
 
@@ -1086,7 +1090,8 @@ def writeTempListStocks():
 
 def calcReturnBasedResults(date, result):
 	totalsReturns = []
-	afterDate = datetime.datetime(date.year, date.month, date.day + 1, 9, 30)
+	afterDate = datetime.datetime(date.year, date.month, date.day, 9, 30)
+	afterDate += datetime.timedelta(1)
 	while (isTradingDay(afterDate) == False):
 		afterDate += datetime.timedelta(1)
 
@@ -1212,7 +1217,7 @@ def main():
 		dayUser = args[1]
 		if (dayUser == "day"):
 			dateNow = datetime.datetime.now()
-			date = datetime.datetime(dateNow.year, dateNow.month, 31)
+			date = datetime.datetime(dateNow.year, 2, 1)
 			dates = findTradingDays(date)
 			computeStocksDay(date, 3)
 
@@ -1264,8 +1269,9 @@ def main():
 
 
 		dateNow = datetime.datetime.now()
-		date = datetime.datetime(dateNow.year, dateNow.month, 14)
+		date = datetime.datetime(dateNow.year, 1, 14)
 		dates = findTradingDays(date)
+		# dates = [datetime.datetime(dateNow.year, 1, 31)]
 		totalReturn = 0
 
 		money = 2000
