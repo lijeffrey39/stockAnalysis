@@ -17,6 +17,7 @@ import sys
 from functools import reduce
 import traceback
 import math
+from modules import scroll
 
 chrome_options = webdriver.ChromeOptions()
 prefs = {"profile.managed_default_content_settings.images": 2}
@@ -133,7 +134,7 @@ def findDateTime(message):
 		return dateTime
 
 
-# Sroll for # days
+# Scroll for # days
 def scrollFor(name, days, driver):
 	elem = driver.find_element_by_tag_name("body")
 
@@ -373,7 +374,7 @@ def findPageStock(symbol, days, driver):
 
 	url = "https://stocktwits.com/symbol/" + symbol
 	driver.get(url)
-	foundEnough = scrollFor(symbol, days, driver)
+	foundEnough = scroll.scrollFor(symbol, days, driver)
 
 	if (foundEnough == False):
 		return (None, True)
@@ -543,7 +544,7 @@ def findPageUser(username, days, driver):
 
 	url = "https://stocktwits.com/" + username
 	driver.get(url)
-	foundEnough = scrollFor(username, days, driver)
+	foundEnough = scroll.scrollFor(username, days, driver)
 
 	if (foundEnough == False):
 		return None
@@ -1266,25 +1267,26 @@ def main():
 		# findNewUserChange()
 		# res = topUsersStock('BIOC', 0)
 
+		scroll.helloWorld()
 
 
-		dateNow = datetime.datetime.now()
-		date = datetime.datetime(dateNow.year, 1, 14)
-		dates = findTradingDays(date)
-		# dates = [datetime.datetime(dateNow.year, 1, 31)]
-		totalReturn = 0
+		# dateNow = datetime.datetime.now()
+		# date = datetime.datetime(dateNow.year, 1, 14)
+		# dates = findTradingDays(date)
+		# # dates = [datetime.datetime(dateNow.year, 1, 31)]
+		# totalReturn = 0
 
-		money = 2000
-		for date in dates:
-			weights = [9, 0.48, 0.45, 0.64, 1.92]
+		# money = 2000
+		# for date in dates:
+		# 	weights = [9, 0.48, 0.45, 0.64, 1.92]
 
-			res = topStocks(date, money, weights)
-			foundReturn = calcReturnBasedResults(date, res)
-			print(date, foundReturn)
-			totalReturn += foundReturn
-			money += foundReturn
+		# 	res = topStocks(date, money, weights)
+		# 	foundReturn = calcReturnBasedResults(date, res)
+		# 	print(date, foundReturn)
+		# 	totalReturn += foundReturn
+		# 	money += foundReturn
 
-		print(totalReturn)
+		# print(totalReturn)
 
 
 		# res = readMultiList('argMax.csv')
