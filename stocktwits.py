@@ -1063,13 +1063,13 @@ def topStocks(date, money, weights):
 				else:
 					total -= totalWeight
 
-		if (symbol == 'AMZN' or symbol == 'AMD' or symbol == 'TSLA'):
+		if (symbol == 'AMD' or symbol == 'TSLA' or symbol == "AMZN"):
 			continue
 		result.append([symbol, total])
 
 	result.sort(key = lambda x: x[1], reverse = True)
 	res = recommendStocks(result, date, money, numStocks)
-	#writeSingleList(pathWeighted, result)
+	writeSingleList(pathWeighted, result)
 	
 	return res
 
@@ -1168,6 +1168,7 @@ def isTradingDay(date):
 	historical = get_historical_intraday('TVIX', date)
 	return len(historical) > 0
 
+
 # Return list of valid trading days from date on
 def findTradingDays(date):
 	currDate = datetime.datetime.now()
@@ -1211,42 +1212,45 @@ def main():
 		dayUser = args[1]
 		if (dayUser == "day"):
 			dateNow = datetime.datetime.now()
-			date = datetime.datetime(dateNow.year, dateNow.month, 14)
+			date = datetime.datetime(dateNow.year, dateNow.month, 31)
 			dates = findTradingDays(date)
-			# computeStocksDay(date, 1)
+			computeStocksDay(date, 3)
 
+			# weights = [9, 0.48, 0.45, 0.64, 1.92]
+			
+			# res = topStocks(date, 2000, weights)
 			# RUN everytime
 			# statsUsers()
 			# writeTempListStocks()
 
-			count = 0
-			result = []
+			# count = 0
+			# result = []
 
-			for i in range(8, 9):
-				numStocks = i 
-				for j in range(3, 8):
-					w1 = j * 0.1
-					for k in range(1, 7):
-						w2 = k * 0.1
-						for l in range(2, 5):
-							w3 = l * 0.3
-							for m in range(5, 11):
-								w4 = m * 0.3
+			# for i in range(8, 9):
+			# 	numStocks = i 
+			# 	for j in range(3, 8):
+			# 		w1 = j * 0.1
+			# 		for k in range(1, 7):
+			# 			w2 = k * 0.1
+			# 			for l in range(2, 5):
+			# 				w3 = l * 0.3
+			# 				for m in range(5, 11):
+			# 					w4 = m * 0.3
 
-								count += 1
-								weights = [numStocks, w1, w2, w3, w4]
-								# res = topStocks(date, 2000, weights)
-								# foundReturn = calcReturnBasedResults(date, res)
-								totalReturn = 0
+			# 					count += 1
+			# 					weights = [numStocks, w1, w2, w3, w4]
+			# 					# res = topStocks(date, 2000, weights)
+			# 					# foundReturn = calcReturnBasedResults(date, res)
+			# 					totalReturn = 0
 
-								for date in dates:
-									res = topStocks(date, 2000, weights)
-									foundReturn = calcReturnBasedResults(date, res)
-									totalReturn += foundReturn
+			# 					for date in dates:
+			# 						res = topStocks(date, 2000, weights)
+			# 						foundReturn = calcReturnBasedResults(date, res)
+			# 						totalReturn += foundReturn
 
-								print(count, totalReturn, weights)
-								result.append([count, totalReturn, weights])
-								writeSingleList('argMax.csv', result)
+			# 					print(count, totalReturn, weights)
+			# 					result.append([count, totalReturn, weights])
+			# 					writeSingleList('argMax.csv', result)
 
 			print("hi")
 		else:
@@ -1259,20 +1263,22 @@ def main():
 
 
 
-		# dateNow = datetime.datetime.now()
-		# date = datetime.datetime(dateNow.year, dateNow.month, 14)
-		# dates = findTradingDays(date)
-		# totalReturn = 0
+		dateNow = datetime.datetime.now()
+		date = datetime.datetime(dateNow.year, dateNow.month, 14)
+		dates = findTradingDays(date)
+		totalReturn = 0
 
-		# for date in dates:
-		# 	weights = [9, 0.48, 0.43, 0.64, 1.76]
+		money = 2000
+		for date in dates:
+			weights = [9, 0.48, 0.45, 0.64, 1.92]
 
-		# 	res = topStocks(date, 2000, weights)
-		# 	foundReturn = calcReturnBasedResults(date, res)
-		# 	print(date, foundReturn)
-		# 	totalReturn += foundReturn
+			res = topStocks(date, money, weights)
+			foundReturn = calcReturnBasedResults(date, res)
+			print(date, foundReturn)
+			totalReturn += foundReturn
+			money += foundReturn
 
-		# print(totalReturn)
+		print(totalReturn)
 
 
 		# res = readMultiList('argMax.csv')
