@@ -1,25 +1,35 @@
-from bs4 import BeautifulSoup
-import time
-from selenium import webdriver
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.common.action_chains import ActionChains
 import datetime
+import time
+
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.common.keys import Keys
+from selenium import webdriver
+
 from iexfinance.stocks import get_historical_intraday
 from dateutil.parser import parse
-from .helpers import findDateTime
+from bs4 import BeautifulSoup
+
+from .messageExtract import findDateTime
+
+
+
+# ------------------------------------------------------------------------
+# ----------------------------- Variables --------------------------------
+# ------------------------------------------------------------------------
+
 
 
 # SET NAME ATTRIBUTES
 priceAttr = 'st_2BF7LWC'
 messageStreamAttr = 'st_1m1w96g'
-timeAttr = 'st_HsSv26f'
-usernameAttr = 'st_x9n-9YN'
-bullSentAttr = 'st_1WHAM8- st_3bEptPi'
-bearSentAttr = 'st_2KbIj7l st_3bEptPi'
-messageTextAttr = 'st_2giLhWN'
-likeCountAttr = 'st_1tZ744c'
-commmentCountAttr = 'st_1YAqrKR'
 messagesCountAttr = 'st__tZJhLh'
+
+
+
+# ------------------------------------------------------------------------
+# ----------------------------- Functions --------------------------------
+# ------------------------------------------------------------------------
+
 
 
 # Scroll for # days

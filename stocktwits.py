@@ -1,31 +1,35 @@
-from bs4 import BeautifulSoup
-import time
-from selenium import webdriver
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.common.action_chains import ActionChains
-import os
+import multiprocessing
+import platform
 import datetime
+import math
+import json
+import time
+import sys
+import os
+
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.common.keys import Keys
+from selenium import webdriver
+from multiprocessing import Process, Pool, current_process
 from iexfinance.stocks import get_historical_intraday
 from dateutil.parser import parse
-import json
-import csv
-import multiprocessing
-from multiprocessing import Process, Pool, current_process
-import threading
-import platform
-import sys
+from bs4 import BeautifulSoup
 from functools import reduce
-import traceback
-import math
-from modules import scroll
+
+from modules.scroll import *
+from modules.messageExtract import *
+from modules.fileIO import *
+from modules.stockPriceAPI import *
+from modules.helpers import *
+
 
 chrome_options = webdriver.ChromeOptions()
 prefs = {"profile.managed_default_content_settings.images": 2}
 chrome_options.add_experimental_option("prefs", prefs)
-chrome_options.add_argument("--headless")
-chrome_options.add_argument('log-level=3')
-global_lock = threading.Lock()
+# chrome_options.add_argument("--headless")
+# chrome_options.add_argument('log-level=3')
 cpuCount = multiprocessing.cpu_count()
+
 
 chromedriverName = 'chromedriver' if (platform.system() == "Darwin") else 'chromedriver.exe'
 PROJECT_ROOT = os.getcwd()
@@ -37,17 +41,11 @@ CREATED_DICT_USERS = False
 dictAccuracy = {}
 dictPredictions = {}
 
+
 # SET NAME ATTRIBUTES
-priceAttr = 'st_2BF7LWC'
 messageStreamAttr = 'st_1m1w96g'
 timeAttr = 'st_HsSv26f'
-usernameAttr = 'st_x9n-9YN'
-bullSentAttr = 'st_1WHAM8- st_3bEptPi'
-bearSentAttr = 'st_2KbIj7l st_3bEptPi'
 messageTextAttr = 'st_2giLhWN'
-likeCountAttr = 'st_1tZ744c'
-commmentCountAttr = 'st_1YAqrKR'
-messagesCountAttr = 'st__tZJhLh'
 
 
 # Make cache for that symbol and date so don't have to keep calling api
@@ -55,306 +53,7 @@ messagesCountAttr = 'st__tZJhLh'
 datesSeenGlobal = {} 
 useDatesSeen = False
 
-# Invalid symbols so they aren't check again
-invalidSymbols = []
 
-
-# ------------------------------------------------------------------------
-# ----------------------- Useful helper functions ------------------------
-# ------------------------------------------------------------------------
-
-
-def removeSpecialCharacters(string):
-	return ''.join(e for e in string if e.isalnum())
-
-
-# Read a single item CSV
-def readSingleList(path):
-	l = []
-
-	if not os.path.exists(path):
-		return l
-
-	with open(path) as f:
-		file = f.readlines()
-		for i in file:
-			l.append(removeSpecialCharacters(i))
-	return l
-
-
-# Read a multi item CSV
-def readMultiList(path):
-	l = []
-
-	if not os.path.exists(path):
-		return l
-
-	with open(path) as f:
-		file = f.readlines()
-		for i in file:
-			x = i.split(',')
-			if (x[0] == '\n' or len(x) == 1):
-				continue
-			for j in range(len(x)):
-				# remove new line
-				if ('\n' in x[j]):
-					x[j] = x[j][:len(x[j]) - 1]
-			l.append(x)
-	return l
-
-
-# Write 1d array of items to CSV 
-def writeSingleList(path, items):
-
-	while global_lock.locked():
-		continue
-
-	global_lock.acquire()
-
-	with open(path, "w", newline='') as my_csv:
-	    csvWriter = csv.writer(my_csv, delimiter=',')
-	    csvWriter.writerows(items)
-
-	global_lock.release()
-
-
-# Find time of a message
-def findDateTime(message):
-	if (message == None):
-		return None
-	else:
-		try:
-			dateTime = parse(message)
-		except:
-			return None
-		currDay = datetime.datetime.now()
-		test = currDay + datetime.timedelta(1)
-		if (dateTime > test):
-			return datetime.datetime(2018, dateTime.month, dateTime.day, dateTime.hour, dateTime.minute)
-		return dateTime
-
-
-# Scroll for # days
-def scrollFor(name, days, driver):
-	elem = driver.find_element_by_tag_name("body")
-
-	dateTime = datetime.datetime.now() 
-	delta = datetime.timedelta(days)
-	oldTime = dateTime - delta
-	oldTime = datetime.datetime(oldTime.year, oldTime.month, oldTime.day, 9, 30)
-
-	SCROLL_PAUSE_TIME = 2
-	time.sleep(SCROLL_PAUSE_TIME)
-
-	last_height = driver.execute_script("return document.body.scrollHeight")
-	driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-
-	html = driver.page_source
-	soup = BeautifulSoup(html, 'html.parser')
-	messages = soup.find_all('div', attrs={'class': messageStreamAttr})
-	currentCount = len(messages)
-
-	# page doesnt exist
-	if (currentCount == 0):
-		print("Doesn't Exist")
-		return False
-
-	# check every 10 page downs
-	count = 1
-	modCheck = 1
-	analyzingStock = False
-	messageCount = driver.find_elements_by_class_name(messagesCountAttr)
-	if (len(messageCount) == 0):
-		analyzingStock = True
-		price = driver.find_elements_by_class_name(priceAttr)
-		ActionChains(driver).move_to_element(price[0]).perform()  
-	else:	
-		ActionChains(driver).move_to_element(messageCount[0]).perform()  
-
-	while(True):
-		new_height = driver.execute_script("return document.body.scrollHeight")
-		time.sleep(SCROLL_PAUSE_TIME)
-
-		if (count % modCheck == 0):
-			for i in range(10):
-				driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-				new_height = driver.execute_script("return document.body.scrollHeight")
-				time.sleep(0.1)
-
-			messages = driver.find_elements_by_class_name(messageStreamAttr)
-			
-			if (len(messages) == 0):
-				print("Strange Error")
-				return False
-
-			modCheck += 1
-			lastMessage = messages[len(messages) - 1].text
-			t = lastMessage.split('\n')
-			if (t[0] == "Bearish" or t[0] == "Bullish"):
-				dateTime = findDateTime(t[2])
-			else:
-				dateTime = findDateTime(t[1])
-
-			print(name, dateTime)
-			time.sleep(SCROLL_PAUSE_TIME)
-			if (analyzingStock == False and new_height == last_height):
-				break
-
-		last_height = new_height
-		driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-		count += 1
-
-		if (dateTime < oldTime):
-			break
-
-
-	print("Finished Reading", name)
-	return True
-
-
-# Find username of a message
-def findUser(message):
-	u = message.find('a', attrs={'class': usernameAttr})
-
-	if (u == None):
-		return None
-	else:
-		user = u['href'][1:]
-		return user
-
-
-def historicalFromDict(symbol, dateTime):
-	global invalidSymbols
-	historial = []
-	dateTimeStr = dateTime.strftime("%Y-%m-%d")
-
-	if (useDatesSeen == False):	
-		if (symbol in invalidSymbols):
-			return []
-
-		try:
-			historical = get_historical_intraday(symbol, dateTime)
-			return historical
-		except:
-			print(symbol)
-			invalidSymbols.append(symbol)
-			invalidSymbols.sort()
-
-			tempList = []
-			for s in invalidSymbols:
-				tempList.append([s])
-
-			writeSingleList('invalidSymbols.csv', tempList)
-
-			print("Invalid ticker2")
-			return []
-
-	# Find what process is using it
-	currentP = current_process().name
-	datesSeen = datesSeenGlobal[currentP]
-
-	if (symbol not in datesSeen):
-		try:
-			historical = get_historical_intraday(symbol, dateTime)
-			newSymbolTime = {}
-			newSymbolTime[dateTimeStr] = historical
-			datesSeen[symbol] = newSymbolTime
-		except:
-			pass
-			print("Invalid ticker1")
-			return []
-	else:
-		datesForSymbol = datesSeen[symbol]
-		if (dateTimeStr not in datesForSymbol):
-			try:
-				historical = get_historical_intraday(symbol, dateTime)
-				datesSeen[symbol][dateTimeStr] = historical
-			except:
-				pass
-				print("Invalid ticker")
-		else:
-			historical = datesSeen[symbol][dateTimeStr]
-
-	datesSeenGlobal[currentP] = datesSeen
-	return historical
-
-
-# Find historical stock data given date and ticker
-def findHistoricalData(dateTime, symbol, futurePrice):
-	historical = []
-	originalDateTime = dateTime
-
-	# if it is a saturday or sunday, find friday's time if futurePrice == False
-	# Else find monday's time if it's futurePrice
-	if (futurePrice):
-		historical = historicalFromDict(symbol, dateTime)
-		delta = datetime.timedelta(1)
-		# keep going until a day is found
-		count = 0
-		while (len(historical) == 0):
-			dateTime = dateTime + delta
-			historical = historicalFromDict(symbol, dateTime)
-			count += 1
-			if (count == 10):
-				historical = []
-				dateTime = originalDateTime
-				break
-	else:
-		historical = historicalFromDict(symbol, dateTime)
-
-	return (historical, dateTime)
-
-
-# Price of a stock at a certain time given historical data
-def priceAtTime(dateTime, historical):
-    foundAvg = ""
-    found = False
-    for ts in historical:
-        if (int(ts.get("minute").replace(":","")) >= int((dateTime.strftime("%X")[:5]).replace(":",""))):
-            foundAvg = ts.get('average')
-            foundAvg1 = ts.get('marketAverage')
-            foundAvg2 = ts.get('marketHigh')
-            if (foundAvg != -1):
-            	found = True
-            	break
-            else:
-            	if (foundAvg1 != -1):
-            		found = True
-            		foundAvg = foundAvg1
-            		break
-            	else:
-                	continue
-
-	# Go from end to front
-    if (found == False):
-    	lastPos = len(historical) - 1
-    	foundAvg = -1
-    	while (foundAvg == -1 and lastPos > 0):	
-    		last = historical[lastPos]
-    		foundAvg = last.get('average')
-    		foundAvg1 = last.get('marketAverage')
-    		if (foundAvg1 != -1):
-    			foundAvg = foundAvg1
-    			break
-    		lastPos = lastPos - 1
-
-    return foundAvg
-
-
-def likeCount(message):
-	count = message.find('span', attrs={'class': likeCountAttr})
-	if (count == None):
-		return 0
-	else:
-		return int(count.text)
-
-
-def commentCount(message):
-	count = message.find('span', attrs={'class': commmentCountAttr})
-	if (count == None):
-		return 0
-	else:
-		return int(count.text)
 
 # ------------------------------------------------------------------------
 # ----------------------- Analyze Specific Stock -------------------------
@@ -374,7 +73,7 @@ def findPageStock(symbol, days, driver):
 
 	url = "https://stocktwits.com/symbol/" + symbol
 	driver.get(url)
-	foundEnough = scroll.scrollFor(symbol, days, driver)
+	foundEnough = scrollFor(symbol, days, driver)
 
 	if (foundEnough == False):
 		return (None, True)
@@ -388,66 +87,6 @@ def findPageStock(symbol, days, driver):
 
 	return (soup, False)
 
-
-def inTradingHours(dateTime, symbol):
-	day = dateTime.weekday()
-	nineAM = datetime.datetime(dateTime.year, dateTime.month, dateTime.day, 9, 30)
-	fourPM = datetime.datetime(dateTime.year, dateTime.month, dateTime.day, 16, 0)
-
-	if (dateTime < nineAM or dateTime >= fourPM or day == "0" or day == "6"):
-		return False
-
-	historical = historicalFromDict(symbol, dateTime)
-
-	if (len(historical) == 0):
-		return False
-
-	strDate = dateTime.strftime("%X")[:5]
-	found = False
-
-	for ts in historical:
-		if (ts.get('minute') == strDate):
-			found = True
-
-	return found
-
-
-# True if bull
-def isBullMessage(message):
-	bull = message.find('span', attrs={'class': bullSentAttr})
-	bear = message.find('span', attrs={'class': bearSentAttr})
-
-	if (bull == None and bear == None):
-		return None
-
-	if (bull):
-		return True 
-	else: 
-		return False
-
-
-def isValidMessage(dateTime, dateNow, isBull, user, symbol, daysInFuture):
-	if (dateTime == None):
-		return False
-
-	dateCheck = datetime.datetime(dateTime.year, dateTime.month, dateTime.day)
-	dateNow = datetime.datetime(dateNow.year, dateNow.month, dateNow.day)
-
-	delta = datetime.timedelta(daysInFuture)
-	newTime = dateTime + delta
-	# If the next day at 9:30 am is < than the current time, then there is a stock price
-	newTime = datetime.datetime(newTime.year, newTime.month, newTime.day, 9, 30)
-	newTimeDay = newTime.weekday()
-
-	if (user == None or 
-		isBull == None or 
-		symbol == None or
-		inTradingHours(dateTime, symbol) == False or
-		(daysInFuture == 0 and dateCheck != dateNow) or
-		(daysInFuture > 0 and newTime > dateNow) or
-		(dateCheck > dateNow)): 
-		return False
-	return True
 
 
 def getBearBull(symbol, date, driver):
@@ -495,43 +134,6 @@ def getBearBull(symbol, date, driver):
 
 
 
-def addNewStocks(stocks):
-	currList = readSingleList('stockList.csv')
-	currList.extend(stocks)
-	currList = list(set(currList))
-	currList.sort()
-
-	for i in range(len(currList)):
-		currList[i] = [currList[i]]
-
-	writeSingleList("stockList.csv", currList)
-
-
-def findSymbol(message):
-	textM = message.find('div', attrs={'class': messageTextAttr})
-	spans = textM.find_all('span')
-
-	tickers = []
-	foundTicker = False
-	for s in spans:
-		foundA = s.find('a')
-		ticker = foundA.text
-
-		if ('@' in ticker or '#' in ticker or '.X' in ticker):
-			continue
-
-		tickers.append(ticker[1:])
-
-		if ("$" in ticker):
-			foundTicker = True
-
-	# Never found a ticker or more than 1 ticker
-	if (foundTicker == False or len(tickers) > 1):
-		return None
-	else:
-		return tickers[0]
-
-
 # Return soup object page of that user 
 def findPageUser(username, days, driver):
 	# if html is stored
@@ -544,7 +146,7 @@ def findPageUser(username, days, driver):
 
 	url = "https://stocktwits.com/" + username
 	driver.get(url)
-	foundEnough = scroll.scrollFor(username, days, driver)
+	foundEnough = scrollFor(username, days, driver)
 
 	if (foundEnough == False):
 		return None
@@ -615,20 +217,6 @@ def analyzeUser(username, soup, daysInFuture):
 	return res
 
 
-def analyzedSymbolAlready(name, path):
-	# Check to see if username already exists
-	users = readMultiList(path)
-	filtered = filter(lambda x: len(x) >= 2, users)
-	mappedUsers = map(lambda x: x[0], filtered)
-	return (name in mappedUsers)
-
-
-def analyzedUserAlready(name):
-	# Check to see if username already exists
-	path = 'userinfo/' + name + '.csv'
-	return os.path.exists(path)
-
-
 
 def analyzeUsers(users, days, path):
 	for user in users:
@@ -651,26 +239,14 @@ def analyzeUsers(users, days, path):
 		for r in result:
 			stocks.append(r[0])
 
-		stocks = list(set(stocks))
-		addNewStocks(stocks)
+		# stocks = list(set(stocks))
+		# addToNewList(stocks, 'stockList.csv')
 		writeSingleList(path, result)
 		driver.close()
 
 # ------------------------------------------------------------------------
 # ----------------------------- Analysis ---------------------------------
 # ------------------------------------------------------------------------
-
-
-def addToNewList(users, path):
-	currList = readSingleList(path)
-	currList.extend(users)
-	currList = list(set(currList))
-	currList.sort()
-
-	for i in range(len(currList)):
-		currList[i] = [currList[i]]
-
-	writeSingleList(path, currList)
 
 
 def saveStockInfo(result, path):
@@ -738,10 +314,6 @@ def analyzeStocksToday(listStocks, date, path, usersPath, folderPath):
 # ------------------------------------------------------------------------
 
 
-def chunks(seq, size):
-    return (seq[i::size] for i in range(size))
-
-
 def computeStocksDay(date, processes):
 	path = date.strftime("stocksResults/%m-%d-%y.csv")
 	folderPath = date.strftime("stocksResults/%m-%d-%y/")
@@ -772,10 +344,6 @@ def computeStocksDay(date, processes):
 			continue
 		else:
 			actual.append(i)
-
-
-	actual.remove('MNGA')
-	actual.remove('MSFT')
 
 	splitEqual = list(chunks(actual, processes))
 	pool = Pool()
@@ -808,6 +376,8 @@ def computeUsersDay(outputPath, inputPath, days, processes):
 			actual.append(user)
 
 	print('USERS: ', len(actual))
+
+	actual.remove('AngryPanda')
 
 	splitEqual = list(chunks(actual, processes))
 	pool = Pool()
@@ -1142,12 +712,6 @@ def checkInvalid():
 	print(count4)
 
 
-def allUsers():
-	path = "userinfo/"
-	files = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))] 
-	names = list(map(lambda x: x[:len(x) - 4], files))
-	names = list(filter(lambda x: x != '.DS_S', names))
-	return names
 
 
 # Find the change in the number of new users each day
@@ -1267,7 +831,7 @@ def main():
 		# findNewUserChange()
 		# res = topUsersStock('BIOC', 0)
 
-		scroll.helloWorld()
+		helper()
 
 
 		# dateNow = datetime.datetime.now()
