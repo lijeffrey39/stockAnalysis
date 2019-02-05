@@ -2,7 +2,7 @@ import os
 import csv
 import threading
 
-from .helpers import *
+from . import helpers
 from functools import reduce
 
 
@@ -23,7 +23,7 @@ global_lock = threading.Lock()
 
 
 def createUsersCSV():
-	users = allUsers()
+	users = helper.allUsers()
 	result = []
 	resPath = 'userInfo.csv'
 
