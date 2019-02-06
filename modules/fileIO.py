@@ -116,3 +116,21 @@ def addToNewList(l, path):
 
 	writeSingleList(path, currList)
 
+
+
+def saveStockInfo(result, path):
+	currList = []
+	with open(path) as f:
+		file = f.readlines()
+		for i in file:
+			x = i.split(',')
+			if (x[0] == "\n"):
+				continue
+			x[3] = float(x[3])
+			currList.append(x)
+
+	currList.append(result)
+	currList = sorted(currList, key=lambda x: x[3], reverse = True)
+	writeSingleList(path, currList)
+	return
+

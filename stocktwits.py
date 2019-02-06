@@ -1,15 +1,16 @@
-import multiprocessing
-import platform
-import datetime
+import os
+import sys
 import math
 import json
 import time
-import sys
-import os
+import platform
+import datetime
+import multiprocessing
 
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.keys import Keys
 from selenium import webdriver
+
 from multiprocessing import Process, Pool, current_process
 from iexfinance.stocks import get_historical_intraday
 from dateutil.parser import parse
@@ -17,12 +18,18 @@ from bs4 import BeautifulSoup
 from functools import reduce
 
 from modules.scroll import *
-from modules.messageExtract import *
 from modules.fileIO import *
-from modules.stockPriceAPI import *
 from modules.helpers import *
 from modules.prediction import *
 from modules.userAnalysis import *
+from modules.stockAnalysis import *
+from modules.stockPriceAPI import *
+from modules.messageExtract import *
+
+
+# ------------------------------------------------------------------------
+# -------------------------- Global Variables ----------------------------
+# ------------------------------------------------------------------------
 
 
 chrome_options = webdriver.ChromeOptions()
@@ -37,24 +44,8 @@ chromedriverName = 'chromedriver' if (platform.system() == "Darwin") else 'chrom
 PROJECT_ROOT = os.getcwd()
 DRIVER_BIN = os.path.join(PROJECT_ROOT, chromedriverName)
 DAYS_BACK = 75
-CREATED_DICT_USERS = False
 SAVE_USER_PAGE = False
 SAVE_STOCK_PAGE = False
-dictAccuracy = {}
-dictPredictions = {}
-
-
-# SET NAME ATTRIBUTES
-messageStreamAttr = 'st_1m1w96g'
-timeAttr = 'st_HsSv26f'
-messageTextAttr = 'st_2giLhWN'
-
-
-# Make cache for that symbol and date so don't have to keep calling api
-# Formatted like {"TVIX": {"2018-12-24": [historical_data], "2018-12-23": [more_data]}
-datesSeenGlobal = {} 
-useDatesSeen = False
-
 
 
 # ------------------------------------------------------------------------
@@ -62,127 +53,52 @@ useDatesSeen = False
 # ------------------------------------------------------------------------
 
 
-# Return soup object page of that stock 
-def findPageStock(symbol, days, driver):
-	# if html is stored
-	path = 'stocksPages/' + symbol + '.html'
-	if (os.path.isfile(path)):
-		print("File Exists")
-		# html = open(path, "r")
-		soup = BeautifulSoup(open(path), 'html.parser')
-		print("Finished Reading in")
-		return (soup, False)
+def computeStocksDay(date, processes):
+	path = date.strftime("stocksResults/%m-%d-%y.csv")
+	folderPath = date.strftime("stocksResults/%m-%d-%y/")
+	newUsersPath = date.strftime("newUsers/newUsersList-%m-%d-%y.csv")
 
-	url = "https://stocktwits.com/symbol/" + symbol
-	driver.get(url)
-	foundEnough = scroll.scrollFor(symbol, days, driver)
+	# create empty folder
+	if not os.path.exists(folderPath):
+	    os.makedirs(folderPath)
 
-	if (foundEnough == False):
-		return (None, True)
+	# create empty file
+	if (os.path.isfile(path) == False):
+		with open(path, "w") as my_empty_csv:
+			pass
 
-	html = driver.page_source
-	soup = BeautifulSoup(html, 'html.parser')
+	if (os.path.isfile(newUsersPath) == False):
+		with open(newUsersPath, "w") as my_empty_csv:
+			pass
 
-	if (SAVE_STOCK_PAGE):
-		with open(path, "w") as file:
-		    file.write(str(soup))
+	stocks = readSingleList('stocksActual.csv')
+	stocks.sort()
 
-	return (soup, False)
-
-
-def getBearBull(symbol, date, driver):
-	# For caching
-	processName = current_process().name
-	datesSeenGlobal[processName] = {}
-
-	dateNow = datetime.datetime.now()
-	days = (dateNow - date).days
-
-	(soup, error) = findPageStock(symbol, days, driver)
-	driver.close()
-
-	if (error):
-		print("ERROR BAD")
-		return []
-
-	savedSymbolHistorical = get_historical_intraday(symbol, date)
-
-	messages = soup.find_all('div', attrs={'class': messageStreamAttr})
-	res = []
-
-	for m in messages:
-		t = m.find('a', {'class': timeAttr})
-		if (t == None):
+	actual = []
+	for i in stocks:
+		if (analyzedSymbolAlready(i, path)):
 			continue
-		textM = m.find('div', attrs={'class': messageTextAttr})
-		dateTime = findDateTime(t.text)
-		user = findUser(m)
-		isBull = isBullMessage(m)
+		else:
+			actual.append(i)
 
-		if (isValidMessage(dateTime, date, isBull, user, symbol, 0) == False):
-			continue
+	splitEqual = list(chunks(actual, processes))
+	pool = Pool()
 
-		foundAvg = priceAtTime(dateTime, savedSymbolHistorical) # fix this function to take dateTimeadjusted
+	# analyzeStocksToday(splitEqual[0], date, path, newUsersPath, folderPath)
+	for i in range(processes):
+		arguments = [splitEqual[i], date, path, newUsersPath, folderPath]
+		pool.apply_async(analyzeStocksToday, arguments)
 
-		messageInfo = [user, isBull, dateTime, foundAvg]
-		res.append(messageInfo)
+	pool.close()
+	pool.join()
 
-	return res
-
-
-
-# ------------------------------------------------------------------------
-# ----------------------- Analyze Specific User --------------------------
-# ------------------------------------------------------------------------
-
-
-def analyzeUsers(users, days, path):
-	for user in users:
-		if (analyzedUserAlready(user)):
-			continue
-
-		print(user)
-		driver = webdriver.Chrome(executable_path = DRIVER_BIN, chrome_options = chrome_options)
-		soup = findPageUser(user, DAYS_BACK, driver, SAVE_USER_PAGE)
-
-		driver.close()
-		path = "userinfo/" + user + ".csv"
-
-		# If the page doesn't have enought bull/bear indicators
-		if (soup == None):
-			writeSingleList(path, [])
-			continue
-
-		result = analyzeUser(user, soup, days)
-		stocks = []
-
-		for r in result:
-			stocks.append(r[0])
-
-		# stocks = list(set(stocks))
-		# addToNewList(stocks, 'stockList.csv')
-		writeSingleList(path, result)
-
-# ------------------------------------------------------------------------
-# ----------------------------- Analysis ---------------------------------
-# ------------------------------------------------------------------------
-
-
-def saveStockInfo(result, path):
-	currList = []
-	with open(path) as f:
-		file = f.readlines()
-		for i in file:
-			x = i.split(',')
-			if (x[0] == "\n"):
-				continue
-			x[3] = float(x[3])
-			currList.append(x)
-
-	currList.append(result)
-	currList = sorted(currList, key=lambda x: x[3], reverse = True)
-	writeSingleList(path, currList)
-	return
+	# Extend allNewUsers list
+	newUsers = readSingleList('allNewUsers.csv')
+	newUsersList = readSingleList(newUsersPath)
+	newUsers.extend(newUsersList)
+	newUsers = list(map(lambda x: [x], sorted(list(set(newUsers)))))
+	writeSingleList('allNewUsers.csv', newUsers)
+		
 
 
 def analyzeStocksToday(listStocks, date, path, usersPath, folderPath):
@@ -194,7 +110,17 @@ def analyzeStocksToday(listStocks, date, path, usersPath, folderPath):
 
 		users = []
 		driver = webdriver.Chrome(executable_path = DRIVER_BIN, chrome_options = chrome_options)
-		result = getBearBull(symbol, date, driver)
+		dateNow = datetime.datetime.now()
+		days = (dateNow - date).days
+
+		(soup, error) = findPageStock(symbol, days, driver, SAVE_STOCK_PAGE)
+		driver.close()
+
+		if (error):
+			print("ERROR BAD")
+			continue
+
+		result = getBearBull(symbol, date, soup)
 
 		bulls = 0
 		bears = 0
@@ -224,64 +150,11 @@ def analyzeStocksToday(listStocks, date, path, usersPath, folderPath):
 		print("%s: (%d/%d %0.2f)" % (symbol, bulls, bears, bullBearRatio))
 
 
-	return
-
 
 # ------------------------------------------------------------------------
-# --------------------------- Main Function ------------------------------
+# ----------------------- Analyze Specific User --------------------------
 # ------------------------------------------------------------------------
 
-
-def computeStocksDay(date, processes):
-	path = date.strftime("stocksResults/%m-%d-%y.csv")
-	folderPath = date.strftime("stocksResults/%m-%d-%y/")
-	newUsersPath = date.strftime("newUsers/newUsersList-%m-%d-%y.csv")
-
-	global useDatesSeen
-	useDatesSeen = True
-
-	# create empty folder
-	if not os.path.exists(folderPath):
-	    os.makedirs(folderPath)
-
-	# create empty file
-	if (os.path.isfile(path) == False):
-		with open(path, "w") as my_empty_csv:
-			pass
-
-	if (os.path.isfile(newUsersPath) == False):
-		with open(newUsersPath, "w") as my_empty_csv:
-			pass
-
-	stocks = readSingleList('stocksActual.csv')
-	stocks.sort()
-	stocks.remove('ACB')
-
-	actual = []
-	for i in stocks:
-		if (analyzedSymbolAlready(i, path)):
-			continue
-		else:
-			actual.append(i)
-
-	splitEqual = list(chunks(actual, processes))
-	pool = Pool()
-
-	# analyzeStocksToday(splitEqual[0], date, path, newUsersPath, folderPath)
-	for i in range(processes):
-		arguments = [splitEqual[i], date, path, newUsersPath, folderPath]
-		pool.apply_async(analyzeStocksToday, arguments)
-
-	pool.close()
-	pool.join()
-
-	# Extend allNewUsers list
-	newUsers = readSingleList('allNewUsers.csv')
-	newUsersList = readSingleList(newUsersPath)
-	newUsers.extend(newUsersList)
-	newUsers = list(map(lambda x: [x], sorted(list(set(newUsers)))))
-	writeSingleList('allNewUsers.csv', newUsers)
-		
 
 
 def computeUsersDay(outputPath, inputPath, days, processes):
@@ -313,25 +186,37 @@ def computeUsersDay(outputPath, inputPath, days, processes):
 
 
 
-# Find the change in the number of new users each day
-def findNewUserChange():
-	path = "newUsers/"
-	files = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))] 
-	files = sorted(list(filter(lambda x: x != '.DS_Store', files)))
+def analyzeUsers(users, days, path):
+	for user in users:
+		if (analyzedUserAlready(user)):
+			continue
 
-	users = []
-	prevLen = 0
-	for file in files:
-		print(file)
-		res = readSingleList(path + file)
-		res = list(filter(lambda x: len(x) > 0, res))
+		print(user)
+		driver = webdriver.Chrome(executable_path = DRIVER_BIN, chrome_options = chrome_options)
+		soup = findPageUser(user, DAYS_BACK, driver, SAVE_USER_PAGE)
 
-		users.extend(res)
-		users = list(set(users))
+		driver.close()
+		path = "userinfo/" + user + ".csv"
 
-		print(len(users) - prevLen)
-		prevLen = len(users)
+		# If the page doesn't have enought bull/bear indicators
+		if (soup == None):
+			writeSingleList(path, [])
+			continue
 
+		result = analyzeUser(user, soup, days)
+		stocks = []
+
+		for r in result:
+			stocks.append(r[0])
+
+		# stocks = list(set(stocks))
+		# addToNewList(stocks, 'stockList.csv')
+		writeSingleList(path, result)
+
+
+# ------------------------------------------------------------------------
+# --------------------------- Main Function ------------------------------
+# ------------------------------------------------------------------------
 
 
 
@@ -427,7 +312,7 @@ def main():
 			totalReturn += foundReturn
 			money += foundReturn
 
-		print("%d -> %d" % (2000, 2000 + totalReturn))
+		print("$%d -> $%d" % (2000, 2000 + totalReturn))
 		print("+%.2f%%" % (round((((2000 + totalReturn) / 2000) - 1) * 100, 2)))
 
 

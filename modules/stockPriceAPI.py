@@ -1,11 +1,6 @@
 import datetime
-import sys
-sys.path.append("..")
-
 from iexfinance.stocks import get_historical_intraday
-from stockAnalysis import stocktwits 
 from multiprocessing import current_process
-# import stocktwits
 from .fileIO import *
 
 
@@ -34,8 +29,14 @@ def historicalFromDict(symbol, dateTime):
 
 	if (symbol != currSymbol):
 		currSymbol = symbol
-		currHistorical = get_historical_intraday(symbol, dateTime)
-		return currHistorical
+		try:
+			currHistorical = get_historical_intraday(symbol, dateTime)
+			return currHistorical
+		except:
+			print(symbol)
+			print("Invalid ticker")
+			currHistorical = []
+			return currHistorical
 	else:
 		return currHistorical
 

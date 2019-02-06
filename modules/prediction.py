@@ -1,13 +1,9 @@
 import os
-import sys
 import math
 import datetime
 from . import helpers
 from . import stockPriceAPI
 from .fileIO import *
-sys.path.append("..")
-from stocktwits import dictAccuracy
-from stocktwits import dictPredictions
 
 
 # ------------------------------------------------------------------------
@@ -16,6 +12,8 @@ from stocktwits import dictPredictions
 
 
 CREATED_DICT_USERS = False
+dictPredictions = {}
+dictAccuracy = {}
 
 
 # ------------------------------------------------------------------------

@@ -125,4 +125,22 @@ def argMax():
 		print(avg)
 
 
+# Find the change in the number of new users each day
+def findNewUserChange():
+	path = "newUsers/"
+	files = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))] 
+	files = sorted(list(filter(lambda x: x != '.DS_Store', files)))
+
+	users = []
+	prevLen = 0
+	for file in files:
+		print(file)
+		res = readSingleList(path + file)
+		res = list(filter(lambda x: len(x) > 0, res))
+
+		users.extend(res)
+		users = list(set(users))
+
+		print(len(users) - prevLen)
+		prevLen = len(users)
 

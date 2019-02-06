@@ -1,7 +1,20 @@
 import os
+import datetime
 from . import scroll
+from .fileIO import *
+from .stockPriceAPI import *
+from .messageExtract import *
 from bs4 import BeautifulSoup
-from stocktwits import *
+
+
+# ------------------------------------------------------------------------
+# ----------------------------- Variables --------------------------------
+# ------------------------------------------------------------------------
+
+
+messageStreamAttr = 'st_1m1w96g'
+timeAttr = 'st_HsSv26f'
+messageTextAttr = 'st_2giLhWN'
 
 
 # ------------------------------------------------------------------------
@@ -11,7 +24,7 @@ from stocktwits import *
 
 
 # Return soup object page of that stock 
-def findPageStock(symbol, days, driver):
+def findPageStock(symbol, days, driver, savePage):
 	# if html is stored
 	path = 'stocksPages/' + symbol + '.html'
 	if (os.path.isfile(path)):
@@ -31,8 +44,34 @@ def findPageStock(symbol, days, driver):
 	html = driver.page_source
 	soup = BeautifulSoup(html, 'html.parser')
 
-	if (SAVE_STOCK_PAGE):
+	if (savePage):
 		with open(path, "w") as file:
 		    file.write(str(soup))
 
 	return (soup, False)
+
+
+
+def getBearBull(symbol, date, soup):
+	savedSymbolHistorical = get_historical_intraday(symbol, date)
+	messages = soup.find_all('div', attrs={'class': messageStreamAttr})
+	res = []
+
+	for m in messages:
+		t = m.find('a', {'class': timeAttr})
+		if (t == None):
+			continue
+		textM = m.find('div', attrs={'class': messageTextAttr})
+		dateTime = findDateTime(t.text)
+		user = findUser(m)
+		isBull = isBullMessage(m)
+
+		if (isValidMessage(dateTime, date, isBull, user, symbol, 0) == False):
+			continue
+
+		foundAvg = priceAtTime(dateTime, savedSymbolHistorical) # fix this function to take dateTimeadjusted
+
+		messageInfo = [user, isBull, dateTime, foundAvg]
+		res.append(messageInfo)
+
+	return res
