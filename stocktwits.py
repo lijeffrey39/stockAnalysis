@@ -38,6 +38,8 @@ PROJECT_ROOT = os.getcwd()
 DRIVER_BIN = os.path.join(PROJECT_ROOT, chromedriverName)
 DAYS_BACK = 75
 CREATED_DICT_USERS = False
+SAVE_USER_PAGE = False
+SAVE_STOCK_PAGE = False
 dictAccuracy = {}
 dictPredictions = {}
 
@@ -97,10 +99,13 @@ def getBearBull(symbol, date, driver):
 	days = (dateNow - date).days
 
 	(soup, error) = findPageStock(symbol, days, driver)
+	driver.close()
 
 	if (error):
 		print("ERROR BAD")
 		return []
+
+	savedSymbolHistorical = get_historical_intraday(symbol, date)
 
 	messages = soup.find_all('div', attrs={'class': messageStreamAttr})
 	res = []
@@ -117,10 +122,9 @@ def getBearBull(symbol, date, driver):
 		if (isValidMessage(dateTime, date, isBull, user, symbol, 0) == False):
 			continue
 
-		(historical, dateTimeAdjusted1) = findHistoricalData(dateTime, symbol, False)
-		foundAvg = priceAtTime(dateTime, historical) # fix this function to take dateTimeadjusted
+		foundAvg = priceAtTime(dateTime, savedSymbolHistorical) # fix this function to take dateTimeadjusted
 
-		messageInfo = [user, isBull, dateTimeAdjusted1, foundAvg]
+		messageInfo = [user, isBull, dateTime, foundAvg]
 		res.append(messageInfo)
 
 	return res
@@ -132,64 +136,6 @@ def getBearBull(symbol, date, driver):
 # ------------------------------------------------------------------------
 
 
-
-def analyzeUser(username, soup, daysInFuture):
-	messages = soup.find_all('div', attrs={'class': messageStreamAttr})
-	dateNow = datetime.datetime.now()
-	res = []
-
-	for m in messages:
-		t = m.find('a', attrs={'class': timeAttr})
-		dateTime = findDateTime(t.text)
-		user = findUser(m)
-		isBull = isBullMessage(m)
-		symbol = findSymbol(m)
-		likeCnt = likeCount(m)
-		commentCnt = commentCount(m)
-
-		if (isValidMessage(dateTime, dateNow, isBull, user, symbol, daysInFuture) == False):
-			continue
-
-		(historical, dateTimeAdjusted) = findHistoricalData(dateTime, symbol, False)
-		priceAtPost = priceAtTime(dateTime, historical) # Price at the time of posting
-		# Price at 3:59 PM
-		prices = priceAtTime(datetime.datetime(dateTime.year, dateTime.month, dateTime.day, 15, 59), historical)
-
-
-		# Find price after # days
-		delta = datetime.timedelta(daysInFuture)
-		newTime = dateTime + delta
-		newTime = datetime.datetime(newTime.year, newTime.month, newTime.day, 9, 30)
-
-		(historical, dateTimeAdjusted) = findHistoricalData(newTime, symbol, True)
-		newPrices = priceAtTime(newTime, historical) # Find price at 9:30 AM
-		# Find price at 10:00 AM
-		price10 = priceAtTime(datetime.datetime(newTime.year, newTime.month, newTime.day, 10, 0), historical)
-		# Find price at 10:30 AM
-		price1030 = priceAtTime(datetime.datetime(newTime.year, newTime.month, newTime.day, 10, 30), historical)
-
-		correct = 0
-		change = round(newPrices - prices, 4)
-		percent = 0
-		try:
-			percent = round((change * 100.0 / prices), 5)
-		except:
-			pass
-
-		if ((change > 0 and isBull == True) or (change <= 0 and isBull == False)):
-			correct = 1
-
-		# If result of any price is a 0
-		if (prices == 0 or priceAtPost == 0 or newPrices == 0 or price10 == 0 or price1030 == 0 or newPrices == -1):
-			continue
-
-		res.append([symbol, dateTime.strftime("%Y-%m-%d %H:%M:%S"), prices, 
-			newPrices, isBull, correct, change, percent, likeCnt, commentCnt, priceAtPost, price10, price1030])
-
-	return res
-
-
-
 def analyzeUsers(users, days, path):
 	for user in users:
 		if (analyzedUserAlready(user)):
@@ -197,7 +143,9 @@ def analyzeUsers(users, days, path):
 
 		print(user)
 		driver = webdriver.Chrome(executable_path = DRIVER_BIN, chrome_options = chrome_options)
-		soup = findPageUser(user, DAYS_BACK, driver)
+		soup = findPageUser(user, DAYS_BACK, driver, SAVE_USER_PAGE)
+
+		driver.close()
 		path = "userinfo/" + user + ".csv"
 
 		# If the page doesn't have enought bull/bear indicators
@@ -214,7 +162,6 @@ def analyzeUsers(users, days, path):
 		# stocks = list(set(stocks))
 		# addToNewList(stocks, 'stockList.csv')
 		writeSingleList(path, result)
-		driver.close()
 
 # ------------------------------------------------------------------------
 # ----------------------------- Analysis ---------------------------------
@@ -276,7 +223,6 @@ def analyzeStocksToday(listStocks, date, path, usersPath, folderPath):
 		saveStockInfo([symbol, bulls, bears, bullBearRatio], path)
 		print("%s: (%d/%d %0.2f)" % (symbol, bulls, bears, bullBearRatio))
 
-		driver.close()
 
 	return
 
@@ -309,6 +255,7 @@ def computeStocksDay(date, processes):
 
 	stocks = readSingleList('stocksActual.csv')
 	stocks.sort()
+	stocks.remove('ACB')
 
 	actual = []
 	for i in stocks:
@@ -320,6 +267,7 @@ def computeStocksDay(date, processes):
 	splitEqual = list(chunks(actual, processes))
 	pool = Pool()
 
+	# analyzeStocksToday(splitEqual[0], date, path, newUsersPath, folderPath)
 	for i in range(processes):
 		arguments = [splitEqual[i], date, path, newUsersPath, folderPath]
 		pool.apply_async(analyzeStocksToday, arguments)
@@ -413,9 +361,9 @@ def main():
 		dayUser = args[1]
 		if (dayUser == "day"):
 			dateNow = datetime.datetime.now()
-			date = datetime.datetime(dateNow.year, 2, 4)
+			date = datetime.datetime(dateNow.year, 2, 5)
 			dates = findTradingDays(date)
-			computeStocksDay(date, 3)
+			computeStocksDay(date, 1)
 
 			# weights = [9, 0.48, 0.45, 0.64, 1.92]
 			
@@ -462,20 +410,25 @@ def main():
 		dateNow = datetime.datetime.now()
 		date = datetime.datetime(dateNow.year, 1, 14)
 		dates = findTradingDays(date)
-		# dates = [datetime.datetime(dateNow.year, 2, 1)]
+		# dates = [datetime.datetime(dateNow.year, 2, 4)]
 		totalReturn = 0
 
 		money = 2000
 		for date in dates:
 			weights = [9, 0.48, 0.45, 0.64, 1.92]
 
-			res = topStocks(date, money, weights)
+			(res, hitPercent) = topStocks(date, money, weights)
 			foundReturn = calcReturnBasedResults(date, res)
-			print(date.strftime("%m-%d-%y"), foundReturn)
+			# print(date.strftime("%m-%d-%y"), foundReturn)
+			if (foundReturn > 0):
+				print("%s %.2f +%.2f%%    Hit: %.2f%%" % (date.strftime("%m-%d-%y"), foundReturn, round((((money + foundReturn) / money) - 1) * 100, 2), hitPercent))
+			else:
+				print("%s %.2f %.2f%%    Hit: %.2f%%" % (date.strftime("%m-%d-%y"), foundReturn, round((((money + foundReturn) / money) - 1) * 100, 2), hitPercent))
 			totalReturn += foundReturn
 			money += foundReturn
 
-		print(totalReturn)
+		print("%d -> %d" % (2000, 2000 + totalReturn))
+		print("+%.2f%%" % (round((((2000 + totalReturn) / 2000) - 1) * 100, 2)))
 
 
 

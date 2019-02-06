@@ -5,7 +5,7 @@ sys.path.append("..")
 from iexfinance.stocks import get_historical_intraday
 from stockAnalysis import stocktwits 
 from multiprocessing import current_process
-from stocktwits import *
+# import stocktwits
 from .fileIO import *
 
 
@@ -16,6 +16,8 @@ from .fileIO import *
 
 # Invalid symbols so they aren't check again
 invalidSymbols = []
+currHistorical = []
+currSymbol = ""
 
 
 # ------------------------------------------------------------------------
@@ -25,58 +27,69 @@ invalidSymbols = []
 
 def historicalFromDict(symbol, dateTime):
 	global invalidSymbols
+	global currSymbol
+	global currHistorical
 	historial = []
 	dateTimeStr = dateTime.strftime("%Y-%m-%d")
 
-	if (useDatesSeen == False):	
-		if (symbol in invalidSymbols):
-			return []
+	if (symbol != currSymbol):
+		currSymbol = symbol
+		currHistorical = get_historical_intraday(symbol, dateTime)
+		return currHistorical
+	else:
+		return currHistorical
 
-		try:
-			historical = get_historical_intraday(symbol, dateTime)
-			return historical
-		except:
-			print(symbol)
-			invalidSymbols.append(symbol)
-			invalidSymbols.sort()
+	# if (useDatesSeen == False):	
+	# 	if (symbol in invalidSymbols):
+	# 		return []
+	# 	try:
+	# 		historical = get_historical_intraday(symbol, dateTime)
+	# 		return historical
+	# 	except:
+	# 		print(symbol)
+	# 		invalidSymbols.append(symbol)
+	# 		invalidSymbols.sort()
 
-			tempList = []
-			for s in invalidSymbols:
-				tempList.append([s])
+	# 		tempList = []
+	# 		for s in invalidSymbols:
+	# 			tempList.append([s])
 
-			writeSingleList('invalidSymbols.csv', tempList)
+	# 		writeSingleList('invalidSymbols.csv', tempList)
 
-			print("Invalid ticker2")
-			return []
+	# 		print("Invalid ticker2")
+	# 		return []
+
+
 
 	# Find what process is using it
-	currentP = current_process().name
-	datesSeen = datesSeenGlobal[currentP]
+	# currentP = current_process().name
+	# datesSeen = datesSeenGlobal[currentP]
 
-	if (symbol not in datesSeen):
-		try:
-			historical = get_historical_intraday(symbol, dateTime)
-			newSymbolTime = {}
-			newSymbolTime[dateTimeStr] = historical
-			datesSeen[symbol] = newSymbolTime
-		except:
-			pass
-			print("Invalid ticker1")
-			return []
-	else:
-		datesForSymbol = datesSeen[symbol]
-		if (dateTimeStr not in datesForSymbol):
-			try:
-				historical = get_historical_intraday(symbol, dateTime)
-				datesSeen[symbol][dateTimeStr] = historical
-			except:
-				pass
-				print("Invalid ticker")
-		else:
-			historical = datesSeen[symbol][dateTimeStr]
+	# if (symbol not in datesSeen):
+	# 	try:
+	# 		historical = get_historical_intraday(symbol, dateTime)
+	# 		newSymbolTime = {}
+	# 		newSymbolTime[dateTimeStr] = historical
+	# 		datesSeen[symbol] = newSymbolTime
+	# 	except:
+	# 		pass
+	# 		print("Invalid ticker1")
+	# 		return []
+	# else:
+	# 	datesForSymbol = datesSeen[symbol]
+	# 	if (dateTimeStr not in datesForSymbol):
+	# 		try:
+	# 			historical = get_historical_intraday(symbol, dateTime)
+	# 			datesSeen[symbol][dateTimeStr] = historical
+	# 		except:
+	# 			pass
+	# 			print("Invalid ticker")
+	# 	else:
+	# 		print("hi")
+	# 		historical = datesSeen[symbol][dateTimeStr]
 
-	datesSeenGlobal[currentP] = datesSeen
-	return historical
+	# datesSeenGlobal[currentP] = datesSeen
+	# return historical
 
 
 

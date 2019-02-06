@@ -46,8 +46,8 @@ def isValidMessage(dateTime, dateNow, isBull, user, symbol, daysInFuture):
 	if (user == None or 
 		isBull == None or 
 		symbol == None or
-		inTradingHours(dateTime, symbol) == False or
 		(daysInFuture == 0 and dateCheck != dateNow) or
+		inTradingHours(dateTime, symbol) == False or
 		(daysInFuture > 0 and newTime > dateNow) or
 		(dateCheck > dateNow)): 
 		return False

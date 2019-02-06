@@ -6,9 +6,16 @@ from . import helpers
 from . import stockPriceAPI
 from .fileIO import *
 sys.path.append("..")
-from stocktwits import CREATED_DICT_USERS
 from stocktwits import dictAccuracy
 from stocktwits import dictPredictions
+
+
+# ------------------------------------------------------------------------
+# ----------------------------- Variables --------------------------------
+# ------------------------------------------------------------------------
+
+
+CREATED_DICT_USERS = False
 
 
 # ------------------------------------------------------------------------
@@ -215,7 +222,7 @@ def topStocks(date, money, weights):
 
 	# if not created yet
 	if ((not os.path.exists(folderPath)) or os.path.isfile(path) == False):
-	    return
+		return
 
 	users = readMultiList('userInfo.csv')
 	stocks = readMultiList(path)
@@ -228,6 +235,8 @@ def topStocks(date, money, weights):
 		createDictUsers()
 		CREATED_DICT_USERS = True
 
+	totalUsers = 0
+	totalHits = 0
 
 	# Find weight for each stock
 	for s in stocks:
@@ -269,8 +278,10 @@ def topStocks(date, money, weights):
 			user = r[0]
 			isBull = bool(r[1])
 
+			totalUsers += 1
 			# Only based no user info's that's been collected
 			if (user in mappedUsers):
+				totalHits += 1
 				userAccuracy = dictAccuracy[user] # How much return the user had overall
 				userPredictions = dictPredictions[user] # Number of predictions user made overall
 
@@ -294,5 +305,6 @@ def topStocks(date, money, weights):
 	result.sort(key = lambda x: x[1], reverse = True)
 	res = recommendStocks(result, date, money, numStocks)
 	writeSingleList(pathWeighted, result)
+	hitPrecent = totalHits * 100.0 / totalUsers
 	
-	return res
+	return (res, round(hitPrecent, 2))
