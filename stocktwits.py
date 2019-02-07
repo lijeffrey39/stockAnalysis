@@ -45,8 +45,8 @@ DRIVER_BIN = os.path.join(PROJECT_ROOT, chromedriverName)
 DAYS_BACK = 75
 SAVE_USER_PAGE = False
 SAVE_STOCK_PAGE = False
-DEBUG = True
-PROGRESSIVE = False
+DEBUG = False
+PROGRESSIVE = True
 
 
 # ------------------------------------------------------------------------
@@ -155,7 +155,7 @@ def analyzeStocksToday(listStocks, date, path, usersPath, folderPath):
 			print(len(realRes))
 			stockRead.extend(realRes)
 			stockRead = list(filter(lambda x: len(x) > 2, stockRead))
-			stockRead = list(map(lambda x: [x[0], x[1], str(x[2]), x[3]], stockRead))
+			stockRead = list(map(lambda x: [x[0], x[1], str(x[2]), x[3], x[4]], stockRead))
 			stockRead.sort(key = lambda x: parse(x[2]), reverse = True)
 			writeSingleList(filePath, stockRead)
 			continue
@@ -262,7 +262,7 @@ def runInterval(date, endTime, sleepTime):
 			prevHour = newHour
 		else:
 			timeRest = sleepTime - secPassed
-			sleep(timeRest)
+			time.sleep(timeRest)
 
 
 
@@ -274,11 +274,11 @@ def main():
 	if (len(args) > 1):
 		dayUser = args[1]
 		if (dayUser == "day"):
-			date = datetime.datetime(dateNow.year, 2, 6)
-			computeStocksDay(date, 1)
-			# hour = 60 * 60
-			# timeEnd = datetime.datetime(dateNow.year, dateNow.month, dateNow.day, 22)
-			# runInterval(date, timeEnd, hour)
+			date = datetime.datetime(dateNow.year, 2, 7)
+			# computeStocksDay(date, 1)
+			hour = 60 * 60
+			timeEnd = datetime.datetime(dateNow.year, dateNow.month, dateNow.day, 16)
+			runInterval(date, timeEnd, hour)
 
 			# weights = [9, 0.48, 0.45, 0.64, 1.92]
 			# res = topStocks(date, 2000, weights)

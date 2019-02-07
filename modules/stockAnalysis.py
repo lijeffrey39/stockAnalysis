@@ -63,7 +63,6 @@ def getBearBull(symbol, date, soup):
 			continue
 		textM = m.find('div', attrs={'class': messageTextAttr})
 		cleanText = ' '.join(removeSpecialCharacters(textM.text).split())
-		print(cleanText)
 		dateTime = findDateTime(t.text)
 		user = findUser(m)
 		isBull = isBullMessage(m)
