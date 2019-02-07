@@ -148,6 +148,8 @@ def calcReturnBasedResults(date, result):
 	for i in range(5):
 		if (i % 5 == 0):
 			totalReturn = 0
+			pos = 0
+			neg = 0
 			for x in result:
 				symbol = x[0]
 				priceBefore = x[1]
@@ -158,13 +160,17 @@ def calcReturnBasedResults(date, result):
 
 				totalAfter = priceAfter * shares
 				diff = totalAfter - totalBefore
+				if (diff >= 0):
+					pos += 1
+				else:
+					neg += 1
 
 				# print(symbol, diff, priceBefore, priceAfter)
 				totalReturn += diff
 
 			totalReturn = round(totalReturn, 2)
 			totalsReturns.append([totalReturn, afterDate])
-			return totalReturn
+			return (totalReturn, pos, neg)
 
 		afterDate = afterDate + datetime.timedelta(minutes = 1)
 

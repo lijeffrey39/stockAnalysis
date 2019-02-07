@@ -36,7 +36,7 @@ def findPageStock(symbol, days, driver, savePage):
 
 	url = "https://stocktwits.com/symbol/" + symbol
 	driver.get(url)
-	foundEnough = scroll.scrollFor(symbol, days, driver)
+	foundEnough = scroll.scrollFor(symbol, days, driver, True)
 
 	if (foundEnough == False):
 		return (None, True)

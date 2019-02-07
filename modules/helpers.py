@@ -1,7 +1,8 @@
 import os
 import datetime
-from .stockPriceAPI import *
 from .fileIO import *
+from .prediction import *
+from .stockPriceAPI import *
 
 
 # ------------------------------------------------------------------------
@@ -64,10 +65,8 @@ def findTradingDays(date):
 
 def analyzedSymbolAlready(name, path):
 	# Check to see if username already exists
-	users = readMultiList(path)
-	filtered = filter(lambda x: len(x) >= 2, users)
-	mappedUsers = map(lambda x: x[0], filtered)
-	return (name in mappedUsers)
+	newPath = path + name + '.csv'
+	return os.path.exists(newPath)
 
 
 def analyzedUserAlready(name):
@@ -143,4 +142,40 @@ def findNewUserChange():
 
 		print(len(users) - prevLen)
 		prevLen = len(users)
+
+
+
+def testWeights(dates):
+
+	statsUsers()
+	writeTempListStocks()
+
+	count = 0
+	result = []
+
+	for i in range(8, 9):
+		numStocks = i 
+		for j in range(3, 8):
+			w1 = j * 0.1
+			for k in range(1, 7):
+				w2 = k * 0.1
+				for l in range(2, 5):
+					w3 = l * 0.3
+					for m in range(5, 11):
+						w4 = m * 0.3
+
+						count += 1
+						weights = [numStocks, w1, w2, w3, w4]
+						# res = topStocks(date, 2000, weights)
+						# foundReturn = calcReturnBasedResults(date, res)
+						totalReturn = 0
+
+						for date in dates:
+							res = topStocks(date, 2000, weights)
+							foundReturn = calcReturnBasedResults(date, res)
+							totalReturn += foundReturn
+
+						print(count, totalReturn, weights)
+						result.append([count, totalReturn, weights])
+						writeSingleList('argMax.csv', result)
 

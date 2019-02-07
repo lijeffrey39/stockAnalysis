@@ -1,16 +1,16 @@
-import datetime
 import time
+import datetime
 
-from selenium.webdriver.common.action_chains import ActionChains
-from selenium.webdriver.common.keys import Keys
 from selenium import webdriver
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.action_chains import ActionChains
 
-from iexfinance.stocks import get_historical_intraday
-from dateutil.parser import parse
 from bs4 import BeautifulSoup
-
+from dateutil.parser import parse
 from .messageExtract import findDateTime
-
+from iexfinance.stocks import get_historical_intraday
+from .helpers import analyzedSymbolAlready
+from .fileIO import *
 
 
 # ------------------------------------------------------------------------
@@ -18,12 +18,10 @@ from .messageExtract import findDateTime
 # ------------------------------------------------------------------------
 
 
-
-# SET NAME ATTRIBUTES
 priceAttr = 'st_2BF7LWC'
 messageStreamAttr = 'st_1m1w96g'
 messagesCountAttr = 'st__tZJhLh'
-
+SCROLL_PAUSE_TIME = 2
 
 
 # ------------------------------------------------------------------------
@@ -31,37 +29,20 @@ messagesCountAttr = 'st__tZJhLh'
 # ------------------------------------------------------------------------
 
 
+def findLastTime(messages):
+	lastMessage = messages[len(messages) - 1].text
+	t = lastMessage.split('\n')
+	if (t[0] == "Bearish" or t[0] == "Bullish"):
+		dateTime = findDateTime(t[2])
+		return dateTime
+	else:
+		dateTime = findDateTime(t[1])
+		return dateTime
 
-# Scroll for # days
-def scrollFor(name, days, driver):
-	elem = driver.find_element_by_tag_name("body")
 
-	dateTime = datetime.datetime.now() 
-	delta = datetime.timedelta(days)
-	oldTime = dateTime - delta
-	oldTime = datetime.datetime(oldTime.year, oldTime.month, oldTime.day, 9, 30)
-
-	SCROLL_PAUSE_TIME = 2
-	time.sleep(SCROLL_PAUSE_TIME)
-
-	last_height = driver.execute_script("return document.body.scrollHeight")
-	driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-
-	html = driver.page_source
-	soup = BeautifulSoup(html, 'html.parser')
-	messages = soup.find_all('div', attrs={'class': messageStreamAttr})
-	currentCount = len(messages)
-
-	# page doesnt exist
-	if (currentCount == 0):
-		print("Doesn't Exist")
-		return False
-
-	# check every 10 page downs
-	count = 1
-	modCheck = 1
-	analyzingStock = False
+def isStockPage(driver):
 	messageCount = driver.find_elements_by_class_name(messagesCountAttr)
+	analyzingStock = False
 	if (len(messageCount) == 0):
 		analyzingStock = True
 		price = driver.find_elements_by_class_name(priceAttr)
@@ -69,32 +50,65 @@ def scrollFor(name, days, driver):
 	else:	
 		ActionChains(driver).move_to_element(messageCount[0]).perform()  
 
+	return analyzingStock
+
+
+def pageExists(driver):
+	html = driver.page_source
+	soup = BeautifulSoup(html, 'html.parser')
+	messages = soup.find_all('div', attrs={'class': messageStreamAttr})
+
+	# page doesnt exist
+	currentCount = len(messages)
+	if (currentCount == 0):
+		return False
+
+	return True
+
+
+# Scroll for # days
+def scrollFor(name, days, driver, progressive):
+	dateTime = datetime.datetime.now() 
+	folderPath = dateTime.strftime("stocksResults/%m-%d-%y/")
+	oldTime = dateTime - datetime.timedelta(days)
+	oldTime = datetime.datetime(oldTime.year, oldTime.month, oldTime.day, 9, 30)
+	last_height = driver.execute_script("return document.body.scrollHeight")
+
+	if (pageExists(driver) == False):
+		print("Doesn't Exist")
+		return False
+
+	count = 1
+	modCheck = 1
+	analyzingStock = isStockPage(driver)
+	analyzedAlready = analyzedSymbolAlready(name, folderPath)
+	if (analyzedAlready and analyzingStock and progressive):
+		filePath = folderPath + name + '.csv'
+		stockRead = readMultiList(filePath)
+		if (len(stockRead) == 0):
+			pass
+		else:
+			oldTime = parse(stockRead[0][2])
+
 	while(True):
 		new_height = driver.execute_script("return document.body.scrollHeight")
 		time.sleep(SCROLL_PAUSE_TIME)
-
+		print("checking")
 		if (count % modCheck == 0):
-			for i in range(10):
-				driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-				new_height = driver.execute_script("return document.body.scrollHeight")
-				time.sleep(0.1)
-
+			print("MOD")
+			modCheck += 1
+			time.sleep(SCROLL_PAUSE_TIME)
+			driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+			new_height = driver.execute_script("return document.body.scrollHeight")
 			messages = driver.find_elements_by_class_name(messageStreamAttr)
 			
 			if (len(messages) == 0):
 				print("Strange Error")
 				return False
 
-			modCheck += 1
-			lastMessage = messages[len(messages) - 1].text
-			t = lastMessage.split('\n')
-			if (t[0] == "Bearish" or t[0] == "Bullish"):
-				dateTime = findDateTime(t[2])
-			else:
-				dateTime = findDateTime(t[1])
+			dateTime = findLastTime(messages)
 
 			print(name, dateTime)
-			time.sleep(SCROLL_PAUSE_TIME)
 			if (analyzingStock == False and new_height == last_height):
 				break
 
@@ -105,9 +119,5 @@ def scrollFor(name, days, driver):
 		if (dateTime < oldTime):
 			break
 
-
 	print("Finished Reading", name)
 	return True
-
-def helloWorld():
-	print(math.pi)

@@ -7,19 +7,18 @@ import platform
 import datetime
 import multiprocessing
 
-from selenium.webdriver.common.action_chains import ActionChains
-from selenium.webdriver.common.keys import Keys
 from selenium import webdriver
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.action_chains import ActionChains
 
-from multiprocessing import Process, Pool, current_process
-from iexfinance.stocks import get_historical_intraday
-from dateutil.parser import parse
 from bs4 import BeautifulSoup
-from functools import reduce
+from dateutil.parser import parse
+from multiprocessing import Process, Pool
 
 from modules.scroll import *
 from modules.fileIO import *
 from modules.helpers import *
+from modules.analytics import *
 from modules.prediction import *
 from modules.userAnalysis import *
 from modules.stockAnalysis import *
@@ -46,6 +45,8 @@ DRIVER_BIN = os.path.join(PROJECT_ROOT, chromedriverName)
 DAYS_BACK = 75
 SAVE_USER_PAGE = False
 SAVE_STOCK_PAGE = False
+DEBUG = True
+PROGRESSIVE = False
 
 
 # ------------------------------------------------------------------------
@@ -75,11 +76,15 @@ def computeStocksDay(date, processes):
 	stocks.sort()
 
 	actual = []
-	for i in stocks:
-		if (analyzedSymbolAlready(i, path)):
+	for stock in stocks:
+		if (analyzedSymbolAlready(stock, folderPath)):
 			continue
 		else:
-			actual.append(i)
+			actual.append(stock)
+
+	if (DEBUG):
+		analyzeStocksToday(actual, date, path, newUsersPath, folderPath)
+		return
 
 	splitEqual = list(chunks(actual, processes))
 	pool = Pool()
@@ -92,20 +97,12 @@ def computeStocksDay(date, processes):
 	pool.close()
 	pool.join()
 
-	# Extend allNewUsers list
-	newUsers = readSingleList('allNewUsers.csv')
-	newUsersList = readSingleList(newUsersPath)
-	newUsers.extend(newUsersList)
-	newUsers = list(map(lambda x: [x], sorted(list(set(newUsers)))))
-	writeSingleList('allNewUsers.csv', newUsers)
+	generateAllUsers()
 		
 
 
 def analyzeStocksToday(listStocks, date, path, usersPath, folderPath):
 	for symbol in listStocks:
-		if (analyzedSymbolAlready(symbol, path)):
-			continue
-
 		print(symbol)
 
 		users = []
@@ -114,6 +111,7 @@ def analyzeStocksToday(listStocks, date, path, usersPath, folderPath):
 		days = (dateNow - date).days
 
 		(soup, error) = findPageStock(symbol, days, driver, SAVE_STOCK_PAGE)
+		analyzed = analyzedSymbolAlready(symbol, folderPath)
 		driver.close()
 
 		if (error):
@@ -143,10 +141,27 @@ def analyzeStocksToday(listStocks, date, path, usersPath, folderPath):
 		users = list(set(users))
 		addToNewList(users, usersPath)
 
+		if (analyzed and PROGRESSIVE):
+			filePath = folderPath + symbol + '.csv'
+			stockRead = readMultiList(filePath)
+			mappedRead = set(list(map(lambda x: ''.join([str(x[0]), str(x[2]), str(x[3])]), stockRead)))
+			realRes = []
+
+			for s in result:
+				sString = ''.join([str(s[0]), str(s[2]), str(s[3])])
+				if (sString not in mappedRead):
+					realRes.append(s)
+
+			print(len(realRes))
+			stockRead.extend(realRes)
+			stockRead = list(filter(lambda x: len(x) > 2, stockRead))
+			stockRead = list(map(lambda x: [x[0], x[1], str(x[2]), x[3]], stockRead))
+			stockRead.sort(key = lambda x: parse(x[2]), reverse = True)
+			writeSingleList(filePath, stockRead)
+			continue
+
 		tempPath = folderPath + symbol + ".csv"
 		writeSingleList(tempPath, result)
-
-		saveStockInfo([symbol, bulls, bears, bullBearRatio], path)
 		print("%s: (%d/%d %0.2f)" % (symbol, bulls, bears, bullBearRatio))
 
 
@@ -159,7 +174,6 @@ def analyzeStocksToday(listStocks, date, path, usersPath, folderPath):
 
 def computeUsersDay(outputPath, inputPath, days, processes):
 	users = readSingleList('allNewUsers.csv')
-	users.sort()
 
 	actual = []
 	for user in users:
@@ -171,6 +185,10 @@ def computeUsersDay(outputPath, inputPath, days, processes):
 	print('USERS: ', len(actual))
 
 	actual.remove('AngryPanda')
+
+	if (DEBUG):
+		analyzeUsers(actual, days, outputPath)
+		return
 
 	splitEqual = list(chunks(actual, processes))
 	pool = Pool()
@@ -209,8 +227,8 @@ def analyzeUsers(users, days, path):
 		for r in result:
 			stocks.append(r[0])
 
-		# stocks = list(set(stocks))
-		# addToNewList(stocks, 'stockList.csv')
+		stocks = list(set(stocks))
+		addToNewList(stocks, 'stockList.csv')
 		writeSingleList(path, result)
 
 
@@ -219,102 +237,69 @@ def analyzeUsers(users, days, path):
 # ------------------------------------------------------------------------
 
 
-
 # TODO
 # 1. SHOULD IGNORE DIFF if it is 0? count as correct
 # 2. Remove outliers that are obviously not true prices
-# 3. Some stocks barely get any users so ignore them and look at others (#1 priority)
 # 4. Weight likes/comments into the accuracy of user
-# 5. Weight predictions by these and find the argmax
-# 	 - the times that it was sold at (9:30, 9:35...)
-#	 - how accurate the user is in general, past history of the stock
-#	 - number of stocks to pick from (currently 10)
-#    - number of total predictions made
-#	 - how much the user predicts for that stock
 # 6. Figure out why some invalid symbols are not actually invalid
 # 7. View which stocks should be removed based on # users
 # 8. Implement better caching
-# 9. View graph of number of new users added each day to see when feasible to also find user info when predictings
 # 10. Find faster way to update templists folder
-# 11. Look at past prediction weights and see if there is a huge jump
-# 12. Start looking at users throughout day for stocks so bulk of work is done before 4pm
 # 13. For dictPredictions, find the middle number of users for prediction rate
+
+
 
 def main():
 	args = sys.argv
+	dateNow = datetime.datetime.now()
+	#DEBUG = True
+
 	if (len(args) > 1):
 		dayUser = args[1]
 		if (dayUser == "day"):
-			dateNow = datetime.datetime.now()
-			date = datetime.datetime(dateNow.year, 2, 5)
+			date = datetime.datetime(dateNow.year, 2, 6)
 			dates = findTradingDays(date)
 			computeStocksDay(date, 1)
 
 			# weights = [9, 0.48, 0.45, 0.64, 1.92]
-			
 			# res = topStocks(date, 2000, weights)
-			# RUN everytime
 			# statsUsers()
 			# writeTempListStocks()
-
-			# count = 0
-			# result = []
-
-			# for i in range(8, 9):
-			# 	numStocks = i 
-			# 	for j in range(3, 8):
-			# 		w1 = j * 0.1
-			# 		for k in range(1, 7):
-			# 			w2 = k * 0.1
-			# 			for l in range(2, 5):
-			# 				w3 = l * 0.3
-			# 				for m in range(5, 11):
-			# 					w4 = m * 0.3
-
-			# 					count += 1
-			# 					weights = [numStocks, w1, w2, w3, w4]
-			# 					# res = topStocks(date, 2000, weights)
-			# 					# foundReturn = calcReturnBasedResults(date, res)
-			# 					totalReturn = 0
-
-			# 					for date in dates:
-			# 						res = topStocks(date, 2000, weights)
-			# 						foundReturn = calcReturnBasedResults(date, res)
-			# 						totalReturn += foundReturn
-
-			# 					print(count, totalReturn, weights)
-			# 					result.append([count, totalReturn, weights])
-			# 					writeSingleList('argMax.csv', result)
-
-			print("hi")
 		else:
 			computeUsersDay('userInfo.csv', 'allNewUsers.csv', 1, 1)
 	else:
-		print("rip")
+		generateAllUsers()
 
-		dateNow = datetime.datetime.now()
+		return
+
 		date = datetime.datetime(dateNow.year, 1, 14)
 		dates = findTradingDays(date)
-		# dates = [datetime.datetime(dateNow.year, 2, 4)]
-		totalReturn = 0
+		# dates = [datetime.datetime(dateNow.year, 2, 5)]
 
 		money = 2000
+		startMoney = 2000
+		totalReturn = 0
+		x = 0
+		y = 0
 		for date in dates:
 			weights = [9, 0.48, 0.45, 0.64, 1.92]
 
 			(res, hitPercent) = topStocks(date, money, weights)
-			foundReturn = calcReturnBasedResults(date, res)
-			# print(date.strftime("%m-%d-%y"), foundReturn)
+			(foundReturn, pos, neg) = calcReturnBasedResults(date, res)
+			x += pos
+			y += neg
 			if (foundReturn > 0):
-				print("%s %.2f +%.2f%%    Hit: %.2f%%" % (date.strftime("%m-%d-%y"), foundReturn, round((((money + foundReturn) / money) - 1) * 100, 2), hitPercent))
+				print("%s $%.2f +%.2f%%    Hit: %.2f%%" % (date.strftime("%m-%d-%y"), foundReturn, 
+					round((((money + foundReturn) / money) - 1) * 100, 2), hitPercent))
 			else:
-				print("%s %.2f %.2f%%    Hit: %.2f%%" % (date.strftime("%m-%d-%y"), foundReturn, round((((money + foundReturn) / money) - 1) * 100, 2), hitPercent))
+				print("%s $%.2f %.2f%%    Hit: %.2f%%" % (date.strftime("%m-%d-%y"), foundReturn, 
+					round((((money + foundReturn) / money) - 1) * 100, 2), hitPercent))
 			totalReturn += foundReturn
 			money += foundReturn
 
-		print("$%d -> $%d" % (2000, 2000 + totalReturn))
-		print("+%.2f%%" % (round((((2000 + totalReturn) / 2000) - 1) * 100, 2)))
-
+		print("$%d -> $%d" % (startMoney, startMoney + totalReturn))
+		print("+%.2f%%" % (round((((startMoney + totalReturn) / startMoney) - 1) * 100, 2)))
+		print("+%d -%d" % (x, y))
 
 
 if __name__ == "__main__":

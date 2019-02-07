@@ -36,7 +36,7 @@ def findPageUser(username, days, driver, savePage):
 
 	url = "https://stocktwits.com/" + username
 	driver.get(url)
-	foundEnough = scroll.scrollFor(username, days, driver)
+	foundEnough = scroll.scrollFor(username, days, driver, False)
 
 	if (foundEnough == False):
 		return None

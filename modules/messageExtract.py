@@ -44,7 +44,7 @@ def isValidMessage(dateTime, dateNow, isBull, user, symbol, daysInFuture):
 	newTimeDay = newTime.weekday()
 
 	if (user == None or 
-		isBull == None or 
+		# isBull == None or 
 		symbol == None or
 		(daysInFuture == 0 and dateCheck != dateNow) or
 		inTradingHours(dateTime, symbol) == False or
