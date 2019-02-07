@@ -77,7 +77,7 @@ def computeStocksDay(date, processes):
 
 	actual = []
 	for stock in stocks:
-		if (analyzedSymbolAlready(stock, folderPath)):
+		if (analyzedSymbolAlready(stock, folderPath) and PROGRESSIVE == False):
 			continue
 		else:
 			actual.append(stock)
@@ -248,6 +248,23 @@ def analyzeUsers(users, days, path):
 # 13. For dictPredictions, find the middle number of users for prediction rate
 
 
+def runInterval(date, endTime, sleepTime):
+	prevHour = datetime.datetime.now()
+	while (datetime.datetime.now() < endTime):
+		# Compute stocks
+		computeStocksDay(date, 3)
+
+		# View how much time has passed
+		newHour = datetime.datetime.now()
+		secPassed = (newHour - prevHour).seconds
+
+		if (secPassed > sleepTime):
+			prevHour = newHour
+		else:
+			timeRest = sleepTime - secPassed
+			sleep(timeRest)
+
+
 
 def main():
 	args = sys.argv
@@ -258,8 +275,10 @@ def main():
 		dayUser = args[1]
 		if (dayUser == "day"):
 			date = datetime.datetime(dateNow.year, 2, 6)
-			dates = findTradingDays(date)
 			computeStocksDay(date, 1)
+			# hour = 60 * 60
+			# timeEnd = datetime.datetime(dateNow.year, dateNow.month, dateNow.day, 22)
+			# runInterval(date, timeEnd, hour)
 
 			# weights = [9, 0.48, 0.45, 0.64, 1.92]
 			# res = topStocks(date, 2000, weights)
@@ -268,13 +287,10 @@ def main():
 		else:
 			computeUsersDay('userInfo.csv', 'allNewUsers.csv', 1, 1)
 	else:
-		generateAllUsers()
-
-		return
 
 		date = datetime.datetime(dateNow.year, 1, 14)
 		dates = findTradingDays(date)
-		# dates = [datetime.datetime(dateNow.year, 2, 5)]
+		# dates = [datetime.datetime(dateNow.year, 2, 6)]
 
 		money = 2000
 		startMoney = 2000

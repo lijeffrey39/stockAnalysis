@@ -51,7 +51,7 @@ def createUsersCSV():
 
 
 def removeSpecialCharacters(string):
-	return ''.join(e for e in string if e.isalnum())
+	return ''.join(e for e in string if (e == ' ' or e.isalnum() or e.isdigit()))
 
 
 

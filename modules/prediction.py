@@ -220,16 +220,19 @@ def topStocks(date, money, weights):
 	uPredW = weights[3]
 	uStockPredW = weights[4]
 
-	path = date.strftime("stocksResults/%m-%d-%y.csv")
+	# path = date.strftime("stocksResults/%m-%d-%y/")
 	pathWeighted = date.strftime("stocksResults/%m-%d-%y_weighted.csv")
 	folderPath = date.strftime("stocksResults/%m-%d-%y/")
 
 	# if not created yet
-	if ((not os.path.exists(folderPath)) or os.path.isfile(path) == False):
+	if ((not os.path.exists(folderPath))):
 		return
 
 	users = readMultiList('userInfo.csv')
-	stocks = readMultiList(path)
+	stocks = [f for f in os.listdir(folderPath) if os.path.isfile(os.path.join(folderPath, f))] 
+	stocks = list(map(lambda x: x[:len(x) - 4], stocks))
+	stocks = list(filter(lambda x: '.DS_S' not in x, stocks))
+
 	users = list(filter(lambda x: len(x) >= 4, users))
 	mappedUsers = set(list(map(lambda x: x[0], users)))
 	result = []
@@ -243,8 +246,7 @@ def topStocks(date, money, weights):
 	totalHits = 0
 
 	# Find weight for each stock
-	for s in stocks:
-		symbol = s[0]
+	for symbol in stocks:
 		resPath = folderPath + symbol + ".csv"
 		resSymbol = readMultiList(resPath)
 		total = 0
@@ -280,6 +282,8 @@ def topStocks(date, money, weights):
 
 		for r in resSymbol:
 			user = r[0]
+			if (r[1] == ''):
+				continue
 			isBull = bool(r[1])
 
 			totalUsers += 1

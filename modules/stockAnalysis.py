@@ -62,6 +62,8 @@ def getBearBull(symbol, date, soup):
 		if (t == None):
 			continue
 		textM = m.find('div', attrs={'class': messageTextAttr})
+		cleanText = ' '.join(removeSpecialCharacters(textM.text).split())
+		print(cleanText)
 		dateTime = findDateTime(t.text)
 		user = findUser(m)
 		isBull = isBullMessage(m)
@@ -71,7 +73,7 @@ def getBearBull(symbol, date, soup):
 
 		foundAvg = priceAtTime(dateTime, savedSymbolHistorical) # fix this function to take dateTimeadjusted
 
-		messageInfo = [user, isBull, dateTime, foundAvg]
+		messageInfo = [user, isBull, dateTime, foundAvg, cleanText]
 		res.append(messageInfo)
 
 	return res
