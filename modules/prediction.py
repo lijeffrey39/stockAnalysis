@@ -248,6 +248,7 @@ def topStocks(date, money, weights):
 	# Find weight for each stock
 	for symbol in stocks:
 		resPath = folderPath + symbol + ".csv"
+		# print(symbol)
 		resSymbol = readMultiList(resPath)
 		total = 0
 
@@ -306,7 +307,7 @@ def topStocks(date, money, weights):
 				else:
 					total -= totalWeight
 
-		if (symbol == 'AMD' or symbol == 'TSLA' or symbol == "AMZN"):
+		if (symbol == 'AMD' or symbol == 'TSLA' or symbol == "AMZN" or symbol == "MNGA"):
 			continue
 		result.append([symbol, total])
 

@@ -72,7 +72,8 @@ def computeStocksDay(date, processes):
 		with open(newUsersPath, "w") as my_empty_csv:
 			pass
 
-	stocks = readSingleList('stocksActual.csv')
+	# stocks = readSingleList('stocksActual.csv')
+	stocks = readSingleList('stockList.csv')
 	stocks.sort()
 
 	actual = []
@@ -227,8 +228,8 @@ def analyzeUsers(users, days, path):
 		for r in result:
 			stocks.append(r[0])
 
-		stocks = list(set(stocks))
-		addToNewList(stocks, 'stockList.csv')
+		# stocks = list(set(stocks))
+		# addToNewList(stocks, 'stockList.csv')
 		writeSingleList(path, result)
 
 
@@ -290,7 +291,7 @@ def main():
 
 		date = datetime.datetime(dateNow.year, 1, 14)
 		dates = findTradingDays(date)
-		# dates = [datetime.datetime(dateNow.year, 2, 6)]
+		# dates = [datetime.datetime(dateNow.year, 2, 7)]
 
 		money = 2000
 		startMoney = 2000

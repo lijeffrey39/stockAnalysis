@@ -76,7 +76,7 @@ def readMultiList(path):
 	if not os.path.exists(path):
 		return l
 
-	with open(path) as f:
+	with open(path, errors='replace') as f:
 		file = f.readlines()
 		for i in file:
 			x = i.split(',')
