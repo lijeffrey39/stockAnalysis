@@ -62,6 +62,7 @@ def computeStocksDay(date, processes):
 	# create empty folder
 	if not os.path.exists(folderPath):
 	    os.makedirs(folderPath)
+	    print("HERE")
 
 	# create empty file
 	if (os.path.isfile(path) == False):
@@ -77,7 +78,14 @@ def computeStocksDay(date, processes):
 	stocks.sort()
 
 	actual = []
+	dateCompare = datetime.datetime(date.year, date.month, date.day, 16)
 	for stock in stocks:
+		path = folderPath + stock + ".csv"
+		if (os.path.exists(path)):
+			t = os.path.getmtime(path)
+			t = datetime.datetime.fromtimestamp(t)
+			if (t > dateCompare):
+				continue
 		if (analyzedSymbolAlready(stock, folderPath) and PROGRESSIVE == False):
 			continue
 		else:
@@ -253,7 +261,7 @@ def runInterval(date, endTime, sleepTime):
 	prevHour = datetime.datetime.now()
 	while (datetime.datetime.now() < endTime):
 		# Compute stocks
-		computeStocksDay(date, 3)
+		computeStocksDay(date, 7)
 
 		# View how much time has passed
 		newHour = datetime.datetime.now()
@@ -275,10 +283,10 @@ def main():
 	if (len(args) > 1):
 		dayUser = args[1]
 		if (dayUser == "day"):
-			date = datetime.datetime(dateNow.year, 2, 7)
+			date = datetime.datetime(dateNow.year, 2, 8)
 			# computeStocksDay(date, 1)
 			hour = 60 * 60
-			timeEnd = datetime.datetime(dateNow.year, dateNow.month, dateNow.day, 16)
+			timeEnd = datetime.datetime(dateNow.year, dateNow.month, dateNow.day, 20)
 			runInterval(date, timeEnd, hour)
 
 			# weights = [9, 0.48, 0.45, 0.64, 1.92]
@@ -289,6 +297,11 @@ def main():
 			computeUsersDay('userInfo.csv', 'allNewUsers.csv', 1, 1)
 	else:
 
+		path = "stocksResults/02-08-19/AMZN.csv"
+		t = os.path.getmtime(path)
+		t = datetime.datetime.fromtimestamp(t)
+		print(t)
+		return
 		date = datetime.datetime(dateNow.year, 1, 14)
 		dates = findTradingDays(date)
 		# dates = [datetime.datetime(dateNow.year, 2, 7)]

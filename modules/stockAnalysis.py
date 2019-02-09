@@ -53,7 +53,12 @@ def findPageStock(symbol, days, driver, savePage):
 
 
 def getBearBull(symbol, date, soup):
-	savedSymbolHistorical = get_historical_intraday(symbol, date)
+	savedSymbolHistorical = []
+	try:
+		savedSymbolHistorical = get_historical_intraday(symbol, date)
+	except:
+		return []
+		
 	messages = soup.find_all('div', attrs={'class': messageStreamAttr})
 	res = []
 

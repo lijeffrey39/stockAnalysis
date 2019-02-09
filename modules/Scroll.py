@@ -73,8 +73,9 @@ def scrollFor(name, days, driver, progressive):
 	oldTime = dateTime - datetime.timedelta(days)
 	oldTime = datetime.datetime(oldTime.year, oldTime.month, oldTime.day, 9, 30)
 	last_height = driver.execute_script("return document.body.scrollHeight")
+	price = driver.find_elements_by_class_name(priceAttr)
 
-	if (pageExists(driver) == False):
+	if (pageExists(driver) == False or len(price) == 0):
 		print("Doesn't Exist")
 		return False
 
