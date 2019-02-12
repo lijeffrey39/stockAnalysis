@@ -46,7 +46,7 @@ def isStockPage(driver):
 	if (len(messageCount) == 0):
 		analyzingStock = True
 		price = driver.find_elements_by_class_name(priceAttr)
-		ActionChains(driver).move_to_element(price[0]).perform()  
+		# ActionChains(driver).move_to_element(price[0]).perform()  
 	else:	
 		ActionChains(driver).move_to_element(messageCount[0]).perform()  
 
@@ -76,7 +76,7 @@ def scrollFor(name, days, driver, progressive):
 	price = driver.find_elements_by_class_name(priceAttr)
 	analyzingStock = isStockPage(driver)
 
-	if (pageExists(driver) == False or (len(price) == 0 and analyzingStock)):
+	if (pageExists(driver) == findLastTime or (len(price) == 0 and analyzingStock)):
 		print("Doesn't Exist")
 		return False
 

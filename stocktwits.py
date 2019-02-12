@@ -46,7 +46,7 @@ DAYS_BACK = 75
 SAVE_USER_PAGE = False
 SAVE_STOCK_PAGE = False
 DEBUG = False
-PROGRESSIVE = True
+PROGRESSIVE = False
 
 
 # ------------------------------------------------------------------------
@@ -91,6 +91,8 @@ def computeStocksDay(date, processes):
 		else:
 			actual.append(stock)
 
+	print(len(actual))
+
 	if (DEBUG):
 		analyzeStocksToday(actual, date, path, newUsersPath, folderPath)
 		return
@@ -106,7 +108,7 @@ def computeStocksDay(date, processes):
 	pool.close()
 	pool.join()
 
-	generateAllUsers()
+	# generateAllUsers()
 		
 
 
@@ -283,8 +285,8 @@ def main():
 	if (len(args) > 1):
 		dayUser = args[1]
 		if (dayUser == "day"):
-			# date = datetime.datetime(dateNow.year, 2, 8)
-			# # computeStocksDay(date, 1)
+			date = datetime.datetime(dateNow.year, 2, 12)
+			computeStocksDay(date, 7)
 			# hour = 60 * 60
 			# timeEnd = datetime.datetime(dateNow.year, dateNow.month, dateNow.day, 20)
 			# runInterval(date, timeEnd, hour)
