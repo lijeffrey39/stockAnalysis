@@ -74,14 +74,14 @@ def scrollFor(name, days, driver, progressive):
 	oldTime = datetime.datetime(oldTime.year, oldTime.month, oldTime.day, 9, 30)
 	last_height = driver.execute_script("return document.body.scrollHeight")
 	price = driver.find_elements_by_class_name(priceAttr)
+	analyzingStock = isStockPage(driver)
 
-	if (pageExists(driver) == False or len(price) == 0):
+	if (pageExists(driver) == False or (len(price) == 0 and analyzingStock)):
 		print("Doesn't Exist")
 		return False
 
 	count = 1
 	modCheck = 1
-	analyzingStock = isStockPage(driver)
 	analyzedAlready = analyzedSymbolAlready(name, folderPath)
 	if (analyzedAlready and analyzingStock and progressive):
 		filePath = folderPath + name + '.csv'
@@ -94,9 +94,7 @@ def scrollFor(name, days, driver, progressive):
 	while(True):
 		new_height = driver.execute_script("return document.body.scrollHeight")
 		time.sleep(SCROLL_PAUSE_TIME)
-		print("checking")
 		if (count % modCheck == 0):
-			print("MOD")
 			modCheck += 1
 			time.sleep(SCROLL_PAUSE_TIME)
 			driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")

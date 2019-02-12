@@ -60,6 +60,8 @@ def analyzeUser(username, soup, daysInFuture):
 	for m in messages:
 		t = m.find('a', attrs={'class': timeAttr})
 		dateTime = findDateTime(t.text)
+		textM = m.find('div', attrs={'class': messageTextAttr})
+		cleanText = ' '.join(removeSpecialCharacters(textM.text).split())
 		user = findUser(m)
 		isBull = isBullMessage(m)
 		symbol = findSymbol(m)
@@ -98,12 +100,15 @@ def analyzeUser(username, soup, daysInFuture):
 		if ((change > 0 and isBull == True) or (change <= 0 and isBull == False)):
 			correct = 1
 
+		if (isBull == None):
+			correct = -1
+
 		# If result of any price is a 0
 		if (prices == 0 or priceAtPost == 0 or newPrices == 0 or price10 == 0 or price1030 == 0 or newPrices == -1):
 			continue
 
 		res.append([symbol, dateTime.strftime("%Y-%m-%d %H:%M:%S"), prices, 
-			newPrices, isBull, correct, change, percent, likeCnt, commentCnt, priceAtPost, price10, price1030])
+			newPrices, isBull, correct, change, percent, likeCnt, commentCnt, priceAtPost, price10, price1030, cleanText])
 
 	return res
 

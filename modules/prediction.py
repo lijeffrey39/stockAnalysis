@@ -24,11 +24,11 @@ dictAccuracy = {}
 
 # Creates top users for each stock (Run each time there are new users)
 def writeTempListStocks():
-	stocks1 = readSingleList('stocksActual.csv')
+	stocks1 = readSingleList('stockList.csv')
 	stocks1.sort()
+	stocks1 = stocks1[1628:]
 	for s in stocks1:
 		res = topUsersStock(s, 0)
-		print(s)
 		writeSingleList('templists/' + s + '.csv', res)
  
 
@@ -248,7 +248,6 @@ def topStocks(date, money, weights):
 	# Find weight for each stock
 	for symbol in stocks:
 		resPath = folderPath + symbol + ".csv"
-		# print(symbol)
 		resSymbol = readMultiList(resPath)
 		total = 0
 
@@ -260,10 +259,20 @@ def topStocks(date, money, weights):
 			continue
 
 		try:
-			maxPercent = math.log(float(topUsersForStock[0][1]))
+			maxPercent = math.log(abs(float(topUsersForStock[0][1])))
 		except:
-			maxPercent = 0.0
-		minPercent = -1 * math.log(abs(float(topUsersForStock[len(topUsersForStock) - 1][1])))
+			maxPercent = 0.1
+
+		try:
+			minPercent = -1 * math.log(abs(float(topUsersForStock[len(topUsersForStock) - 1][1])))
+		except:
+			minPercent = -0.1
+
+		if (maxPercent == 0.0):
+			maxPercent = 0.1
+		if (minPercent == 0.0):
+			minPercent = 0.1
+
 
 		dictUserStockAccuracy = {}
 		dictUserStockPredictions = {}
@@ -307,7 +316,7 @@ def topStocks(date, money, weights):
 				else:
 					total -= totalWeight
 
-		if (symbol == 'AMD' or symbol == 'TSLA' or symbol == "AMZN" or symbol == "MNGA"):
+		if (symbol == 'AMD' or symbol == 'TSLA' or symbol == "AMZN" or symbol == "MNGA" or symbol == 'NBEV' or symbol == 'CRMD'):
 			continue
 		result.append([symbol, total])
 

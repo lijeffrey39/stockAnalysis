@@ -283,28 +283,23 @@ def main():
 	if (len(args) > 1):
 		dayUser = args[1]
 		if (dayUser == "day"):
-			date = datetime.datetime(dateNow.year, 2, 8)
-			# computeStocksDay(date, 1)
-			hour = 60 * 60
-			timeEnd = datetime.datetime(dateNow.year, dateNow.month, dateNow.day, 20)
-			runInterval(date, timeEnd, hour)
+			# date = datetime.datetime(dateNow.year, 2, 8)
+			# # computeStocksDay(date, 1)
+			# hour = 60 * 60
+			# timeEnd = datetime.datetime(dateNow.year, dateNow.month, dateNow.day, 20)
+			# runInterval(date, timeEnd, hour)
 
-			# weights = [9, 0.48, 0.45, 0.64, 1.92]
-			# res = topStocks(date, 2000, weights)
+			# # weights = [9, 0.48, 0.45, 0.64, 1.92]
+			# # res = topStocks(date, 2000, weights)
 			# statsUsers()
-			# writeTempListStocks()
+			writeTempListStocks()
 		else:
 			computeUsersDay('userInfo.csv', 'allNewUsers.csv', 1, 1)
 	else:
 
-		path = "stocksResults/02-08-19/AMZN.csv"
-		t = os.path.getmtime(path)
-		t = datetime.datetime.fromtimestamp(t)
-		print(t)
-		return
 		date = datetime.datetime(dateNow.year, 1, 14)
 		dates = findTradingDays(date)
-		# dates = [datetime.datetime(dateNow.year, 2, 7)]
+		# dates = [datetime.datetime(dateNow.year, 2, 8)]
 
 		money = 2000
 		startMoney = 2000
