@@ -316,7 +316,7 @@ def topStocks(date, money, weights):
 				else:
 					total -= totalWeight
 
-		if (symbol == 'AMD' or symbol == 'TSLA' or symbol == "AMZN" or symbol == "MNGA" or symbol == 'NBEV' or symbol == 'CRMD'):
+		if (symbol == "RGSE" or symbol == 'AMD' or symbol == 'TSLA' or symbol == "AMZN" or symbol == "MNGA" or symbol == 'NBEV' or symbol == 'CRMD'):
 			continue
 		result.append([symbol, total])
 

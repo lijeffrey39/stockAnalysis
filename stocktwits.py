@@ -301,7 +301,7 @@ def main():
 
 		date = datetime.datetime(dateNow.year, 1, 14)
 		dates = findTradingDays(date)
-		# dates = [datetime.datetime(dateNow.year, 2, 8)]
+		# dates = [datetime.datetime(dateNow.year, 2, 14)]
 
 		money = 2000
 		startMoney = 2000
