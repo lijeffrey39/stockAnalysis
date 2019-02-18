@@ -285,7 +285,7 @@ def main():
 	if (len(args) > 1):
 		dayUser = args[1]
 		if (dayUser == "day"):
-			date = datetime.datetime(dateNow.year, 2, 14)
+			date = datetime.datetime(dateNow.year, 2, 15)
 			computeStocksDay(date, 7)
 			# hour = 60 * 60
 			# timeEnd = datetime.datetime(dateNow.year, dateNow.month, dateNow.day, 20)
