@@ -14,6 +14,7 @@ from .fileIO import *
 CREATED_DICT_USERS = False
 dictPredictions = {}
 dictAccuracy = {}
+symbolsIgnored = ["PTX", "RGSE", "AMD", "TSLA", "AMZN", "MNGA", "NBEV", "CRMD"]
 
 
 # ------------------------------------------------------------------------
@@ -26,7 +27,6 @@ dictAccuracy = {}
 def writeTempListStocks():
 	stocks1 = readSingleList('stockList.csv')
 	stocks1.sort()
-	stocks1 = stocks1[1628:]
 	for s in stocks1:
 		res = topUsersStock(s, 0)
 		writeSingleList('templists/' + s + '.csv', res)
@@ -60,6 +60,7 @@ def topUsersStock(stock, num):
 # Creates userxxx_info.csv for each user
 def statsUsers():
 	users = helpers.allUsers()
+	# users = ['1999infinitysoxx']
 
 	for user in users:
 		path = "userinfo/" + user + ".csv"
@@ -68,6 +69,10 @@ def statsUsers():
 
 		res = []
 		read = readMultiList(path)
+
+		# Temp filter by ones that have a bull/bear sentiment
+		read = list(filter(lambda x: x[5] != '-1', read))
+
 		symbols = list(set(map(lambda x: x[0], read)))
 		total = float(len(read))
 
@@ -150,6 +155,8 @@ def calcReturnBasedResults(date, result):
 			totalReturn = 0
 			pos = 0
 			neg = 0
+			res = []
+
 			for x in result:
 				symbol = x[0]
 				priceBefore = x[1]
@@ -167,10 +174,11 @@ def calcReturnBasedResults(date, result):
 
 				# print(symbol, diff, priceBefore, priceAfter)
 				totalReturn += diff
+				res.append([symbol, diff])
 
 			totalReturn = round(totalReturn, 2)
 			totalsReturns.append([totalReturn, afterDate])
-			return (totalReturn, pos, neg)
+			return (totalReturn, pos, neg, res)
 
 		afterDate = afterDate + datetime.timedelta(minutes = 1)
 
@@ -316,7 +324,7 @@ def topStocks(date, money, weights):
 				else:
 					total -= totalWeight
 
-		if (symbol == "RGSE" or symbol == 'AMD' or symbol == 'TSLA' or symbol == "AMZN" or symbol == "MNGA" or symbol == 'NBEV' or symbol == 'CRMD'):
+		if (symbol in symbolsIgnored):
 			continue
 		result.append([symbol, total])
 

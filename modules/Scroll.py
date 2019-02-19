@@ -96,6 +96,12 @@ def scrollFor(name, days, driver, progressive):
 		time.sleep(SCROLL_PAUSE_TIME)
 		if (count % modCheck == 0):
 			modCheck += 1
+			if (analyzingStock == False):
+				for i in range(3):
+					time.sleep(SCROLL_PAUSE_TIME)
+					driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+					new_height = driver.execute_script("return document.body.scrollHeight")
+
 			time.sleep(SCROLL_PAUSE_TIME)
 			driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
 			new_height = driver.execute_script("return document.body.scrollHeight")

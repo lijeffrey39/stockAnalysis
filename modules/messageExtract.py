@@ -42,12 +42,13 @@ def isValidMessage(dateTime, dateNow, isBull, user, symbol, daysInFuture):
 	# If the next day at 9:30 am is < than the current time, then there is a stock price
 	newTime = datetime.datetime(newTime.year, newTime.month, newTime.day, 9, 30)
 	newTimeDay = newTime.weekday()
+	inside = inTradingHours(dateTime, symbol)
 
 	if (user == None or 
 		# isBull == None or 
 		symbol == None or
+		inside == False or
 		(daysInFuture == 0 and dateCheck != dateNow) or
-		inTradingHours(dateTime, symbol) == False or
 		(daysInFuture > 0 and newTime > dateNow) or
 		(dateCheck > dateNow)): 
 		return False

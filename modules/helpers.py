@@ -71,7 +71,8 @@ def analyzedSymbolAlready(name, path):
 
 def analyzedUserAlready(name):
 	# Check to see if username already exists
-	path = 'userinfo/' + name + '.csv'
+	# path = 'userinfo/' + name + '.csv'
+	path = 'newUserInfo/' + name + '.csv'
 	return os.path.exists(path)
 
 
@@ -142,6 +143,13 @@ def findNewUserChange():
 
 		print(len(users) - prevLen)
 		prevLen = len(users)
+
+
+	users = list(set(users))
+	users.sort()
+	users = list(map(lambda x: [x], users))
+	writeSingleList('allNewUsers.csv', users)
+	print(len(users))
 
 
 

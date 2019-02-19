@@ -16,6 +16,7 @@ from bs4 import BeautifulSoup
 invalidSymbols = []
 messageStreamAttr = 'st_1m1w96g'
 timeAttr = 'st_HsSv26f'
+ideaAttr = 'st__tZJhLh'
 
 
 # ------------------------------------------------------------------------
@@ -51,6 +52,50 @@ def findPageUser(username, days, driver, savePage):
 	return soup
 
 
+# First write to userCalculated, then write to newUserInfo.csv
+def saveUserToCSV(username, result, otherInfo):
+	res = []
+	read = list(filter(lambda x: x[5] != -1, result))
+	symbols = list(set(map(lambda x: x[0], read)))
+	total = float(len(read))
+
+	for s in symbols:
+		filterSymbol = list(filter(lambda x: x[0] == s, read))
+		totalCorrect = list(map(lambda x: abs(float(x[7])), list(filter(lambda x: x[5] == 1, filterSymbol))))
+		totalIncorrect = list(map(lambda x: abs(float(x[7])), list(filter(lambda x: x[5] == 0, filterSymbol))))
+		summedCorrect = reduce(lambda a, b: a + b, totalCorrect) if len(totalCorrect) > 0 else 0
+		summedIncorrect = reduce(lambda a, b: a + b, totalIncorrect) if len(totalIncorrect) > 0 else 0
+		res.append([s, round(100 * len(filterSymbol) / total, 2), len(totalCorrect), 
+			len(totalIncorrect), round(summedCorrect - summedIncorrect, 2)])
+
+	res.sort(key = lambda x: x[4], reverse = True)
+	writeSingleList('newUserCalculated/' + username + '_info.csv', res)
+
+	resNewUserInfo = []
+	if (len(res) == 0):
+		resNewUserInfo = [username, 0, 0, 0.0]
+	else:
+		totalReturn = round(reduce(lambda a, b: a + b, list(map(lambda x: x[4], res))), 4)
+		correct = round(reduce(lambda a, b: a + b, list(map(lambda x: x[2], res))), 4)
+		incorrect = round(reduce(lambda a, b: a + b, list(map(lambda x: x[3], res))), 4)
+		resNewUserInfo = [username, correct, incorrect, totalReturn]
+
+	resNewUserInfo.extend(otherInfo)
+	currNewUserInfo = readMultiList('newUserInfo.csv')
+	currNewUserInfo.append(resNewUserInfo)
+	currNewUserInfo.sort(key = lambda x: float(x[3]), reverse = True)
+	writeSingleList('newUserInfo.csv', currNewUserInfo)
+
+
+
+def findUserInfo(username, soup):
+	ideas = soup.find_all('h2', attrs={'class': ideaAttr})
+	res = []
+	for i in ideas:
+		res.append(i.text)
+	return res
+
+
 def analyzeUser(username, soup, daysInFuture):
 
 	messages = soup.find_all('div', attrs={'class': messageStreamAttr})
@@ -70,6 +115,8 @@ def analyzeUser(username, soup, daysInFuture):
 
 		if (isValidMessage(dateTime, dateNow, isBull, user, symbol, daysInFuture) == False):
 			continue
+
+		# print("MADE IT")
 
 		(historical, dateTimeAdjusted) = findHistoricalData(dateTime, symbol, False)
 		priceAtPost = priceAtTime(dateTime, historical) # Price at the time of posting

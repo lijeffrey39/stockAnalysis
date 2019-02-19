@@ -27,13 +27,16 @@ def historicalFromDict(symbol, dateTime):
 	historial = []
 	dateTimeStr = dateTime.strftime("%Y-%m-%d")
 
+	if (symbol == None):
+		return []
+
 	if (symbol != currSymbol):
 		currSymbol = symbol
 		try:
 			currHistorical = get_historical_intraday(symbol, dateTime)
 			return currHistorical
 		except:
-			print(symbol)
+			# print(symbol)
 			print("Invalid ticker")
 			currHistorical = []
 			return currHistorical

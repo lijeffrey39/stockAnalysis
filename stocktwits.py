@@ -5,6 +5,7 @@ import json
 import time
 import platform
 import datetime
+import operator
 import multiprocessing
 
 from selenium import webdriver
@@ -45,7 +46,7 @@ DRIVER_BIN = os.path.join(PROJECT_ROOT, chromedriverName)
 DAYS_BACK = 75
 SAVE_USER_PAGE = False
 SAVE_STOCK_PAGE = False
-DEBUG = False
+DEBUG = True
 PROGRESSIVE = False
 
 
@@ -107,8 +108,7 @@ def computeStocksDay(date, processes):
 
 	pool.close()
 	pool.join()
-
-	# generateAllUsers()
+	findNewUserChange()
 		
 
 
@@ -195,8 +195,6 @@ def computeUsersDay(outputPath, inputPath, days, processes):
 
 	print('USERS: ', len(actual))
 
-	actual.remove('AngryPanda')
-
 	if (DEBUG):
 		analyzeUsers(actual, days, outputPath)
 		return
@@ -211,7 +209,7 @@ def computeUsersDay(outputPath, inputPath, days, processes):
 	pool.close()
 	pool.join()
 
-	createUsersCSV()
+	# createUsersCSV()
 
 
 
@@ -225,7 +223,7 @@ def analyzeUsers(users, days, path):
 		soup = findPageUser(user, DAYS_BACK, driver, SAVE_USER_PAGE)
 
 		driver.close()
-		path = "userinfo/" + user + ".csv"
+		path = "newUserInfo/" + user + ".csv"
 
 		# If the page doesn't have enought bull/bear indicators
 		if (soup == None):
@@ -233,8 +231,14 @@ def analyzeUsers(users, days, path):
 			continue
 
 		result = analyzeUser(user, soup, days)
-		stocks = []
+		writeSingleList(path, result)
 
+		if (len(result) > 0):
+			otherInfo = findUserInfo(user, soup)
+			saveUserToCSV(user, result, otherInfo)
+		continue
+
+		stocks = []
 		for r in result:
 			stocks.append(r[0])
 
@@ -299,20 +303,33 @@ def main():
 			computeUsersDay('userInfo.csv', 'allNewUsers.csv', 1, 1)
 	else:
 
+		# findNewUserChange()
+		# return
+
 		date = datetime.datetime(dateNow.year, 1, 14)
 		dates = findTradingDays(date)
-		# dates = [datetime.datetime(dateNow.year, 2, 14)]
+		# dates = dates[0: len(dates) - 1]
+		# print(dates)
+		# dates = [datetime.datetime(dateNow.year, 2, 15)]
 
 		money = 2000
 		startMoney = 2000
 		totalReturn = 0
 		x = 0
 		y = 0
+		dictPrices = {}
 		for date in dates:
 			weights = [9, 0.48, 0.45, 0.64, 1.92]
 
 			(res, hitPercent) = topStocks(date, money, weights)
-			(foundReturn, pos, neg) = calcReturnBasedResults(date, res)
+			(foundReturn, pos, neg, newRes) = calcReturnBasedResults(date, res)
+
+			for new in newRes:
+				if (new[0] not in dictPrices):
+					dictPrices[new[0]] = new[1]
+				else:
+					dictPrices[new[0]] += new[1]
+
 			x += pos
 			y += neg
 			if (foundReturn > 0):
@@ -324,6 +341,8 @@ def main():
 			totalReturn += foundReturn
 			money += foundReturn
 
+		sorted_x = sorted(dictPrices.items(), key=operator.itemgetter(1))
+		print(sorted_x)
 		print("$%d -> $%d" % (startMoney, startMoney + totalReturn))
 		print("+%.2f%%" % (round((((startMoney + totalReturn) / startMoney) - 1) * 100, 2)))
 		print("+%d -%d" % (x, y))
