@@ -46,7 +46,7 @@ DRIVER_BIN = os.path.join(PROJECT_ROOT, chromedriverName)
 DAYS_BACK = 75
 SAVE_USER_PAGE = False
 SAVE_STOCK_PAGE = False
-DEBUG = True
+DEBUG = False
 PROGRESSIVE = False
 
 
@@ -289,7 +289,7 @@ def main():
 	if (len(args) > 1):
 		dayUser = args[1]
 		if (dayUser == "day"):
-			date = datetime.datetime(dateNow.year, 2, 15)
+			date = datetime.datetime(dateNow.year, 2, 19)
 			computeStocksDay(date, 7)
 			# hour = 60 * 60
 			# timeEnd = datetime.datetime(dateNow.year, dateNow.month, dateNow.day, 20)
@@ -300,7 +300,7 @@ def main():
 			# statsUsers()
 			writeTempListStocks()
 		else:
-			computeUsersDay('userInfo.csv', 'allNewUsers.csv', 1, 1)
+			computeUsersDay('userInfo.csv', 'allNewUsers.csv', 1, 10)
 	else:
 
 		# findNewUserChange()
