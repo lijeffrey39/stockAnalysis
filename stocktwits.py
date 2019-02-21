@@ -195,6 +195,8 @@ def computeUsersDay(outputPath, inputPath, days, processes):
 
 	print('USERS: ', len(actual))
 
+	actual.remove('AnalystRatingsNetwork')
+
 	if (DEBUG):
 		analyzeUsers(actual, days, outputPath)
 		return
@@ -289,7 +291,7 @@ def main():
 	if (len(args) > 1):
 		dayUser = args[1]
 		if (dayUser == "day"):
-			date = datetime.datetime(dateNow.year, 2, 19)
+			date = datetime.datetime(dateNow.year, 2, 20)
 			computeStocksDay(date, 7)
 			# hour = 60 * 60
 			# timeEnd = datetime.datetime(dateNow.year, dateNow.month, dateNow.day, 20)
