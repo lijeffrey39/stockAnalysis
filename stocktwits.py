@@ -35,8 +35,8 @@ from modules.messageExtract import *
 chrome_options = webdriver.ChromeOptions()
 prefs = {"profile.managed_default_content_settings.images": 2}
 chrome_options.add_experimental_option("prefs", prefs)
-chrome_options.add_argument("--headless")
-chrome_options.add_argument('log-level=3')
+# chrome_options.add_argument("--headless")
+# chrome_options.add_argument('log-level=3')
 cpuCount = multiprocessing.cpu_count()
 
 
@@ -46,7 +46,7 @@ DRIVER_BIN = os.path.join(PROJECT_ROOT, chromedriverName)
 DAYS_BACK = 75
 SAVE_USER_PAGE = False
 SAVE_STOCK_PAGE = False
-DEBUG = False
+DEBUG = True
 PROGRESSIVE = False
 
 
@@ -292,7 +292,7 @@ def main():
 	if (len(args) > 1):
 		dayUser = args[1]
 		if (dayUser == "day"):
-			date = datetime.datetime(dateNow.year, 2, 21)
+			date = datetime.datetime(dateNow.year, 2, 22)
 			computeStocksDay(date, 7)
 			# hour = 60 * 60
 			# timeEnd = datetime.datetime(dateNow.year, dateNow.month, dateNow.day, 20)
