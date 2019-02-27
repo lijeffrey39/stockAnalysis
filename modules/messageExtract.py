@@ -99,12 +99,12 @@ def findSymbol(message):
 
 # Find username of a message
 def findUser(message):
-	u = message.find('a', attrs={'class': usernameAttr})
+	# u = message.find('a', attrs={'class': usernameAttr})
 
-	if (u == None):
+	if (message == None):
 		return None
 	else:
-		user = u['href'][1:]
+		user = message['href'][1:]
 		return user
 
 

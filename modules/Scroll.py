@@ -18,10 +18,10 @@ from .fileIO import *
 # ------------------------------------------------------------------------
 
 
-priceAttr = 'st_2BF7LWC'
-messageStreamAttr = 'st_1m1w96g'
+priceAttr = 'st_1NGO3lX'
+messageStreamAttr = 'st_2o0zabc'
 messagesCountAttr = 'st__tZJhLh'
-SCROLL_PAUSE_TIME = 2
+SCROLL_PAUSE_TIME = 3
 
 
 # ------------------------------------------------------------------------
@@ -47,8 +47,8 @@ def isStockPage(driver):
 		analyzingStock = True
 		price = driver.find_elements_by_class_name(priceAttr)
 		# ActionChains(driver).move_to_element(price[0]).perform()  
-	else:	
-		ActionChains(driver).move_to_element(messageCount[0]).perform()  
+	# else:	
+	# 	ActionChains(driver).move_to_element(messageCount[0]).perform()  
 
 	return analyzingStock
 
@@ -58,7 +58,7 @@ def pageExists(driver):
 	soup = BeautifulSoup(html, 'html.parser')
 	messages = soup.find_all('div', attrs={'class': messageStreamAttr})
 
-	# page doesnt exist
+	# page Doesnnt exist
 	currentCount = len(messages)
 	if (currentCount == 0):
 		return False
@@ -76,7 +76,7 @@ def scrollFor(name, days, driver, progressive):
 	price = driver.find_elements_by_class_name(priceAttr)
 	analyzingStock = isStockPage(driver)
 
-	if (pageExists(driver) == findLastTime or (len(price) == 0 and analyzingStock)):
+	if (pageExists(driver) == False or (len(price) == 0 and analyzingStock)):
 		print("Doesn't Exist")
 		return False
 

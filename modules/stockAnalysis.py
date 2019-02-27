@@ -12,9 +12,9 @@ from bs4 import BeautifulSoup
 # ------------------------------------------------------------------------
 
 
-messageStreamAttr = 'st_1m1w96g'
-timeAttr = 'st_HsSv26f'
-messageTextAttr = 'st_2giLhWN'
+messageStreamAttr = 'st_2o0zabc'
+timeAttr = 'st_2q3fdlM'
+messageTextAttr = 'st_29E11sZ'
 
 
 # ------------------------------------------------------------------------
@@ -62,14 +62,19 @@ def getBearBull(symbol, date, soup):
 	messages = soup.find_all('div', attrs={'class': messageStreamAttr})
 	res = []
 
+	print(len(messages))
 	for m in messages:
-		t = m.find('a', {'class': timeAttr})
+		t = m.find('div', {'class': timeAttr})
+		t = t.find_all('a') # length of 2, first is user, second is date
 		if (t == None):
 			continue
-		textM = m.find('div', attrs={'class': messageTextAttr})
-		cleanText = ' '.join(removeSpecialCharacters(textM.text).split())
-		dateTime = findDateTime(t.text)
-		user = findUser(m)
+
+		allT = m.find('div', {'class': messageTextAttr})
+		allText = allT.find_all('div')
+		dateTime = findDateTime(t[1].text)
+		user = findUser(t[0])
+		textFound = allText[1].find('div').text
+		cleanText = ' '.join(removeSpecialCharacters(textFound).split())
 		isBull = isBullMessage(m)
 
 		if (isValidMessage(dateTime, date, isBull, user, symbol, 0) == False):
