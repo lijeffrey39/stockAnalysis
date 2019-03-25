@@ -345,13 +345,13 @@ def stockFrequency():
 def main():
 	args = sys.argv
 	dateNow = datetime.datetime.now()
-	#DEBUG = True
+	DEBUG = True
 
 	if (len(args) > 1):
 		dayUser = args[1]
 		if (dayUser == "day"):
 			date = datetime.datetime(dateNow.year, 3, 25)
-			computeStocksDay(date, 7)
+			computeStocksDay(date, 1)
 			# DIDnt calc on 2/22
 			# hour = 60 * 60
 			# timeEnd = datetime.datetime(dateNow.year, dateNow.month, dateNow.day, 20)
