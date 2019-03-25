@@ -74,8 +74,8 @@ def computeStocksDay(date, processes):
 		with open(newUsersPath, "w") as my_empty_csv:
 			pass
 
-	# stocks = readSingleList('stocksActual.csv')
-	stocks = readSingleList('stockList.csv')
+	# stocks = readSingleList('stockList.csv')
+	stocks = readSingleList('newStockList.csv')
 	stocks.sort()
 
 	actual = []
@@ -284,6 +284,64 @@ def runInterval(date, endTime, sleepTime):
 
 
 
+def stockFrequency():
+	path = "stocksResults/"
+	files = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f)) == False]
+	files = sorted(list(filter(lambda x: x != '.DS_Store', files)))
+
+	stocksDict = {}
+
+	for f in files:
+		newPath = path + f
+
+		newFiles = [f for f in os.listdir(newPath) if os.path.isfile(os.path.join(newPath, f))]
+		newFiles = sorted(list(filter(lambda x: x != '.DS_Store', newFiles)))
+
+		for stockCSV in newFiles:
+			stockPath = newPath + '/' + stockCSV
+			
+			stockName = stockCSV[:-4]
+			stockL = readMultiList(stockPath)
+			length = len(stockL)
+
+			if (stockName not in stocksDict):
+				stocksDict[stockName] = length
+			else:
+				stocksDict[stockName] += length
+
+	sorted_x = sorted(stocksDict.items(), key=operator.itemgetter(1))
+
+	count = 0
+	count1 = 0
+	stockList = []
+	for x in sorted_x:
+		if (x[1] < 10):
+			count += 1
+		else:
+			stockList.append(x[0])
+			count1 += 1
+
+	stockList.sort()
+	stockList = list(map(lambda x: [x], stockList))
+	writeSingleList('newStockList.csv', stockList)
+
+
+
+
+	# users = []
+	# prevLen = 0
+	# for file in files:
+	# 	print(file)
+	# 	res = readSingleList(path + file)
+	# 	res = list(filter(lambda x: len(x) > 0, res))
+
+	# 	users.extend(res)
+	# 	users = list(set(users))
+
+	# 	print(len(users) - prevLen)
+	# 	prevLen = len(users)
+
+
 def main():
 	args = sys.argv
 	dateNow = datetime.datetime.now()
@@ -292,7 +350,7 @@ def main():
 	if (len(args) > 1):
 		dayUser = args[1]
 		if (dayUser == "day"):
-			date = datetime.datetime(dateNow.year, 3, 1)
+			date = datetime.datetime(dateNow.year, 3, 25)
 			computeStocksDay(date, 7)
 			# DIDnt calc on 2/22
 			# hour = 60 * 60
@@ -306,9 +364,6 @@ def main():
 		else:
 			computeUsersDay('userInfo.csv', 'allNewUsers.csv', 1, 10)
 	else:
-
-		# findNewUserChange()
-		# return
 
 		date = datetime.datetime(dateNow.year, 1, 14)
 		dates = findTradingDays(date)
