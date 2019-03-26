@@ -1,5 +1,6 @@
 import os
 import datetime
+import operator
 from .fileIO import *
 from .prediction import *
 from .stockPriceAPI import *
@@ -187,3 +188,114 @@ def testWeights(dates):
 						result.append([count, totalReturn, weights])
 						writeSingleList('argMax.csv', result)
 
+
+# find frequency of user data per stock
+def stockFrequency():
+	path = "stocksResults/"
+	files = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f)) == False]
+	files = sorted(list(filter(lambda x: x != '.DS_Store', files)))
+
+	stocksDict = {}
+	maxFound = {}
+
+	for f in files:
+		newPath = path + f
+
+		newFiles = [f for f in os.listdir(newPath) if os.path.isfile(os.path.join(newPath, f))]
+		newFiles = sorted(list(filter(lambda x: x != '.DS_Store', newFiles)))
+
+		for stockCSV in newFiles:
+			stockPath = newPath + '/' + stockCSV
+			
+			stockName = stockCSV[:-4]
+			stockL = readMultiList(stockPath)
+			length = len(stockL)
+
+			if (stockName not in stocksDict):
+				stocksDict[stockName] = length
+			else:
+				stocksDict[stockName] += length
+
+			if (stockName not in maxFound):
+				maxFound[stockName] = length
+			else:
+				maxFound[stockName] = max(length, maxFound[stockName])
+
+	sorted_x = sorted(stocksDict.items(), key=operator.itemgetter(1))
+	sorted_y = sorted(maxFound.items(), key=operator.itemgetter(1))
+
+	count = 0
+	count1 = 0
+	stockList = []
+	for x in sorted_x:
+		if (x[1] < 30):
+			count += 1
+		else:
+			if (maxFound[x[0]] > 5):
+				stockList.append(x[0])
+				count1 += 1
+
+	stockList.sort()
+	print(len(stockList))
+	stockList = list(map(lambda x: [x, stocksDict[x], maxFound[x]], stockList))
+	writeSingleList('stockFrequency.csv', stockList)
+
+
+# Used for allocating stocks based on historical times
+def allocateStocks(processes, stockList, filtered):
+	ACCOUNT_LOAD = 500
+
+	nums = [0] * processes
+	stockList.sort(key = lambda x: int(x[1]), reverse = True)
+	stockList = list(map(lambda x: [x[0], int(x[1]) + ACCOUNT_LOAD], stockList))
+	stockList = list(filter(lambda x: x[0] in filtered, stockList))
+
+	dict = {}
+	for x in stockList:
+		dict[x[0]] = x[1]
+
+	sumL = 0
+	for i in range(len(stockList)):
+		sumL += int(stockList[i][1])
+
+	average = int(sumL / processes)
+	stocks = {}
+	for i in range(processes):
+		stocks[i] = []
+
+	currI = 0
+	for i in range(len(stockList)):
+		if (nums[currI] < average):
+			nums[currI] += int(stockList[i][1])
+			currI += 1
+			currI = currI % processes
+			stocks[currI].append(stockList[i][0])
+		else:
+			currI += 1
+			for j in range(processes):
+				if (nums[currI] < average):
+					nums[currI] += int(stockList[i][1])
+					currI += 1
+					currI = currI % processes
+					stocks[currI].append(stockList[i][0])
+					break
+				else:
+					currI += 1
+					currI = currI % processes
+
+	# Quick check
+	res = []
+	for key in stocks:
+		arr = stocks[key]
+		print(len(arr))
+		newArr = []
+		for i in range(len(arr)):
+			s = arr[i]
+			newArr.append([s, dict[s]])
+
+		newArr.sort(key = lambda x: x[1], reverse = True)
+		# print(key, newArr[:10])
+
+		res.append(sorted(arr))
+
+	return res

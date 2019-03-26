@@ -46,10 +46,6 @@ def isStockPage(driver):
 	if (len(messageCount) == 0):
 		analyzingStock = True
 		price = driver.find_elements_by_class_name(priceAttr)
-		# ActionChains(driver).move_to_element(price[0]).perform()  
-	# else:	
-	# 	ActionChains(driver).move_to_element(messageCount[0]).perform()  
-
 	return analyzingStock
 
 
@@ -58,7 +54,7 @@ def pageExists(driver):
 	soup = BeautifulSoup(html, 'html.parser')
 	messages = soup.find_all('div', attrs={'class': messageStreamAttr})
 
-	# page Doesnnt exist
+	# page Doesnt exist
 	currentCount = len(messages)
 	if (currentCount == 0):
 		return False
@@ -98,26 +94,31 @@ def scrollFor(name, days, driver, progressive):
 	for f in frequencies:
 		if (f[0] == name):
 			numbers = int(f[1])
-	toGetTo = int(numbers / 60)
+
+	# Find number of scrolls to make based on average and time of day it is
+	# If it is a stock that has 0 scrolls and it is before, shouldn't even check till later
+	# worry about that later though
+	messagesPerDay = numbers / 30
+	numberScrolls = int(messagesPerDay / 40)
 
 	while(True):
 		new_height = driver.execute_script("return document.body.scrollHeight")
 		time.sleep(SCROLL_PAUSE_TIME)
 
 		if (analyzingStock):
-			if (firstCheckForStock == False and toGetTo > 0):
-				time.sleep(SCROLL_PAUSE_TIME)
+			if (firstCheckForStock == False and numberScrolls > 0):
+				# time.sleep(SCROLL_PAUSE_TIME)
 				driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
 				new_height = driver.execute_script("return document.body.scrollHeight")
 				last_height = new_height
 
-				if (countForCheck == toGetTo):
+				print(countForCheck, '/', numberScrolls)
+
+				if (countForCheck == numberScrolls):
 					firstCheckForStock = True
 				else:
 					countForCheck += 1
 				continue
-
-
 
 		if (count % modCheck == 0):
 			modCheck += 1

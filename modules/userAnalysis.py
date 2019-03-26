@@ -126,8 +126,6 @@ def analyzeUser(username, soup, daysInFuture):
 		if (isValidMessage(dateTime, dateNow, isBull, user, symbol, daysInFuture) == False):
 			continue
 
-		# print("MADE IT")
-
 		(historical, dateTimeAdjusted) = findHistoricalData(dateTime, symbol, False)
 		priceAtPost = priceAtTime(dateTime, historical) # Price at the time of posting
 		# Price at 3:59 PM

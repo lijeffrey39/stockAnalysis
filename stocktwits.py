@@ -74,7 +74,6 @@ def computeStocksDay(date, processes):
 		with open(newUsersPath, "w") as my_empty_csv:
 			pass
 
-	# stocks = readSingleList('stockList.csv')
 	stocks = readSingleList('newStockList.csv')
 	stocks.sort()
 
@@ -94,22 +93,20 @@ def computeStocksDay(date, processes):
 
 	print(len(actual))
 
-	DEBUG = True
 	if (DEBUG):
 		analyzeStocksToday(actual, date, path, newUsersPath, folderPath)
 		return
 
-	splitEqual = list(chunks(actual, processes))
 	pool = Pool()
+	stocks = readMultiList('stockFrequency.csv')
+	splitEqual = allocateStocks(2, stocks, actual)
 
-	# analyzeStocksToday(splitEqual[0], date, path, newUsersPath, folderPath)
 	for i in range(processes):
 		arguments = [splitEqual[i], date, path, newUsersPath, folderPath]
 		pool.apply_async(analyzeStocksToday, arguments)
 
 	pool.close()
 	pool.join()
-	# findNewUserChange()
 		
 
 
@@ -195,7 +192,6 @@ def computeUsersDay(outputPath, inputPath, days, processes):
 			actual.append(user)
 
 	print('USERS: ', len(actual))
-
 	actual.remove('AnalystRatingsNetwork')
 	actual.remove('ChartMill')
 
@@ -212,8 +208,6 @@ def computeUsersDay(outputPath, inputPath, days, processes):
 
 	pool.close()
 	pool.join()
-
-	# createUsersCSV()
 
 
 
@@ -246,8 +240,6 @@ def analyzeUsers(users, days, path):
 		for r in result:
 			stocks.append(r[0])
 
-		# stocks = list(set(stocks))
-		# addToNewList(stocks, 'stockList.csv')
 		writeSingleList(path, result)
 
 
@@ -282,77 +274,12 @@ def runInterval(date, endTime, sleepTime):
 		else:
 			timeRest = sleepTime - secPassed
 			time.sleep(timeRest)
-
-
-
-def stockFrequency():
-	path = "stocksResults/"
-	files = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f)) == False]
-	files = sorted(list(filter(lambda x: x != '.DS_Store', files)))
-
-	stocksDict = {}
-	maxFound = {}
-
-	for f in files:
-		newPath = path + f
-
-		newFiles = [f for f in os.listdir(newPath) if os.path.isfile(os.path.join(newPath, f))]
-		newFiles = sorted(list(filter(lambda x: x != '.DS_Store', newFiles)))
-
-		for stockCSV in newFiles:
-			stockPath = newPath + '/' + stockCSV
-			
-			stockName = stockCSV[:-4]
-			stockL = readMultiList(stockPath)
-			length = len(stockL)
-
-			if (stockName not in stocksDict):
-				stocksDict[stockName] = length
-			else:
-				stocksDict[stockName] += length
-
-			if (stockName not in maxFound):
-				maxFound[stockName] = length
-			else:
-				maxFound[stockName] = max(length, maxFound[stockName])
-
-	sorted_x = sorted(stocksDict.items(), key=operator.itemgetter(1))
-	sorted_y = sorted(maxFound.items(), key=operator.itemgetter(1))
-
-	count = 0
-	count1 = 0
-	stockList = []
-	for x in sorted_x:
-		if (x[1] < 30):
-			count += 1
-		else:
-			if (maxFound[x[0]] > 5):
-				stockList.append(x[0])
-				count1 += 1
-
-	stockList.sort()
-	stockList = list(map(lambda x: [x, int(stocksDict[x] / 30), maxFound[x]], stockList))
-	# writeSingleList('stockFrequency.csv', stockList)
-
-
-	# users = []
-	# prevLen = 0
-	# for file in files:
-	# 	print(file)
-	# 	res = readSingleList(path + file)
-	# 	res = list(filter(lambda x: len(x) > 0, res))
-
-	# 	users.extend(res)
-	# 	users = list(set(users))
-
-	# 	print(len(users) - prevLen)
-	# 	prevLen = len(users)
+	
 
 
 def main():
 	args = sys.argv
 	dateNow = datetime.datetime.now()
-	DEBUG = True
 
 	if (len(args) > 1):
 		dayUser = args[1]
