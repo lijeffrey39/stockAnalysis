@@ -44,6 +44,8 @@ def isValidMessage(dateTime, dateNow, isBull, user, symbol, daysInFuture):
 	newTimeDay = newTime.weekday()
 	inside = inTradingHours(dateTime, symbol)
 
+	# print(user, symbol, inside, newTime, dateNow, dateCheck)
+
 	if (user == None or 
 		# isBull == None or 
 		symbol == None or
@@ -73,7 +75,7 @@ def findDateTime(message):
 
 
 def findSymbol(message):
-	textM = message.find('div', attrs={'class': messageTextAttr})
+	textM = message.find('div')
 	spans = textM.find_all('span')
 
 	tickers = []

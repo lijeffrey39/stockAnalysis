@@ -21,7 +21,7 @@ from .fileIO import *
 priceAttr = 'st_1NGO3lX'
 messageStreamAttr = 'st_2o0zabc'
 messagesCountAttr = 'st__tZJhLh'
-SCROLL_PAUSE_TIME = 3
+SCROLL_PAUSE_TIME = 2
 
 
 # ------------------------------------------------------------------------
@@ -91,9 +91,34 @@ def scrollFor(name, days, driver, progressive):
 		else:
 			oldTime = parse(stockRead[0][2])
 
+	firstCheckForStock = False #Must scroll certain amount before checking...more effecient scrolling
+	countForCheck = 0
+	frequencies = readMultiList("stockFrequency.csv")
+	numbers = -1
+	for f in frequencies:
+		if (f[0] == name):
+			numbers = int(f[1])
+	toGetTo = int(numbers / 60)
+
 	while(True):
 		new_height = driver.execute_script("return document.body.scrollHeight")
 		time.sleep(SCROLL_PAUSE_TIME)
+
+		if (analyzingStock):
+			if (firstCheckForStock == False):
+				time.sleep(SCROLL_PAUSE_TIME)
+				driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+				new_height = driver.execute_script("return document.body.scrollHeight")
+				last_height = new_height
+
+				if (countForCheck == toGetTo):
+					firstCheckForStock = True
+				else:
+					countForCheck += 1
+				continue
+
+
+
 		if (count % modCheck == 0):
 			modCheck += 1
 			if (analyzingStock == False):

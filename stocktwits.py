@@ -47,7 +47,7 @@ DAYS_BACK = 75
 SAVE_USER_PAGE = False
 SAVE_STOCK_PAGE = False
 DEBUG = True
-PROGRESSIVE = False
+PROGRESSIVE = True
 
 
 # ------------------------------------------------------------------------
@@ -96,7 +96,6 @@ def computeStocksDay(date, processes):
 
 	DEBUG = True
 	if (DEBUG):
-		print("hi")
 		analyzeStocksToday(actual, date, path, newUsersPath, folderPath)
 		return
 
@@ -227,7 +226,7 @@ def analyzeUsers(users, days, path):
 		driver = webdriver.Chrome(executable_path = DRIVER_BIN, chrome_options = chrome_options)
 		soup = findPageUser(user, DAYS_BACK, driver, SAVE_USER_PAGE)
 
-		driver.close()
+		driver.quit()
 		path = "newUserInfo/" + user + ".csv"
 
 		# If the page doesn't have enought bull/bear indicators
@@ -268,9 +267,6 @@ def analyzeUsers(users, days, path):
 # 13. For dictPredictions, find the middle number of users for prediction rate
 
 
-# User driver.quit()
-
-
 def runInterval(date, endTime, sleepTime):
 	prevHour = datetime.datetime.now()
 	while (datetime.datetime.now() < endTime):
@@ -295,6 +291,7 @@ def stockFrequency():
 	files = sorted(list(filter(lambda x: x != '.DS_Store', files)))
 
 	stocksDict = {}
+	maxFound = {}
 
 	for f in files:
 		newPath = path + f
@@ -314,23 +311,28 @@ def stockFrequency():
 			else:
 				stocksDict[stockName] += length
 
+			if (stockName not in maxFound):
+				maxFound[stockName] = length
+			else:
+				maxFound[stockName] = max(length, maxFound[stockName])
+
 	sorted_x = sorted(stocksDict.items(), key=operator.itemgetter(1))
+	sorted_y = sorted(maxFound.items(), key=operator.itemgetter(1))
 
 	count = 0
 	count1 = 0
 	stockList = []
 	for x in sorted_x:
-		if (x[1] < 10):
+		if (x[1] < 30):
 			count += 1
 		else:
-			stockList.append(x[0])
-			count1 += 1
+			if (maxFound[x[0]] > 5):
+				stockList.append(x[0])
+				count1 += 1
 
 	stockList.sort()
-	stockList = list(map(lambda x: [x], stockList))
-	writeSingleList('newStockList.csv', stockList)
-
-
+	stockList = list(map(lambda x: [x, int(stocksDict[x] / 30), maxFound[x]], stockList))
+	# writeSingleList('stockFrequency.csv', stockList)
 
 
 	# users = []
@@ -355,7 +357,7 @@ def main():
 	if (len(args) > 1):
 		dayUser = args[1]
 		if (dayUser == "day"):
-			date = datetime.datetime(dateNow.year, 3, 25)
+			date = datetime.datetime(dateNow.year, 3, 26)
 			computeStocksDay(date, 2)
 			# DIDnt calc on 2/22
 			# hour = 60 * 60

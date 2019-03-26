@@ -15,7 +15,8 @@ from bs4 import BeautifulSoup
 # Invalid symbols so they aren't check again
 invalidSymbols = []
 messageStreamAttr = 'st_1m1w96g'
-timeAttr = 'st_HsSv26f'
+timeAttr = 'st_2q3fdlM'
+messageTextAttr = 'st_29E11sZ'
 ideaAttr = 'st__tZJhLh'
 
 
@@ -103,15 +104,24 @@ def analyzeUser(username, soup, daysInFuture):
 	res = []
 
 	for m in messages:
-		t = m.find('a', attrs={'class': timeAttr})
-		dateTime = findDateTime(t.text)
-		textM = m.find('div', attrs={'class': messageTextAttr})
-		cleanText = ' '.join(removeSpecialCharacters(textM.text).split())
-		user = findUser(m)
+		t = m.find('div', {'class': timeAttr})
+		t = t.find_all('a') # length of 2, first is user, second is date
+		if (t == None):
+			continue
+
+		allT = m.find('div', {'class': messageTextAttr})
+		allText = allT.find_all('div')
+		dateTime = findDateTime(t[1].text)
+		messageTextView = allText[1] 
+		user = findUser(t[0])
+		textFound = messageTextView.find('div').text
+		cleanText = ' '.join(removeSpecialCharacters(textFound).split())
 		isBull = isBullMessage(m)
-		symbol = findSymbol(m)
+
+		symbol = findSymbol(messageTextView)
 		likeCnt = likeCount(m)
 		commentCnt = commentCount(m)
+
 
 		if (isValidMessage(dateTime, dateNow, isBull, user, symbol, daysInFuture) == False):
 			continue
