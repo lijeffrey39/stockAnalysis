@@ -46,8 +46,8 @@ DRIVER_BIN = os.path.join(PROJECT_ROOT, chromedriverName)
 DAYS_BACK = 75
 SAVE_USER_PAGE = False
 SAVE_STOCK_PAGE = False
-DEBUG = False
-PROGRESSIVE = True
+DEBUG = True
+PROGRESSIVE = False
 
 
 # ------------------------------------------------------------------------
@@ -94,7 +94,9 @@ def computeStocksDay(date, processes):
 
 	print(len(actual))
 
+	DEBUG = True
 	if (DEBUG):
+		print("hi")
 		analyzeStocksToday(actual, date, path, newUsersPath, folderPath)
 		return
 
@@ -108,7 +110,7 @@ def computeStocksDay(date, processes):
 
 	pool.close()
 	pool.join()
-	findNewUserChange()
+	# findNewUserChange()
 		
 
 
@@ -123,7 +125,7 @@ def analyzeStocksToday(listStocks, date, path, usersPath, folderPath):
 
 		(soup, error) = findPageStock(symbol, days, driver, SAVE_STOCK_PAGE)
 		analyzed = analyzedSymbolAlready(symbol, folderPath)
-		driver.close()
+		driver.quit()
 
 		if (error):
 			print("ERROR BAD")
@@ -266,6 +268,9 @@ def analyzeUsers(users, days, path):
 # 13. For dictPredictions, find the middle number of users for prediction rate
 
 
+# User driver.quit()
+
+
 def runInterval(date, endTime, sleepTime):
 	prevHour = datetime.datetime.now()
 	while (datetime.datetime.now() < endTime):
@@ -351,7 +356,7 @@ def main():
 		dayUser = args[1]
 		if (dayUser == "day"):
 			date = datetime.datetime(dateNow.year, 3, 25)
-			computeStocksDay(date, 1)
+			computeStocksDay(date, 2)
 			# DIDnt calc on 2/22
 			# hour = 60 * 60
 			# timeEnd = datetime.datetime(dateNow.year, dateNow.month, dateNow.day, 20)
@@ -360,7 +365,7 @@ def main():
 			# # weights = [9, 0.48, 0.45, 0.64, 1.92]
 			# # res = topStocks(date, 2000, weights)
 			# statsUsers()
-			writeTempListStocks()
+			# writeTempListStocks()
 		else:
 			computeUsersDay('userInfo.csv', 'allNewUsers.csv', 1, 10)
 	else:

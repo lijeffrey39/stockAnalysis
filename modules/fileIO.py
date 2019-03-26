@@ -98,7 +98,7 @@ def writeSingleList(path, items):
 
 	global_lock.acquire()
 
-	with open(path, "w", newline='') as my_csv:
+	with open(path, "w", newline='', encoding='utf-8') as my_csv:
 	    csvWriter = csv.writer(my_csv, delimiter=',')
 	    csvWriter.writerows(items)
 
