@@ -47,7 +47,7 @@ DAYS_BACK = 75
 SAVE_USER_PAGE = False
 SAVE_STOCK_PAGE = False
 DEBUG = True
-PROGRESSIVE = True
+PROGRESSIVE = False
 
 
 # ------------------------------------------------------------------------
@@ -284,7 +284,7 @@ def main():
 	if (len(args) > 1):
 		dayUser = args[1]
 		if (dayUser == "day"):
-			date = datetime.datetime(dateNow.year, 3, 26)
+			date = datetime.datetime(dateNow.year, 3, 27)
 			computeStocksDay(date, 2)
 			# DIDnt calc on 2/22
 			# hour = 60 * 60
