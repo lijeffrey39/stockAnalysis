@@ -108,6 +108,7 @@ def computeStocksDay(date, processes):
 	pool.close()
 	pool.join()
 		
+	findNewUserChange()
 
 
 def analyzeStocksToday(listStocks, date, path, usersPath, folderPath):
@@ -258,6 +259,7 @@ def analyzeUsers(users, days, path):
 # 10. Find faster way to update templists folder
 # 13. For dictPredictions, find the middle number of users for prediction rate
 
+# Find outliers in stocks 
 
 def runInterval(date, endTime, sleepTime):
 	prevHour = datetime.datetime.now()
@@ -275,6 +277,10 @@ def runInterval(date, endTime, sleepTime):
 			timeRest = sleepTime - secPassed
 			time.sleep(timeRest)
 	
+
+# def findOutliers():
+	
+
 
 
 def main():
@@ -297,7 +303,7 @@ def main():
 			# writeTempListStocks()
 		else:
 			computeUsersDay('userInfo.csv', 'allNewUsers.csv', 1, 10)
-	else:
+	else:	
 
 		date = datetime.datetime(dateNow.year, 1, 14)
 		dates = findTradingDays(date)

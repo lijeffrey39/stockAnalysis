@@ -60,7 +60,6 @@ def topUsersStock(stock, num):
 # Creates userxxx_info.csv for each user
 def statsUsers():
 	users = helpers.allUsers()
-	# users = ['1999infinitysoxx']
 
 	for user in users:
 		path = "userinfo/" + user + ".csv"
@@ -221,8 +220,25 @@ def createDictUsers():
 
 
 # Ideal when enough user information collected
+
+# Current weightings for predictions 
+# 1. Number of stocks to pick from (higher means lower risk)
+# 2. Accuracy for that user overall 
+# 3. Accuracy for that user for that specific stock
+# 4. How many predictions this user has made relative to everyone else
+# 5. How many predictions this user has made relative to people predicting this stock
+
+# Other weights to add
+# 6. Number of likes/comments for a prediction
+# 7. Number of followers (If in thousands, remove k and multiply by 1,000)
+# 8. How old of a member he/she is
+
+# TODO
+# 8. Find weight of a particular sector/industry
+
+
 def topStocks(date, money, weights):
-	numStocks = weights[0]
+	numStocks = weights[0] 
 	uAccW = weights[1]
 	uStockAccW = weights[2]
 	uPredW = weights[3]

@@ -1,10 +1,13 @@
 import os
 import datetime
 from . import scroll
-from .messageExtract import *
-from .stockPriceAPI import *
+
 from .fileIO import *
+from .stockPriceAPI import *
+from .messageExtract import *
+
 from bs4 import BeautifulSoup
+from selenium.common.exceptions import TimeoutException
 
 
 # ------------------------------------------------------------------------
@@ -32,13 +35,18 @@ def findPageUser(username, days, driver, savePage):
 	path = 'usersPages/' + username + '.html'
 	if (os.path.isfile(path)):
 		print("File Exists")
-		# html = open(path, "r")
 		soup = BeautifulSoup(open(path), 'html.parser')
 		return soup
 
 	url = "https://stocktwits.com/" + username
 	driver.get(url)
-	foundEnough = scroll.scrollFor(username, days, driver, False)
+
+	
+	try:
+	  	foundEnough = scroll.scrollFor(username, days, driver, False)
+	except TimeoutException as ex:
+	  	print(ex.Message)
+	  	foundEnough = scroll.scrollFor(username, days, driver, False)
 
 	if (foundEnough == False):
 		return None
