@@ -278,10 +278,64 @@ def runInterval(date, endTime, sleepTime):
 			time.sleep(timeRest)
 	
 
-# def findOutliers():
-	
+def findOutliers(stockName, date):
+	folder = "userinfo/"
+	allU = allUsers()
+	print(len(allU))
+	found = 0
+	count = 0
+
+	for u in allU:
+		l = readMultiList('userInfo/' + u + '.csv')
+		
+		for r in l:
+			four = float(r[2])
+			nine = float(r[3])
+			foundDate = parse(r[1])
+
+			if (r[0] == stockName 
+				and foundDate.year == date.year 
+				and foundDate.day == date.day 
+				and foundDate.month == date.month):
+				count += 2
+				found += four
+				found += nine
+
+	print(found / count)
 
 
+
+def savePrices():
+	folder = "userinfo/"
+	allU = allUsers()
+	print(len(allU))
+	stockNames = {}
+	count = 0
+
+	for u in allU:
+		l = readMultiList('userInfo/' + u + '.csv')
+		
+		count += 1
+		if (count % 100 == 0):
+			print(count)
+
+		for r in l:
+			four = float(r[2])
+			nine = float(r[3])
+			foundDate = parse(r[1])
+			dateA = foundDate.strftime("%m/%d/%y")
+			stock = r[0]
+
+			if (stock not in stockNames):
+				stockNames[stock] = {}
+				stockNames[stock][dateA] = [(four + nine) / 2]
+			else:
+				if (dateA not in stockNames[stock]):
+					stockNames[stock][dateA] = [(four + nine) / 2]
+				else:
+					stockNames[stock][dateA].append((four + nine) / 2)
+
+	print(stockNames["TVIX"])
 
 def main():
 	args = sys.argv
@@ -304,6 +358,9 @@ def main():
 		else:
 			computeUsersDay('userInfo.csv', 'allNewUsers.csv', 1, 10)
 	else:	
+
+		savePrices()
+		return
 
 		date = datetime.datetime(dateNow.year, 1, 14)
 		dates = findTradingDays(date)
