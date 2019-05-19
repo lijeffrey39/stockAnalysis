@@ -35,8 +35,8 @@ from modules.messageExtract import *
 chrome_options = webdriver.ChromeOptions()
 prefs = {"profile.managed_default_content_settings.images": 2}
 chrome_options.add_experimental_option("prefs", prefs)
-chrome_options.add_argument("--headless")
-chrome_options.add_argument('log-level=3')
+# chrome_options.add_argument("--headless")
+# chrome_options.add_argument('log-level=3')
 cpuCount = multiprocessing.cpu_count()
 
 
@@ -305,37 +305,37 @@ def findOutliers(stockName, date):
 
 
 
-def savePrices():
-	folder = "userinfo/"
-	allU = allUsers()
-	print(len(allU))
-	stockNames = {}
-	count = 0
+# def savePrices():
+# 	folder = "userinfo/"
+# 	allU = allUsers()
+# 	print(len(allU))
+# 	stockNames = {}
+# 	count = 0
 
-	for u in allU:
-		l = readMultiList('userInfo/' + u + '.csv')
+# 	for u in allU:
+# 		l = readMultiList('userInfo/' + u + '.csv')
 		
-		count += 1
-		if (count % 100 == 0):
-			print(count)
+# 		count += 1
+# 		if (count % 100 == 0):
+# 			print(count)
 
-		for r in l:
-			four = float(r[2])
-			nine = float(r[3])
-			foundDate = parse(r[1])
-			dateA = foundDate.strftime("%m/%d/%y")
-			stock = r[0]
+# 		for r in l:
+# 			four = float(r[2])
+# 			nine = float(r[3])
+# 			foundDate = parse(r[1])
+# 			dateA = foundDate.strftime("%m/%d/%y")
+# 			stock = r[0]
 
-			if (stock not in stockNames):
-				stockNames[stock] = {}
-				stockNames[stock][dateA] = [(four + nine) / 2]
-			else:
-				if (dateA not in stockNames[stock]):
-					stockNames[stock][dateA] = [(four + nine) / 2]
-				else:
-					stockNames[stock][dateA].append((four + nine) / 2)
+# 			if (stock not in stockNames):
+# 				stockNames[stock] = {}
+# 				stockNames[stock][dateA] = [(four + nine) / 2]
+# 			else:
+# 				if (dateA not in stockNames[stock]):
+# 					stockNames[stock][dateA] = [(four + nine) / 2]
+# 				else:
+# 					stockNames[stock][dateA].append((four + nine) / 2)
 
-	print(stockNames["TVIX"])
+# 	print(stockNames["TVIX"])
 
 def main():
 	args = sys.argv
@@ -358,8 +358,9 @@ def main():
 		else:
 			computeUsersDay('userInfo.csv', 'allNewUsers.csv', 1, 10)
 	else:	
-
-		savePrices()
+		# date = datetime.datetime(dateNow.year, 5, 17)
+		# computeStocksDay(date, 1)
+		computeUsersDay('userInfo.csv', 'allNewUsers.csv', 1, 10)
 		return
 
 		date = datetime.datetime(dateNow.year, 1, 14)

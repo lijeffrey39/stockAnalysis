@@ -77,6 +77,8 @@ def getBearBull(symbol, date, soup):
 		cleanText = ' '.join(removeSpecialCharacters(textFound).split())
 		isBull = isBullMessage(m)
 
+		# print(cleanText, user, dateTime)
+
 		if (isValidMessage(dateTime, date, isBull, user, symbol, 0) == False):
 			continue
 

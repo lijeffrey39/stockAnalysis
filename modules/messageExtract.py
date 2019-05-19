@@ -16,12 +16,11 @@ priceAttr = 'st_2BF7LWC'
 messageStreamAttr = 'st_1m1w96g'
 timeAttr = 'st_HsSv26f'
 usernameAttr = 'st_x9n-9YN'
-bullSentAttr = 'st_1WHAM8- st_3bEptPi'
-bearSentAttr = 'st_2KbIj7l st_3bEptPi'
 messageTextAttr = 'st_2giLhWN'
 likeCountAttr = 'st_1tZ744c'
-commmentCountAttr = 'st_1YAqrKR'
+commmentCountAttr = 'st_1cZCCSt'
 messagesCountAttr = 'st__tZJhLh'
+bullBearAttr = 'st_11GoBZI'
 
 
 # ------------------------------------------------------------------------
@@ -43,8 +42,6 @@ def isValidMessage(dateTime, dateNow, isBull, user, symbol, daysInFuture):
 	newTime = datetime.datetime(newTime.year, newTime.month, newTime.day, 9, 30)
 	newTimeDay = newTime.weekday()
 	inside = inTradingHours(dateTime, symbol)
-
-	# print(user, symbol, inside, newTime, dateNow, dateCheck)
 
 	if (user == None or 
 		# isBull == None or 
@@ -101,8 +98,6 @@ def findSymbol(message):
 
 # Find username of a message
 def findUser(message):
-	# u = message.find('a', attrs={'class': usernameAttr})
-
 	if (message == None):
 		return None
 	else:
@@ -128,13 +123,15 @@ def commentCount(message):
 
 # True if bull
 def isBullMessage(message):
-	bull = message.find('span', attrs={'class': bullSentAttr})
-	bear = message.find('span', attrs={'class': bearSentAttr})
 
-	if (bull == None and bear == None):
+	bullBearText = message.find('span', attrs={'class': bullBearAttr})
+	bullBearSpan = bullBearText.find_all('span')
+
+	if (len(bullBearSpan) == 0):
 		return None
+	else:
+		if (bullBearSpan[0].text == "Bearish"):
+			return False
+		else:
+			return True
 
-	if (bull):
-		return True 
-	else: 
-		return False

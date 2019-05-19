@@ -13,6 +13,7 @@ from .fileIO import *
 invalidSymbols = []
 currHistorical = []
 currSymbol = ""
+currDateTimeStr = ""
 
 
 # ------------------------------------------------------------------------
@@ -24,77 +25,25 @@ def historicalFromDict(symbol, dateTime):
 	global invalidSymbols
 	global currSymbol
 	global currHistorical
+	global currDateTimeStr
 	historial = []
 	dateTimeStr = dateTime.strftime("%Y-%m-%d")
 
 	if (symbol == None):
 		return []
 
-	if (symbol != currSymbol):
+	if (symbol != currSymbol or dateTimeStr != currDateTimeStr):
 		currSymbol = symbol
+		currDateTimeStr = dateTimeStr
 		try:
 			currHistorical = get_historical_intraday(symbol, dateTime)
 			return currHistorical
 		except:
-			# print(symbol)
 			print("Invalid ticker")
 			currHistorical = []
 			return currHistorical
 	else:
 		return currHistorical
-
-	# if (useDatesSeen == False):	
-	# 	if (symbol in invalidSymbols):
-	# 		return []
-	# 	try:
-	# 		historical = get_historical_intraday(symbol, dateTime)
-	# 		return historical
-	# 	except:
-	# 		print(symbol)
-	# 		invalidSymbols.append(symbol)
-	# 		invalidSymbols.sort()
-
-	# 		tempList = []
-	# 		for s in invalidSymbols:
-	# 			tempList.append([s])
-
-	# 		writeSingleList('invalidSymbols.csv', tempList)
-
-	# 		print("Invalid ticker2")
-	# 		return []
-
-
-
-	# Find what process is using it
-	# currentP = current_process().name
-	# datesSeen = datesSeenGlobal[currentP]
-
-	# if (symbol not in datesSeen):
-	# 	try:
-	# 		historical = get_historical_intraday(symbol, dateTime)
-	# 		newSymbolTime = {}
-	# 		newSymbolTime[dateTimeStr] = historical
-	# 		datesSeen[symbol] = newSymbolTime
-	# 	except:
-	# 		pass
-	# 		print("Invalid ticker1")
-	# 		return []
-	# else:
-	# 	datesForSymbol = datesSeen[symbol]
-	# 	if (dateTimeStr not in datesForSymbol):
-	# 		try:
-	# 			historical = get_historical_intraday(symbol, dateTime)
-	# 			datesSeen[symbol][dateTimeStr] = historical
-	# 		except:
-	# 			pass
-	# 			print("Invalid ticker")
-	# 	else:
-	# 		print("hi")
-	# 		historical = datesSeen[symbol][dateTimeStr]
-
-	# datesSeenGlobal[currentP] = datesSeen
-	# return historical
-
 
 
 # Find historical stock data given date and ticker
