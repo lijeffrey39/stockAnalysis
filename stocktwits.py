@@ -219,6 +219,7 @@ def analyzeUsers(users, days, path):
 
 		print(user)
 		driver = webdriver.Chrome(executable_path = DRIVER_BIN, chrome_options = chrome_options)
+		driver.set_page_load_timeout(45)
 		soup = findPageUser(user, DAYS_BACK, driver, SAVE_USER_PAGE)
 
 		driver.quit()
@@ -344,8 +345,8 @@ def main():
 	if (len(args) > 1):
 		dayUser = args[1]
 		if (dayUser == "day"):
-			date = datetime.datetime(dateNow.year, 3, 29)
-			computeStocksDay(date, 2)
+			date = datetime.datetime(dateNow.year, dateNow.month, 21)
+			computeStocksDay(date, 1)
 			# DIDnt calc on 2/22
 			# hour = 60 * 60
 			# timeEnd = datetime.datetime(dateNow.year, dateNow.month, dateNow.day, 20)

@@ -39,9 +39,14 @@ def findPageUser(username, days, driver, savePage):
 		return soup
 
 	url = "https://stocktwits.com/" + username
-	driver.get(url)
+		
+	# Handle if it times out after 20 sec
+	try:
+		driver.get(url)
+	except:
+		print("Timed Out")
+		return None
 
-	
 	try:
 	  	foundEnough = scroll.scrollFor(username, days, driver, False)
 	except TimeoutException as ex:
