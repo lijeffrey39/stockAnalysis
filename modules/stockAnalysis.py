@@ -36,7 +36,12 @@ def findPageStock(symbol, days, driver, savePage):
 
 	url = "https://stocktwits.com/symbol/" + symbol
 	driver.get(url)
-	foundEnough = scroll.scrollFor(symbol, days, driver, True)
+	
+	try:
+	  	foundEnough = scroll.scrollFor(username, days, driver, False)
+	except TimeoutException as ex:
+	  	print(ex.Message)
+	  	foundEnough = scroll.scrollFor(username, days, driver, False)
 
 	if (foundEnough == False):
 		return (None, True)

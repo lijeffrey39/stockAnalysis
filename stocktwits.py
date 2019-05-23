@@ -117,6 +117,8 @@ def analyzeStocksToday(listStocks, date, path, usersPath, folderPath):
 
 		users = []
 		driver = webdriver.Chrome(executable_path = DRIVER_BIN, chrome_options = chrome_options)
+		driver.set_page_load_timeout(45)
+		
 		dateNow = datetime.datetime.now()
 		days = (dateNow - date).days
 
@@ -194,7 +196,7 @@ def computeUsersDay(outputPath, inputPath, days, processes):
 
 	print('USERS: ', len(actual))
 	actual.remove('AnalystRatingsNetwork')
-	actual.remove('ChartMill')
+	actual.remove('ChartMill')	
 	actual.remove('DividendBot')
 
 	if (DEBUG):
@@ -362,14 +364,17 @@ def main():
 	else:	
 		# date = datetime.datetime(dateNow.year, 5, 17)
 		# computeStocksDay(date, 1)
-		computeUsersDay('userInfo.csv', 'allNewUsers.csv', 1, 10)
-		return
+		# computeUsersDay('userInfo.csv', 'allNewUsers.csv', 1, 10)
+		# return
 
-		date = datetime.datetime(dateNow.year, 1, 14)
-		dates = findTradingDays(date)
+		# date = datetime.datetime(dateNow.year, 1, 14)
+		# dateUpTo = datetime.datetime(dateNow.year, 3, 1)
+		# currDate = datetime.datetime.now()
+		# dates = findTradingDays(date, dateUpTo)	
 		# dates = dates[0: len(dates) - 1]
+
 		# print(dates)
-		# dates = [datetime.datetime(dateNow.year, 2, 15)]
+		dates = [datetime.datetime(dateNow.year, 5, 20)]
 
 		money = 2000
 		startMoney = 2000
@@ -391,7 +396,7 @@ def main():
 
 			x += pos
 			y += neg
-			if (foundReturn > 0):
+			if (foundReturn >= 0):
 				print("%s $%.2f +%.2f%%    Hit: %.2f%%" % (date.strftime("%m-%d-%y"), foundReturn, 
 					round((((money + foundReturn) / money) - 1) * 100, 2), hitPercent))
 			else:
@@ -400,7 +405,7 @@ def main():
 			totalReturn += foundReturn
 			money += foundReturn
 
-		sorted_x = sorted(dictPrices.items(), key=operator.itemgetter(1))
+		sorted_x = sorted(dictPrices.items(), key = operator.itemgetter(1))
 		print(sorted_x)
 		print("$%d -> $%d" % (startMoney, startMoney + totalReturn))
 		print("+%.2f%%" % (round((((startMoney + totalReturn) / startMoney) - 1) * 100, 2)))

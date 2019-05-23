@@ -44,17 +44,15 @@ def inTradingHours(dateTime, symbol):
 
 
 def isTradingDay(date):
-	historical = get_historical_intraday('TVIX', date)
-	return len(historical) > 0
-
+	path = date.strftime("stocksResults/%m-%d-%y.csv")
+	return (os.path.isfile(path))
 
 # Return list of valid trading days from date on
-def findTradingDays(date):
-	currDate = datetime.datetime.now()
+def findTradingDays(date, upToDate):
 	delta = datetime.timedelta(1)
 	dates = []
 
-	while (date < currDate - delta):
+	while (date < upToDate - delta):
 		# See if it's a valid trading day
 		if (isTradingDay(date)):
 			dates.append(date)

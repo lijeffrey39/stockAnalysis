@@ -107,13 +107,15 @@ def recommendStocks(result, date, money, numStocks):
 		numStocks = int(ratios[i] / priceAtPost)
 
 		stocksNum.append([symbol, priceAtPost, ratios[i], numStocks])
-		print([symbol, priceAtPost, ratios[i], numStocks])
+		# print([symbol, priceAtPost, ratios[i], numStocks])
 		
 	return stocksNum
 
 
 
 # Returns the price of a stock based on whether it was saved from a previous prediction
+# need to save all prices for all stocks
+
 def savedPricesStocks(date, stock):
 	path = date.strftime("stocksResults/%m-%d-%y-%I_savedStocks.csv")
 	dateStock = date.strftime("%m-%d-%y-%I:%M_") + stock
@@ -218,6 +220,32 @@ def createDictUsers():
 	return
 
 
+# Save the current day's stock price at 4pm and next day's prices at 9 am for all stocks
+def saveStockPricesDay(date, stocks, afterDate):
+	# Time at 4pm for current date
+	path = date.strftime("stocksResults/%m-%d-%y-%I_savedStocks.csv")
+	if (os.path.isfile(path) == False): 	# create empty file
+		with open(path, "w") as my_empty_csv:
+			pass
+	else:
+		return
+
+	stockList = []
+	for s in stocks:
+		print(s)
+		(historical, dateTimeAdjusted) = stockPriceAPI.findHistoricalData(date, s, False)
+
+		for i in range(6):
+			date = datetime.datetime(date.year, date.month, date.day, 9, i * 5)
+			dateString = date.strftime("%m-%d-%y-%I:%M_") + s
+			priceAtPost = stockPriceAPI.priceAtTime(date, historical) # Price at the time of posting
+			stockList.append([dateString, priceAtPost])
+
+	stockList.sort(key = lambda x: x[0])
+	writeSingleList(path, stockList)
+
+	return
+
 
 # Ideal when enough user information collected
 
@@ -238,11 +266,6 @@ def createDictUsers():
 
 
 def topStocks(date, money, weights):
-	numStocks = weights[0] 
-	uAccW = weights[1]
-	uStockAccW = weights[2]
-	uPredW = weights[3]
-	uStockPredW = weights[4]
 
 	# path = date.strftime("stocksResults/%m-%d-%y/")
 	pathWeighted = date.strftime("stocksResults/%m-%d-%y_weighted.csv")
@@ -252,14 +275,39 @@ def topStocks(date, money, weights):
 	if ((not os.path.exists(folderPath))):
 		return
 
-	users = readMultiList('userInfo.csv')
 	stocks = [f for f in os.listdir(folderPath) if os.path.isfile(os.path.join(folderPath, f))] 
 	stocks = list(map(lambda x: x[:len(x) - 4], stocks))
 	stocks = list(filter(lambda x: '.DS_S' not in x, stocks))
 
+
+	# Save all the stock prices at 4 pm and 9 am the next day
+	# Time at 4pm for current date
+	beforeDate = datetime.datetime(date.year, date.month, date.day, 15, 59)
+	saveStockPricesDay(beforeDate, stocks, False)
+
+	# Time at 9:30 for next day
+	afterDate = datetime.datetime(date.year, date.month, date.day, 9, 30)
+	afterDate += datetime.timedelta(1)
+	while (helpers.isTradingDay(afterDate) == False):
+		afterDate += datetime.timedelta(1)
+
+	saveStockPricesDay(afterDate, stocks, True)
+
+
+
+
+
+	users = readMultiList('userInfo.csv')
 	users = list(filter(lambda x: len(x) >= 4, users))
 	mappedUsers = set(list(map(lambda x: x[0], users)))
 	result = []
+
+
+	numStocks = weights[0] 
+	uAccW = weights[1]
+	uStockAccW = weights[2]
+	uPredW = weights[3]
+	uStockPredW = weights[4]
 
 	global CREATED_DICT_USERS
 	if (CREATED_DICT_USERS == False):
