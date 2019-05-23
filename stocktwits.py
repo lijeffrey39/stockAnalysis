@@ -195,6 +195,7 @@ def computeUsersDay(outputPath, inputPath, days, processes):
 	print('USERS: ', len(actual))
 	actual.remove('AnalystRatingsNetwork')
 	actual.remove('ChartMill')
+	actual.remove('DividendBot')
 
 	if (DEBUG):
 		analyzeUsers(actual, days, outputPath)
