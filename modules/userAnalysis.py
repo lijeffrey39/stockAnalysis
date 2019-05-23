@@ -157,6 +157,10 @@ def analyzeUser(username, soup, daysInFuture):
 		# Find price at 10:30 AM
 		price1030 = priceAtTime(datetime.datetime(newTime.year, newTime.month, newTime.day, 10, 30), historical)
 
+		# Must fix this
+		if (newPrices == None or prices == None):
+			continue
+
 		correct = 0
 		change = round(newPrices - prices, 4)
 		percent = 0

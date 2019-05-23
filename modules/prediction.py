@@ -107,7 +107,7 @@ def recommendStocks(result, date, money, numStocks):
 		numStocks = int(ratios[i] / priceAtPost)
 
 		stocksNum.append([symbol, priceAtPost, ratios[i], numStocks])
-		#print([symbol, priceAtPost, ratios[i], numStocks])
+		print([symbol, priceAtPost, ratios[i], numStocks])
 		
 	return stocksNum
 
