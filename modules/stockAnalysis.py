@@ -6,6 +6,8 @@ from .stockPriceAPI import *
 from .messageExtract import *
 from bs4 import BeautifulSoup
 
+from selenium.common.exceptions import TimeoutException
+
 
 # ------------------------------------------------------------------------
 # ----------------------------- Variables --------------------------------
@@ -35,13 +37,17 @@ def findPageStock(symbol, days, driver, savePage):
 		return (soup, False)
 
 	url = "https://stocktwits.com/symbol/" + symbol
-	driver.get(url)
+	try:
+		driver.get(url)
+	except:
+		print("Timed Out from findPageStock")
+		return None
 	
 	try:
-	  	foundEnough = scroll.scrollFor(username, days, driver, False)
+	  	foundEnough = scroll.scrollFor(symbol, days, driver, False)
 	except TimeoutException as ex:
-	  	print(ex.Message)
-	  	foundEnough = scroll.scrollFor(username, days, driver, False)
+	  	print("TIMEOUT EXCEPTION:", ex.Message)
+	  	foundEnough = scroll.scrollFor(symbol, days, driver, False)
 
 	if (foundEnough == False):
 		return (None, True)
