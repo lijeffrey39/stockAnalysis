@@ -147,6 +147,11 @@ def scrollFor(name, days, driver, progressive):
 		driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
 		count += 1
 
+		# TODO: Need to fix for later (temporary fix)
+		if (dateTime == None or oldTime == None):
+			print("How does this happen")
+			return False
+
 		if (dateTime < oldTime):
 			break
 
