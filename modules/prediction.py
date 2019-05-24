@@ -247,6 +247,23 @@ def saveStockPricesDay(date, stocks, afterDate):
 	return
 
 
+# Save all the stock prices at 4 pm and 9 am the next day
+def savePricesToFile(date, stocks):
+	# Time at 4pm for current date
+	beforeDate = datetime.datetime(date.year, date.month, date.day, 15, 59)
+	saveStockPricesDay(beforeDate, stocks, False)
+
+	# Time at 9:30 for next day
+	afterDate = datetime.datetime(date.year, date.month, date.day, 9, 30)
+	afterDate += datetime.timedelta(1)
+	while (helpers.isTradingDay(afterDate) == False):
+		afterDate += datetime.timedelta(1)
+
+	saveStockPricesDay(afterDate, stocks, True)
+
+
+
+
 # Ideal when enough user information collected
 
 # Current weightings for predictions 
@@ -279,22 +296,8 @@ def topStocks(date, money, weights):
 	stocks = list(map(lambda x: x[:len(x) - 4], stocks))
 	stocks = list(filter(lambda x: '.DS_S' not in x, stocks))
 
-
 	# Save all the stock prices at 4 pm and 9 am the next day
-	# Time at 4pm for current date
-	beforeDate = datetime.datetime(date.year, date.month, date.day, 15, 59)
-	saveStockPricesDay(beforeDate, stocks, False)
-
-	# Time at 9:30 for next day
-	afterDate = datetime.datetime(date.year, date.month, date.day, 9, 30)
-	afterDate += datetime.timedelta(1)
-	while (helpers.isTradingDay(afterDate) == False):
-		afterDate += datetime.timedelta(1)
-
-	saveStockPricesDay(afterDate, stocks, True)
-
-
-
+	savePricesToFile(date, stocks)
 
 
 	users = readMultiList('userInfo.csv')

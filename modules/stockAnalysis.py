@@ -41,7 +41,7 @@ def findPageStock(symbol, days, driver, savePage):
 		driver.get(url)
 	except:
 		print("Timed Out from findPageStock")
-		return None
+		return (None, True)
 	
 	try:
 	  	foundEnough = scroll.scrollFor(symbol, days, driver, False)
