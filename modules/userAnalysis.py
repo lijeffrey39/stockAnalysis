@@ -15,8 +15,9 @@ from selenium.common.exceptions import TimeoutException
 # ------------------------------------------------------------------------
 
 
+# TODO
 # Invalid symbols so they aren't check again
-invalidSymbols = []
+invalidSymbols = [] 
 messageStreamAttr = 'st_1m1w96g'
 timeAttr = 'st_2q3fdlM'
 messageTextAttr = 'st_29E11sZ'

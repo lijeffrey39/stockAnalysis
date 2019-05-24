@@ -118,11 +118,8 @@ def analyzeStocksToday(listStocks, date, path, usersPath, folderPath):
 		users = []
 		driver = webdriver.Chrome(executable_path = DRIVER_BIN, chrome_options = chrome_options)
 		driver.set_page_load_timeout(45)
-		
-		dateNow = datetime.datetime.now()
-		days = (dateNow - date).days
 
-		(soup, error) = findPageStock(symbol, days, driver, SAVE_STOCK_PAGE)
+		(soup, error) = findPageStock(symbol, date, driver, SAVE_STOCK_PAGE)
 		analyzed = analyzedSymbolAlready(symbol, folderPath)
 		driver.quit()
 
@@ -374,7 +371,7 @@ def main():
 		# dates = dates[0: len(dates) - 1]
 
 		# print(dates)
-		dates = [datetime.datetime(dateNow.year, 5, 20)]
+		dates = [datetime.datetime(dateNow.year, 5, 21)]
 
 		money = 2000
 		startMoney = 2000

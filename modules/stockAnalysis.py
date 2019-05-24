@@ -25,8 +25,20 @@ messageTextAttr = 'st_29E11sZ'
 
 
 
+def addToFailedList(date, stock):
+	path = "failedList.csv"
+	failedList = readMultiList(path)
+	failedList.append([date, stock, True])
+	writeSingleList(path, failedList)
+	return
+
+
 # Return soup object page of that stock 
-def findPageStock(symbol, days, driver, savePage):
+def findPageStock(symbol, date, driver, savePage):
+
+	dateNow = datetime.datetime.now()
+	days = (dateNow - date).days # days to scroll for
+
 	# if html is stored
 	path = 'stocksPages/' + symbol + '.html'
 	if (os.path.isfile(path)):
@@ -37,16 +49,20 @@ def findPageStock(symbol, days, driver, savePage):
 		return (soup, False)
 
 	url = "https://stocktwits.com/symbol/" + symbol
+
+	# Handling exceptions and random shit
 	try:
 		driver.get(url)
 	except:
 		print("Timed Out from findPageStock")
+		addToFailedList(date, symbol)
 		return (None, True)
 	
 	try:
 	  	foundEnough = scroll.scrollFor(symbol, days, driver, False)
 	except TimeoutException as ex:
 	  	print("TIMEOUT EXCEPTION:", ex.Message)
+	  	addToFailedList(date, symbol)
 	  	foundEnough = scroll.scrollFor(symbol, days, driver, False)
 
 	if (foundEnough == False):
@@ -55,6 +71,7 @@ def findPageStock(symbol, days, driver, savePage):
 	html = driver.page_source
 	soup = BeautifulSoup(html, 'html.parser')
 
+	# If want to save page for "constant" time access
 	if (savePage):
 		with open(path, "w") as file:
 		    file.write(str(soup))
