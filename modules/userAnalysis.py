@@ -51,7 +51,7 @@ def findPageUser(username, days, driver, savePage):
 	try:
 	  	foundEnough = scroll.scrollFor(username, days, driver, False)
 	except TimeoutException as ex:
-	  	print("TIMEOUT EXCEPTION:", ex.Message)
+	  	print("TIMEOUT EXCEPTION:", ex)
 	  	foundEnough = scroll.scrollFor(username, days, driver, False)
 
 	if (foundEnough == False):

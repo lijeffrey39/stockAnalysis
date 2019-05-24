@@ -61,7 +61,7 @@ def findPageStock(symbol, date, driver, savePage):
 	try:
 	  	foundEnough = scroll.scrollFor(symbol, days, driver, False)
 	except TimeoutException as ex:
-	  	print("TIMEOUT EXCEPTION:", ex.Message)
+	  	print("TIMEOUT EXCEPTION:", ex)
 	  	addToFailedList(date, symbol)
 	  	foundEnough = scroll.scrollFor(symbol, days, driver, False)
 
