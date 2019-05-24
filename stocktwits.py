@@ -77,6 +77,8 @@ def computeStocksDay(date, processes):
 	stocks = readSingleList('newStockList.csv')
 	stocks.sort()
 
+	stocks.remove('SPY')
+
 	actual = []
 	dateCompare = datetime.datetime(date.year, date.month, date.day, 16)
 	for stock in stocks:
@@ -345,7 +347,7 @@ def main():
 	if (len(args) > 1):
 		dayUser = args[1]
 		if (dayUser == "day"):
-			date = datetime.datetime(dateNow.year, dateNow.month, 21)
+			date = datetime.datetime(dateNow.year, dateNow.month, 22)
 			computeStocksDay(date, 1)
 			# DIDnt calc on 2/22
 			# hour = 60 * 60
