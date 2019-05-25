@@ -40,8 +40,8 @@ chrome_options.add_argument("--headless")
 chrome_options.add_argument('log-level=3')
 chrome_options.add_argument("--disable-extensions")
 chrome_options.add_argument('disable-infobars')
-chrome_options.add_argument('--disable-gpu') 
-chrome_options.add_argument('start-maximized') 
+chrome_options.add_argument('--disable-gpu')
+chrome_options.add_argument('start-maximized')
 chrome_options.add_argument('--no-sandbox')
 cpuCount = multiprocessing.cpu_count()
 
@@ -116,7 +116,7 @@ def computeStocksDay(date, processes):
 
 	pool.close()
 	pool.join()
-		
+
 	findNewUserChange()
 
 
@@ -149,7 +149,7 @@ def analyzeStocksToday(listStocks, date, path, usersPath, folderPath):
 				bulls += 1
 			else:
 				bears += 1
-		
+
 		bullBearRatio = bulls
 		try:
 			bullBearRatio = round(bulls / bears, 2)
@@ -202,7 +202,7 @@ def computeUsersDay(outputPath, inputPath, days, processes):
 
 	print('USERS: ', len(actual))
 	actual.remove('AnalystRatingsNetwork')
-	actual.remove('ChartMill')	
+	actual.remove('ChartMill')
 	actual.remove('ElliottwaveForecast')
 	actual.remove('EstimizeAlerts')
 	actual.remove('Etrading')
@@ -225,16 +225,25 @@ def computeUsersDay(outputPath, inputPath, days, processes):
 
 def analyzeUsers(users, days, path):
 	for user in users:
+		path = "newUserInfo/" + user + ".csv"
 		if (analyzedUserAlready(user)):
 			continue
 
 		print(user)
-		driver = webdriver.Chrome(executable_path = DRIVER_BIN, chrome_options = chrome_options)
+
+		# sometimes it says session was not created
+		try:
+			driver = webdriver.Chrome(executable_path = DRIVER_BIN, chrome_options = chrome_options)
+		except:
+			# ERROR: Session not created exception from tab crashed (Fix later)
+			# ERROR 2: Unable to discover open pages
+			print("Session was not created WTF")
+			writeSingleList(path, [])
+			continue
+
 		driver.set_page_load_timeout(45)
 		soup = findPageUser(user, DAYS_BACK, driver, SAVE_USER_PAGE)
-
 		driver.quit()
-		path = "newUserInfo/" + user + ".csv"
 
 		# If the page doesn't have enought bull/bear indicators
 		if (soup == None):
@@ -271,7 +280,7 @@ def analyzeUsers(users, days, path):
 # 10. Find faster way to update templists folder
 # 13. For dictPredictions, find the middle number of users for prediction rate
 
-# Find outliers in stocks 
+# Find outliers in stocks
 
 def runInterval(date, endTime, sleepTime):
 	prevHour = datetime.datetime.now()
@@ -288,7 +297,7 @@ def runInterval(date, endTime, sleepTime):
 		else:
 			timeRest = sleepTime - secPassed
 			time.sleep(timeRest)
-	
+
 
 def findOutliers(stockName, date):
 	folder = "userinfo/"
@@ -299,15 +308,15 @@ def findOutliers(stockName, date):
 
 	for u in allU:
 		l = readMultiList('userInfo/' + u + '.csv')
-		
+
 		for r in l:
 			four = float(r[2])
 			nine = float(r[3])
 			foundDate = parse(r[1])
 
-			if (r[0] == stockName 
-				and foundDate.year == date.year 
-				and foundDate.day == date.day 
+			if (r[0] == stockName
+				and foundDate.year == date.year
+				and foundDate.day == date.day
 				and foundDate.month == date.month):
 				count += 2
 				found += four
@@ -326,7 +335,7 @@ def findOutliers(stockName, date):
 
 # 	for u in allU:
 # 		l = readMultiList('userInfo/' + u + '.csv')
-		
+
 # 		count += 1
 # 		if (count % 100 == 0):
 # 			print(count)
@@ -369,20 +378,20 @@ def main():
 			# writeTempListStocks()
 		else:
 			computeUsersDay('userInfo.csv', 'allNewUsers.csv', 1, 10)
-	else:	
+	else:
 		# date = datetime.datetime(dateNow.year, 5, 17)
 		# computeStocksDay(date, 1)
 		# computeUsersDay('userInfo.csv', 'allNewUsers.csv', 1, 10)
 		# return
 
-		# date = datetime.datetime(dateNow.year, 1, 14)
-		# dateUpTo = datetime.datetime(dateNow.year, 3, 1)
-		# currDate = datetime.datetime.now()
-		# dates = findTradingDays(date, dateUpTo)	
-		# dates = dates[0: len(dates) - 1]
+		date = datetime.datetime(dateNow.year, 1, 14)
+		dateUpTo = datetime.datetime(dateNow.year, 3, 1)
+		currDate = datetime.datetime.now()
+		dates = findTradingDays(date, dateUpTo)
+		dates = dates[0: len(dates) - 1]
 
 		# print(dates)
-		dates = [datetime.datetime(dateNow.year, 5, 21)]
+		# dates = [datetime.datetime(dateNow.year, 5, 21)]
 
 		money = 2000
 		startMoney = 2000
@@ -405,10 +414,10 @@ def main():
 			x += pos
 			y += neg
 			if (foundReturn >= 0):
-				print("%s $%.2f +%.2f%%    Hit: %.2f%%" % (date.strftime("%m-%d-%y"), foundReturn, 
+				print("%s $%.2f +%.2f%%    Hit: %.2f%%" % (date.strftime("%m-%d-%y"), foundReturn,
 					round((((money + foundReturn) / money) - 1) * 100, 2), hitPercent))
 			else:
-				print("%s $%.2f %.2f%%    Hit: %.2f%%" % (date.strftime("%m-%d-%y"), foundReturn, 
+				print("%s $%.2f %.2f%%    Hit: %.2f%%" % (date.strftime("%m-%d-%y"), foundReturn,
 					round((((money + foundReturn) / money) - 1) * 100, 2), hitPercent))
 			totalReturn += foundReturn
 			money += foundReturn
