@@ -8,6 +8,8 @@ from bs4 import BeautifulSoup
 
 from selenium.common.exceptions import TimeoutException
 
+from .helpers import addToFailedList
+
 
 # ------------------------------------------------------------------------
 # ----------------------------- Variables --------------------------------
@@ -25,15 +27,15 @@ messageTextAttr = 'st_29E11sZ'
 
 
 
-def addToFailedList(date, stock):
-	path = "failedList.csv"
-	failedList = readMultiList(path)
-	failedList.append([date, stock, True])
-	writeSingleList(path, failedList)
-	return
+# def addToFailedList(date, stock):
+# 	path = "failedList.csv"
+# 	failedList = readMultiList(path)
+# 	failedList.append([date, stock, True])
+# 	writeSingleList(path, failedList)
+# 	return
 
 
-# Return soup object page of that stock 
+# Return soup object page of that stock
 def findPageStock(symbol, date, driver, savePage):
 
 	dateNow = datetime.datetime.now()
@@ -49,20 +51,21 @@ def findPageStock(symbol, date, driver, savePage):
 		return (soup, False)
 
 	url = "https://stocktwits.com/symbol/" + symbol
+	failPath = "failedList.csv"
 
 	# Handling exceptions and random shit
 	try:
 		driver.get(url)
 	except:
 		print("Timed Out from findPageStock")
-		addToFailedList(date, symbol)
+		addToFailedList(failPath, date, symbol)
 		return (None, True)
-	
+
 	try:
 	  	foundEnough = scroll.scrollFor(symbol, days, driver, False)
 	except TimeoutException as ex:
 	  	print("TIMEOUT EXCEPTION:", ex)
-	  	addToFailedList(date, symbol)
+	  	addToFailedList(failPath, date, symbol)
 	  	foundEnough = scroll.scrollFor(symbol, days, driver, False)
 
 	if (foundEnough == False):
@@ -86,7 +89,7 @@ def getBearBull(symbol, date, soup):
 		savedSymbolHistorical = get_historical_intraday(symbol, date)
 	except:
 		return []
-		
+
 	messages = soup.find_all('div', attrs={'class': messageStreamAttr})
 	res = []
 

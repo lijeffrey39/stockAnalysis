@@ -4,12 +4,14 @@ import datetime
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
+from selenium.common.exceptions import TimeoutException
 
 from bs4 import BeautifulSoup
 from dateutil.parser import parse
 from .messageExtract import findDateTime
 from iexfinance.stocks import get_historical_intraday
 from .helpers import analyzedSymbolAlready
+from .helpers import addToFailedList
 from .fileIO import *
 
 
@@ -64,11 +66,19 @@ def pageExists(driver):
 
 # Scroll for # days
 def scrollFor(name, days, driver, progressive):
-	dateTime = datetime.datetime.now() 
+	dateTime = datetime.datetime.now()
 	folderPath = dateTime.strftime("stocksResults/%m-%d-%y/")
 	oldTime = dateTime - datetime.timedelta(days)
 	oldTime = datetime.datetime(oldTime.year, oldTime.month, oldTime.day, 9, 30)
-	last_height = driver.execute_script("return document.body.scrollHeight")
+	failPath = "failedList.csv"
+
+	# Handles message Timeout exception in the webdriver.py
+	try:
+		last_height = driver.execute_script("return document.body.scrollHeight")
+	except:
+	  	addToFailedList(failPath, dateTime, name)
+		return False
+
 	price = driver.find_elements_by_class_name(priceAttr)
 	analyzingStock = isStockPage(driver)
 
@@ -132,7 +142,7 @@ def scrollFor(name, days, driver, progressive):
 			driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
 			new_height = driver.execute_script("return document.body.scrollHeight")
 			messages = driver.find_elements_by_class_name(messageStreamAttr)
-			
+
 			if (len(messages) == 0):
 				print("Strange Error")
 				return False

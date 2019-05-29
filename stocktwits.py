@@ -154,6 +154,8 @@ def analyzeStocksToday(listStocks, date, path, usersPath, folderPath):
 		try:
 			bullBearRatio = round(bulls / bears, 2)
 		except:
+			failPath = "failedList.csv"
+			addToFailedList(failPath, date, symbol)
 			pass
 
 		users = list(set(users))
@@ -238,6 +240,8 @@ def analyzeUsers(users, days, path):
 			# ERROR: Session not created exception from tab crashed (Fix later)
 			# ERROR 2: Unable to discover open pages
 			print("Session was not created WTF")
+			failPath = "failedList.csv"
+			addToFailedList(failPath, datetime.datetime.now(), user)
 			writeSingleList(path, [])
 			continue
 

@@ -12,9 +12,16 @@ from .stockPriceAPI import *
 
 
 
+def addToFailedList(path, date, text):
+	failedList = readMultiList(path)
+	failedList.append([date, text, True])
+	writeSingleList(path, failedList)
+	return
+
+
 def allUsers():
 	path = "userinfo/"
-	files = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))] 
+	files = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))]
 	names = list(map(lambda x: x[:len(x) - 4], files))
 	names = list(filter(lambda x: x != '.DS_S', names))
 	return names
@@ -104,7 +111,7 @@ def chunks(seq, size):
 def argMax():
 	res = readMultiList('argMax.csv')
 	res.sort(key = lambda x: float(x[1]), reverse = True)
-	
+
 	result = []
 
 	for i in range(20):
@@ -127,7 +134,7 @@ def argMax():
 # Find the change in the number of new users each day
 def findNewUserChange():
 	path = "newUsers/"
-	files = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))] 
+	files = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))]
 	files = sorted(list(filter(lambda x: x != '.DS_Store', files)))
 
 	users = []
@@ -161,7 +168,7 @@ def testWeights(dates):
 	result = []
 
 	for i in range(8, 9):
-		numStocks = i 
+		numStocks = i
 		for j in range(3, 8):
 			w1 = j * 0.1
 			for k in range(1, 7):
@@ -204,7 +211,7 @@ def stockFrequency():
 
 		for stockCSV in newFiles:
 			stockPath = newPath + '/' + stockCSV
-			
+
 			stockName = stockCSV[:-4]
 			stockL = readMultiList(stockPath)
 			length = len(stockL)

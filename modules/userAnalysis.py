@@ -9,6 +9,8 @@ from .messageExtract import *
 from bs4 import BeautifulSoup
 from selenium.common.exceptions import TimeoutException
 
+from .helpers import addToFailedList
+
 
 # ------------------------------------------------------------------------
 # ----------------------------- Variables --------------------------------
@@ -17,7 +19,7 @@ from selenium.common.exceptions import TimeoutException
 
 # TODO
 # Invalid symbols so they aren't check again
-invalidSymbols = [] 
+invalidSymbols = []
 messageStreamAttr = 'st_1m1w96g'
 timeAttr = 'st_2q3fdlM'
 messageTextAttr = 'st_29E11sZ'
@@ -30,8 +32,11 @@ ideaAttr = 'st__tZJhLh'
 
 
 
-# Return soup object page of that user 
+# Return soup object page of that user
 def findPageUser(username, days, driver, savePage):
+
+	dateNow = datetime.datetime.now()
+
 	# if html is stored
 	path = 'usersPages/' + username + '.html'
 	if (os.path.isfile(path)):
@@ -40,18 +45,21 @@ def findPageUser(username, days, driver, savePage):
 		return soup
 
 	url = "https://stocktwits.com/" + username
-		
+	failPath = "failedList.csv"
+
 	# Handle if it times out after 20 sec
 	try:
 		driver.get(url)
 	except:
 		print("Timed Out from findPageUser")
+		addToFailedList(failPath, dateNow, symbol)
 		return None
 
 	try:
 	  	foundEnough = scroll.scrollFor(username, days, driver, False)
 	except TimeoutException as ex:
 	  	print("TIMEOUT EXCEPTION:", ex)
+		addToFailedList(failPath, dateNow, symbol)
 	  	foundEnough = scroll.scrollFor(username, days, driver, False)
 
 	if (foundEnough == False):
@@ -80,7 +88,7 @@ def saveUserToCSV(username, result, otherInfo):
 		totalIncorrect = list(map(lambda x: abs(float(x[7])), list(filter(lambda x: x[5] == 0, filterSymbol))))
 		summedCorrect = reduce(lambda a, b: a + b, totalCorrect) if len(totalCorrect) > 0 else 0
 		summedIncorrect = reduce(lambda a, b: a + b, totalIncorrect) if len(totalIncorrect) > 0 else 0
-		res.append([s, round(100 * len(filterSymbol) / total, 2), len(totalCorrect), 
+		res.append([s, round(100 * len(filterSymbol) / total, 2), len(totalCorrect),
 			len(totalIncorrect), round(summedCorrect - summedIncorrect, 2)])
 
 	res.sort(key = lambda x: x[4], reverse = True)
@@ -126,7 +134,7 @@ def analyzeUser(username, soup, daysInFuture):
 		allT = m.find('div', {'class': messageTextAttr})
 		allText = allT.find_all('div')
 		dateTime = findDateTime(t[1].text)
-		messageTextView = allText[1] 
+		messageTextView = allText[1]
 		user = findUser(t[0])
 		textFound = messageTextView.find('div').text
 		cleanText = ' '.join(removeSpecialCharacters(textFound).split())
@@ -180,8 +188,7 @@ def analyzeUser(username, soup, daysInFuture):
 		if (prices == 0 or priceAtPost == 0 or newPrices == 0 or price10 == 0 or price1030 == 0 or newPrices == -1):
 			continue
 
-		res.append([symbol, dateTime.strftime("%Y-%m-%d %H:%M:%S"), prices, 
+		res.append([symbol, dateTime.strftime("%Y-%m-%d %H:%M:%S"), prices,
 			newPrices, isBull, correct, change, percent, likeCnt, commentCnt, priceAtPost, price10, price1030, cleanText])
 
 	return res
-
