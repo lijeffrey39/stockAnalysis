@@ -52,14 +52,14 @@ def findPageUser(username, days, driver, savePage):
 		driver.get(url)
 	except:
 		print("Timed Out from findPageUser")
-		addToFailedList(failPath, dateNow, symbol)
+		addToFailedList(failPath, dateNow, username)
 		return None
 
 	try:
 	  	foundEnough = scroll.scrollFor(username, days, driver, False)
 	except TimeoutException as ex:
 	  	print("TIMEOUT EXCEPTION:", ex)
-		addToFailedList(failPath, dateNow, symbol)
+		addToFailedList(failPath, dateNow, username)
 	  	foundEnough = scroll.scrollFor(username, days, driver, False)
 
 	if (foundEnough == False):

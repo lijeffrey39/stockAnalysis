@@ -76,7 +76,7 @@ def scrollFor(name, days, driver, progressive):
 	try:
 		last_height = driver.execute_script("return document.body.scrollHeight")
 	except:
-	  	addToFailedList(failPath, dateTime, name)
+		addToFailedList(failPath, dateTime, name)
 		return False
 
 	price = driver.find_elements_by_class_name(priceAttr)
