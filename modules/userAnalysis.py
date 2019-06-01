@@ -59,7 +59,7 @@ def findPageUser(username, days, driver, savePage):
 	  	foundEnough = scroll.scrollFor(username, days, driver, False)
 	except:
 		addToFailedList(failPath, dateNow, username)
-	  	foundEnough = scroll.scrollFor(username, days, driver, False)
+		foundEnough = scroll.scrollFor(username, days, driver, False)
 
 	if (foundEnough == False):
 		return None
