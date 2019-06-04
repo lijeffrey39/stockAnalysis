@@ -76,6 +76,7 @@ def scrollFor(name, days, driver, progressive):
 	try:
 		last_height = driver.execute_script("return document.body.scrollHeight")
 	except:
+		print("Failing")
 		addToFailedList(failPath, dateTime, name)
 		return False
 

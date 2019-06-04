@@ -64,8 +64,9 @@ def findPageStock(symbol, date, driver, savePage):
 	try:
 	  	foundEnough = scroll.scrollFor(symbol, days, driver, False)
 	except:
-	  	addToFailedList(failPath, date, symbol)
-	  	foundEnough = scroll.scrollFor(symbol, days, driver, False)
+		print("RIPing")
+		addToFailedList(failPath, date, symbol)
+		foundEnough = scroll.scrollFor(symbol, days, driver, False)
 
 	if (foundEnough == False):
 		return (None, True)

@@ -36,8 +36,8 @@ chrome_options = webdriver.ChromeOptions()
 prefs = {"profile.managed_default_content_settings.images": 2}
 chrome_options.add_experimental_option("prefs", prefs)
 chrome_options.add_experimental_option("prefs", prefs)
-chrome_options.add_argument("--headless")
-chrome_options.add_argument('log-level=3')
+# chrome_options.add_argument("--headless")
+# chrome_options.add_argument('log-level=3')
 chrome_options.add_argument("--disable-extensions")
 chrome_options.add_argument('disable-infobars')
 chrome_options.add_argument('--disable-gpu')
@@ -369,7 +369,7 @@ def main():
 	if (len(args) > 1):
 		dayUser = args[1]
 		if (dayUser == "day"):
-			date = datetime.datetime(dateNow.year, dateNow.month, 22)
+			date = datetime.datetime(dateNow.year, dateNow.month, 3)
 			computeStocksDay(date, 1)
 			# DIDnt calc on 2/22
 			# hour = 60 * 60
@@ -388,13 +388,17 @@ def main():
 		# computeUsersDay('userInfo.csv', 'allNewUsers.csv', 1, 10)
 		# return
 
-		date = datetime.datetime(dateNow.year, 1, 14)
-		dateUpTo = datetime.datetime(dateNow.year, 3, 1)
+		# date = datetime.datetime(dateNow.year, 1, 14)
+		# dateUpTo = datetime.datetime(dateNow.year, 3, 1
+
+		date = datetime.datetime(dateNow.year, 5, 20)
+		dateUpTo = datetime.datetime(dateNow.year, 5, 30)
+
 		currDate = datetime.datetime.now()
 		dates = findTradingDays(date, dateUpTo)
 		dates = dates[0: len(dates) - 1]
 
-		# print(dates)
+		print(dates)
 		# dates = [datetime.datetime(dateNow.year, 5, 21)]
 
 		money = 2000
