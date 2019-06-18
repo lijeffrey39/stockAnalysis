@@ -86,7 +86,7 @@ def findPageStock(symbol, date, driver, savePage):
 def getBearBull(symbol, date, soup):
 	savedSymbolHistorical = []
 	try:
-		savedSymbolHistorical = get_historical_intraday(symbol, date)
+		savedSymbolHistorical = get_historical_intraday(symbol, date, token = "pk_d6528871eca4497282a367b88d51f813")
 	except:
 		return []
 

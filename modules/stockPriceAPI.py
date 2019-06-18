@@ -36,7 +36,7 @@ def historicalFromDict(symbol, dateTime):
 		currSymbol = symbol
 		currDateTimeStr = dateTimeStr
 		try:
-			currHistorical = get_historical_intraday(symbol, dateTime)
+			currHistorical = get_historical_intraday(symbol, dateTime, token = "pk_d6528871eca4497282a367b88d51f813")
 			return currHistorical
 		except:
 			print("Invalid ticker")
@@ -96,7 +96,7 @@ def priceAtTime(dateTime, historical):
     if (found == False):
     	lastPos = len(historical) - 1
     	foundAvg = -1
-    	while (foundAvg == -1 and lastPos > 0):	
+    	while (foundAvg == -1 and lastPos > 0):
     		last = historical[lastPos]
     		foundAvg = last.get('average')
     		foundAvg1 = last.get('marketAverage')

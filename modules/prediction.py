@@ -30,7 +30,7 @@ def writeTempListStocks():
 	for s in stocks1:
 		res = topUsersStock(s, 0)
 		writeSingleList('templists/' + s + '.csv', res)
- 
+
 
 
 # Returns the top users for that stock
@@ -45,11 +45,11 @@ def topUsersStock(stock, num):
 		if (len(filtered) == 0):
 			continue
 		else:
-			percent = float(filtered[0][4])	
+			percent = float(filtered[0][4])
 			result.append([user, percent, float(filtered[0][1]), float(filtered[0][2]), float(filtered[0][3])])
 
 	result.sort(key = lambda x: x[1], reverse = True)
-	
+
 	if (num == 0):
 		return result
 	else:
@@ -82,7 +82,7 @@ def statsUsers():
 			summedCorrect = reduce(lambda a, b: a + b, totalCorrect) if len(totalCorrect) > 0 else 0
 			summedIncorrect = reduce(lambda a, b: a + b, totalIncorrect) if len(totalIncorrect) > 0 else 0
 
-			res.append([s, round(100 * len(filterSymbol) / total, 2), len(totalCorrect), 
+			res.append([s, round(100 * len(filterSymbol) / total, 2), len(totalCorrect),
 				len(totalIncorrect), round(summedCorrect - summedIncorrect, 2)])
 
 		res.sort(key = lambda x: x[4], reverse = True)
@@ -108,7 +108,7 @@ def recommendStocks(result, date, money, numStocks):
 
 		stocksNum.append([symbol, priceAtPost, ratios[i], numStocks])
 		# print([symbol, priceAtPost, ratios[i], numStocks])
-		
+
 	return stocksNum
 
 
@@ -266,9 +266,9 @@ def savePricesToFile(date, stocks):
 
 # Ideal when enough user information collected
 
-# Current weightings for predictions 
+# Current weightings for predictions
 # 1. Number of stocks to pick from (higher means lower risk)
-# 2. Accuracy for that user overall 
+# 2. Accuracy for that user overall
 # 3. Accuracy for that user for that specific stock
 # 4. How many predictions this user has made relative to everyone else
 # 5. How many predictions this user has made relative to people predicting this stock
@@ -292,7 +292,7 @@ def topStocks(date, money, weights):
 	if ((not os.path.exists(folderPath))):
 		return
 
-	stocks = [f for f in os.listdir(folderPath) if os.path.isfile(os.path.join(folderPath, f))] 
+	stocks = [f for f in os.listdir(folderPath) if os.path.isfile(os.path.join(folderPath, f))]
 	stocks = list(map(lambda x: x[:len(x) - 4], stocks))
 	stocks = list(filter(lambda x: '.DS_S' not in x, stocks))
 
@@ -306,7 +306,7 @@ def topStocks(date, money, weights):
 	result = []
 
 
-	numStocks = weights[0] 
+	numStocks = weights[0]
 	uAccW = weights[1]
 	uStockAccW = weights[2]
 	uPredW = weights[3]
@@ -399,5 +399,5 @@ def topStocks(date, money, weights):
 	res = recommendStocks(result, date, money, numStocks)
 	writeSingleList(pathWeighted, result)
 	hitPrecent = totalHits * 100.0 / totalUsers
-	
+
 	return (res, round(hitPrecent, 2))
