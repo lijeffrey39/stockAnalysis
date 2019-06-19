@@ -81,11 +81,11 @@ def priceAtTime(dateTime, historical):
             foundAvg = ts.get('average')
             foundAvg1 = ts.get('marketAverage')
             foundAvg2 = ts.get('marketHigh')
-            if (foundAvg != -1):
+            if (foundAvg != None):
             	found = True
             	break
             else:
-            	if (foundAvg1 != -1):
+            	if (foundAvg1 != None):
             		found = True
             		foundAvg = foundAvg1
             		break
@@ -95,12 +95,12 @@ def priceAtTime(dateTime, historical):
 	# Go from end to front
     if (found == False):
     	lastPos = len(historical) - 1
-    	foundAvg = -1
-    	while (foundAvg == -1 and lastPos > 0):
+    	foundAvg = None
+    	while (foundAvg == None and lastPos > 0):
     		last = historical[lastPos]
     		foundAvg = last.get('average')
     		foundAvg1 = last.get('marketAverage')
-    		if (foundAvg1 != -1):
+    		if (foundAvg1 != None):
     			foundAvg = foundAvg1
     			break
     		lastPos = lastPos - 1
