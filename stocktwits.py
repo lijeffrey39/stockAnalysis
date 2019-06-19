@@ -36,8 +36,8 @@ chrome_options = webdriver.ChromeOptions()
 prefs = {"profile.managed_default_content_settings.images": 2}
 chrome_options.add_experimental_option("prefs", prefs)
 chrome_options.add_experimental_option("prefs", prefs)
-# chrome_options.add_argument("--headless")
-# chrome_options.add_argument('log-level=3')
+chrome_options.add_argument("--headless")
+chrome_options.add_argument('log-level=3')
 chrome_options.add_argument("--disable-extensions")
 chrome_options.add_argument('disable-infobars')
 chrome_options.add_argument('--disable-gpu')
@@ -126,10 +126,11 @@ def analyzeStocksToday(listStocks, date, path, usersPath, folderPath):
 
 		users = []
 		try:
-			driver = webdriver.Chrome(executable_path = DRIVER_BIN, chrome_options = chrome_options)
+			driver = webdriver.Chrome(executable_path = DRIVER_BIN, options = chrome_options)
 		except:
-			time.sleep(5)
-			driver = webdriver.Chrome(executable_path = DRIVER_BIN, chrome_options = chrome_options)
+			driver.quit()
+			continue
+			# driver = webdriver.Chrome(executable_path = DRIVER_BIN, options = chrome_options)
 
 		driver.set_page_load_timeout(45)
 
@@ -240,7 +241,7 @@ def analyzeUsers(users, days, path):
 
 		# sometimes it says session was not created
 		try:
-			driver = webdriver.Chrome(executable_path = DRIVER_BIN, chrome_options = chrome_options)
+			driver = webdriver.Chrome(executable_path = DRIVER_BIN, options = chrome_options)
 		except:
 			# ERROR: Session not created exception from tab crashed (Fix later)
 			# ERROR 2: Unable to discover open pages
