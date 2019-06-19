@@ -125,7 +125,12 @@ def analyzeStocksToday(listStocks, date, path, usersPath, folderPath):
 		print(symbol)
 
 		users = []
-		driver = webdriver.Chrome(executable_path = DRIVER_BIN, chrome_options = chrome_options)
+		try:
+			driver = webdriver.Chrome(executable_path = DRIVER_BIN, chrome_options = chrome_options)
+		except:
+			time.sleep(5)
+			driver = webdriver.Chrome(executable_path = DRIVER_BIN, chrome_options = chrome_options)
+
 		driver.set_page_load_timeout(45)
 
 		(soup, error) = findPageStock(symbol, date, driver, SAVE_STOCK_PAGE)
@@ -369,7 +374,7 @@ def main():
 	if (len(args) > 1):
 		dayUser = args[1]
 		if (dayUser == "day"):
-			date = datetime.datetime(dateNow.year, dateNow.month, 3)
+			date = datetime.datetime(dateNow.year, dateNow.month, 13)
 			computeStocksDay(date, 1)
 			# DIDnt calc on 2/22
 			# hour = 60 * 60
@@ -391,12 +396,12 @@ def main():
 		# date = datetime.datetime(dateNow.year, 1, 14)
 		# dateUpTo = datetime.datetime(dateNow.year, 3, 1
 
-		date = datetime.datetime(dateNow.year, 5, 20)
-		dateUpTo = datetime.datetime(dateNow.year, 5, 30)
+		date = datetime.datetime(dateNow.year, 6, 11)
+		dateUpTo = datetime.datetime(dateNow.year, 6, 13)
 
 		currDate = datetime.datetime.now()
 		dates = findTradingDays(date, dateUpTo)
-		dates = dates[0: len(dates) - 1]
+		dates = dates[0: len(dates)]
 
 		print(dates)
 		# dates = [datetime.datetime(dateNow.year, 5, 21)]
@@ -431,7 +436,7 @@ def main():
 			money += foundReturn
 
 		sorted_x = sorted(dictPrices.items(), key = operator.itemgetter(1))
-		print(sorted_x)
+		# print(sorted_x)
 		print("$%d -> $%d" % (startMoney, startMoney + totalReturn))
 		print("+%.2f%%" % (round((((startMoney + totalReturn) / startMoney) - 1) * 100, 2)))
 		print("+%d -%d" % (x, y))
