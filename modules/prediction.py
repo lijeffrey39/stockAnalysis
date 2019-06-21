@@ -232,14 +232,15 @@ def saveStockPricesDay(date, stocks, afterDate):
 
 	stockList = []
 	for s in stocks:
-		print(s)
 		(historical, dateTimeAdjusted) = stockPriceAPI.findHistoricalData(date, s, False)
 
+		print(s, len(historical))
 		for i in range(6):
-			date = datetime.datetime(date.year, date.month, date.day, 9, i * 5)
+			date = datetime.datetime(date.year, date.month, date.day, 9, (i * 5) + 30)
 			dateString = date.strftime("%m-%d-%y-%I:%M_") + s
 			priceAtPost = stockPriceAPI.priceAtTime(date, historical) # Price at the time of posting
 			stockList.append([dateString, priceAtPost])
+			print(priceAtPost)
 
 	stockList.sort(key = lambda x: x[0])
 	writeSingleList(path, stockList)

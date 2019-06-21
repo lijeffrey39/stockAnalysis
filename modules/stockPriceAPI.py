@@ -36,7 +36,7 @@ def historicalFromDict(symbol, dateTime):
 		currSymbol = symbol
 		currDateTimeStr = dateTimeStr
 		try:
-			currHistorical = get_historical_intraday(symbol, dateTime, token = "pk_d6528871eca4497282a367b88d51f813")
+			currHistorical = get_historical_intraday(symbol, dateTime, token = "pk_55ae0f09f54547eaaa2bd514cf3badc6")
 			return currHistorical
 		except:
 			print("Invalid ticker")
