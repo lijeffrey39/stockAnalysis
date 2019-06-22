@@ -36,8 +36,8 @@ chrome_options = webdriver.ChromeOptions()
 prefs = {"profile.managed_default_content_settings.images": 2}
 chrome_options.add_experimental_option("prefs", prefs)
 chrome_options.add_experimental_option("prefs", prefs)
-chrome_options.add_argument("--headless")
-chrome_options.add_argument('log-level=3')
+# chrome_options.add_argument("--headless")
+# chrome_options.add_argument('log-level=3')
 chrome_options.add_argument("--disable-extensions")
 chrome_options.add_argument('disable-infobars')
 chrome_options.add_argument('--disable-gpu')
@@ -54,6 +54,7 @@ SAVE_USER_PAGE = False
 SAVE_STOCK_PAGE = False
 DEBUG = True
 PROGRESSIVE = False
+MULTIPLE_DAYS = True
 
 
 # ------------------------------------------------------------------------
@@ -64,46 +65,28 @@ PROGRESSIVE = False
 def computeStocksDay(date, processes):
 	path = date.strftime("stocksResults/%m-%d-%y.csv")
 	folderPath = date.strftime("stocksResults/%m-%d-%y/")
-	newUsersPath = date.strftime("newUsers/newUsersList-%m-%d-%y.csv")
-
-	# create empty folder
-	if not os.path.exists(folderPath):
-	    os.makedirs(folderPath)
-	    print("HERE")
-
-	# create empty file
-	if (os.path.isfile(path) == False):
-		with open(path, "w") as my_empty_csv:
-			pass
-
-	if (os.path.isfile(newUsersPath) == False):
-		with open(newUsersPath, "w") as my_empty_csv:
-			pass
 
 	stocks = readSingleList('newStockList.csv')
 	stocks.sort()
-
 	stocks.remove('SPY')
 	stocks.remove('OBLN')
 
-	actual = []
-	dateCompare = datetime.datetime(date.year, date.month, date.day, 16)
-	for stock in stocks:
-		path = folderPath + stock + ".csv"
-		if (os.path.exists(path)):
-			t = os.path.getmtime(path)
-			t = datetime.datetime.fromtimestamp(t)
-			if (t > dateCompare):
-				continue
-		if (analyzedSymbolAlready(stock, folderPath) and PROGRESSIVE == False):
-			continue
-		else:
-			actual.append(stock)
-
-	print(len(actual))
+	# actual = []
+	# dateCompare = datetime.datetime(date.year, date.month, date.day, 16)
+	# for stock in stocks:
+	# 	path = folderPath + stock + ".csv"
+	# 	if (os.path.exists(path)):
+	# 		t = os.path.getmtime(path)
+	# 		t = datetime.datetime.fromtimestamp(t)
+	# 		if (t > dateCompare):
+	# 			continue
+	# 	if (analyzedSymbolAlready(stock, folderPath) and PROGRESSIVE == False):
+	# 		continue
+	# 	else:
+	# 		actual.append(stock)
 
 	if (DEBUG):
-		analyzeStocksToday(actual, date, path, newUsersPath, folderPath)
+		analyzeStocksToday(stocks, date)
 		return
 
 	pool = Pool()
@@ -111,85 +94,114 @@ def computeStocksDay(date, processes):
 	splitEqual = allocateStocks(2, stocks, actual)
 
 	for i in range(processes):
-		arguments = [splitEqual[i], date, path, newUsersPath, folderPath]
+		arguments = [splitEqual[i], date]
 		pool.apply_async(analyzeStocksToday, arguments)
 
 	pool.close()
 	pool.join()
-
 	findNewUserChange()
 
 
-def analyzeStocksToday(listStocks, date, path, usersPath, folderPath):
-	for symbol in listStocks:
-		print(symbol)
+def initializeFiles(folderPath, usersPath):
+	# create empty folder
+	if not os.path.exists(folderPath):
+	    os.makedirs(folderPath)
+	    print("Creating empty folder")
 
-		users = []
+	# create empty user path file
+	if (os.path.isfile(usersPath) == False):
+		with open(usersPath, "w") as my_empty_csv:
+			pass
+
+def extractTweets(symbol, date, soup):
+	bulls = 0
+	bears = 0
+	users = []
+	result = getBearBull(symbol, date, soup)
+	usersPath = date.strftime("newUsers/newUsersList-%m-%d-%y.csv")
+	folderPath = date.strftime("stocksResults/%m-%d-%y/")
+	initializeFiles(folderPath, usersPath)
+
+	for d in result:
+		user = d[0]
+		bull = d[1]
+		users.append(user)
+		if (bull):
+			bulls += 1
+		else:
+			bears += 1
+
+	bullBearRatio = bulls
+	try:
+		bullBearRatio = round(bulls / bears, 2)
+	except:
+		failPath = "failedList.csv"
+		addToFailedList(failPath, date, symbol)
+		pass
+
+	users = list(set(users))
+	addToNewList(users, usersPath)
+	tempPath = folderPath + symbol + ".csv"
+	writeSingleList(tempPath, result)
+	print("%s: (%d/%d %0.2f)" % (symbol, bulls, bears, bullBearRatio))
+
+	# analyzed = analyzedSymbolAlready(symbol, folderPath)
+	# if (analyzed and PROGRESSIVE):
+	# 	filePath = folderPath + symbol + '.csv'
+	# 	stockRead = readMultiList(filePath)
+	# 	mappedRead = set(list(map(lambda x: ''.join([str(x[0]), str(x[2]), str(x[3])]), stockRead)))
+	# 	realRes = []
+	#
+	# 	for s in result:
+	# 		sString = ''.join([str(s[0]), str(s[2]), str(s[3])])
+	# 		if (sString not in mappedRead):
+	# 			realRes.append(s)
+	#
+	# 	print(len(realRes))
+	# 	stockRead.extend(realRes)
+	# 	stockRead = list(filter(lambda x: len(x) > 2, stockRead))
+	# 	stockRead = list(map(lambda x: [x[0], x[1], str(x[2]), x[3], x[4]], stockRead))
+	# 	stockRead.sort(key = lambda x: parse(x[2]), reverse = True)
+	# 	writeSingleList(filePath, stockRead)
+	# 	continue
+
+
+
+
+def analyzeStocksToday(listStocks, date):
+	folderPath = date.strftime("stocksResults/%m-%d-%y/")
+	for symbol in listStocks:
+		analyzed = analyzedSymbolAlready(symbol, folderPath)
+		if (analyzed):
+			continue
+
+		print(symbol)
 		try:
 			driver = webdriver.Chrome(executable_path = DRIVER_BIN, options = chrome_options)
 		except:
 			driver.quit()
 			continue
-			# driver = webdriver.Chrome(executable_path = DRIVER_BIN, options = chrome_options)
 
 		driver.set_page_load_timeout(45)
-
 		(soup, error) = findPageStock(symbol, date, driver, SAVE_STOCK_PAGE)
-		analyzed = analyzedSymbolAlready(symbol, folderPath)
 		driver.quit()
 
 		if (error):
 			print("ERROR BAD")
 			continue
 
-		result = getBearBull(symbol, date, soup)
+		if (MULTIPLE_DAYS):
+			dates = [datetime.datetime(2019, 6, 14),
+			datetime.datetime(2019, 6, 17),
+			datetime.datetime(2019, 6, 18),
+			datetime.datetime(2019, 6, 19),
+			datetime.datetime(2019, 6, 20),
+			datetime.datetime(2019, 6, 21)]
 
-		bulls = 0
-		bears = 0
-
-		for d in result:
-			user = d[0]
-			bull = d[1]
-			users.append(user)
-			if (bull):
-				bulls += 1
-			else:
-				bears += 1
-
-		bullBearRatio = bulls
-		try:
-			bullBearRatio = round(bulls / bears, 2)
-		except:
-			failPath = "failedList.csv"
-			addToFailedList(failPath, date, symbol)
-			pass
-
-		users = list(set(users))
-		addToNewList(users, usersPath)
-
-		if (analyzed and PROGRESSIVE):
-			filePath = folderPath + symbol + '.csv'
-			stockRead = readMultiList(filePath)
-			mappedRead = set(list(map(lambda x: ''.join([str(x[0]), str(x[2]), str(x[3])]), stockRead)))
-			realRes = []
-
-			for s in result:
-				sString = ''.join([str(s[0]), str(s[2]), str(s[3])])
-				if (sString not in mappedRead):
-					realRes.append(s)
-
-			print(len(realRes))
-			stockRead.extend(realRes)
-			stockRead = list(filter(lambda x: len(x) > 2, stockRead))
-			stockRead = list(map(lambda x: [x[0], x[1], str(x[2]), x[3], x[4]], stockRead))
-			stockRead.sort(key = lambda x: parse(x[2]), reverse = True)
-			writeSingleList(filePath, stockRead)
-			continue
-
-		tempPath = folderPath + symbol + ".csv"
-		writeSingleList(tempPath, result)
-		print("%s: (%d/%d %0.2f)" % (symbol, bulls, bears, bullBearRatio))
-
+			for d in dates:
+				extractTweets(symbol, d, soup)
+		else:
+			extractTweets(symbol, date, soup)
 
 
 # ------------------------------------------------------------------------
@@ -375,17 +387,8 @@ def main():
 	if (len(args) > 1):
 		dayUser = args[1]
 		if (dayUser == "day"):
-			date = datetime.datetime(dateNow.year, dateNow.month, 13)
+			date = datetime.datetime(dateNow.year, dateNow.month, 14)
 			computeStocksDay(date, 1)
-			# DIDnt calc on 2/22
-			# hour = 60 * 60
-			# timeEnd = datetime.datetime(dateNow.year, dateNow.month, dateNow.day, 20)
-			# runInterval(date, timeEnd, hour)
-
-			# # weights = [9, 0.48, 0.45, 0.64, 1.92]
-			# # res = topStocks(date, 2000, weights)
-			# statsUsers()
-			# writeTempListStocks()
 		else:
 			computeUsersDay('userInfo.csv', 'allNewUsers.csv', 1, 10)
 	else:
@@ -397,12 +400,12 @@ def main():
 		# date = datetime.datetime(dateNow.year, 1, 14)
 		# dateUpTo = datetime.datetime(dateNow.year, 3, 1
 
-		date = datetime.datetime(dateNow.year, 6, 11)
-		dateUpTo = datetime.datetime(dateNow.year, 6, 13)
+		date = datetime.datetime(dateNow.year, 6, 14)
+		dateUpTo = datetime.datetime(dateNow.year, 6, 22)
 
 		currDate = datetime.datetime.now()
 		dates = findTradingDays(date, dateUpTo)
-		dates = dates[0: len(dates)]
+		# dates = dates[0: len(dates)]
 
 		print(dates)
 		# dates = [datetime.datetime(dateNow.year, 5, 21)]
