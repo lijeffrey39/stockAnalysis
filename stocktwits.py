@@ -89,17 +89,17 @@ def computeStocksDay(date, processes):
 		analyzeStocksToday(stocks, date)
 		return
 
-	pool = Pool()
-	stocks = readMultiList('stockFrequency.csv')
-	splitEqual = allocateStocks(2, stocks, actual)
+	# pool = Pool()
+	# stocks = readMultiList('stockFrequency.csv')
+	# splitEqual = allocateStocks(2, stocks, actual)
 
-	for i in range(processes):
-		arguments = [splitEqual[i], date]
-		pool.apply_async(analyzeStocksToday, arguments)
+	# for i in range(processes):
+	# 	arguments = [splitEqual[i], date]
+	# 	pool.apply_async(analyzeStocksToday, arguments)
 
-	pool.close()
-	pool.join()
-	findNewUserChange()
+	# pool.close()
+	# pool.join()
+	# findNewUserChange()
 
 
 def initializeFiles(folderPath, usersPath):
@@ -400,8 +400,8 @@ def main():
 		# date = datetime.datetime(dateNow.year, 1, 14)
 		# dateUpTo = datetime.datetime(dateNow.year, 3, 1
 
-		date = datetime.datetime(dateNow.year, 6, 14)
-		dateUpTo = datetime.datetime(dateNow.year, 6, 22)
+		date = datetime.datetime(dateNow.year, 5, 18)
+		dateUpTo = datetime.datetime(dateNow.year, 6, 4)
 
 		currDate = datetime.datetime.now()
 		dates = findTradingDays(date, dateUpTo)

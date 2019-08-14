@@ -100,7 +100,7 @@ def checkInvalid():
 				continue
 
 			count += 1
-	print(count4)
+	# print(count)
 
 
 # Returns size number of equal size lists
