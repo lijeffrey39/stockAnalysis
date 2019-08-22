@@ -212,6 +212,7 @@ def analyzeStocksToday(listStocks, date):
 
 def analyzeUsers():
     db = client.get_database('stocktwits_db')
+    analyzedUsers = db.users
     allUsers = db.users_not_analyzed
     cursor = allUsers.find()
     users = list(map(lambda document: document['_id'], cursor))
@@ -219,30 +220,13 @@ def analyzeUsers():
     return
 
     for user in users:
-        path = "newUserInfo/" + user + ".csv"
-        if (analyzedUserAlready(user)):
+        if (analyzedUsers.count_documents({'_id': user}) != 0):
             continue
-
         print(user)
+        (soup, error, timeElapsed) = findPageUser(user)
 
-        # sometimes it says session was not created
-        try:
-            driver = webdriver.Chrome(executable_path = DRIVER_BIN, options = chrome_options)
-        except:
-            # ERROR: Session not created exception from tab crashed (Fix later)
-            # ERROR 2: Unable to discover open pages
-            print("Session was not created WTF")
-            failPath = "failedList.csv"
-            addToFailedList(failPath, datetime.datetime.now(), user)
-            writeSingleList(path, [])
-            continue
-
-        driver.set_page_load_timeout(45)
-        soup = findPageUser(user, DAYS_BACK, driver, SAVE_USER_PAGE)
-        driver.quit()
-
-        # If the page doesn't have enought bull/bear indicators
-        if (soup == None):
+        # Error handling
+        if (soup is None):
             writeSingleList(path, [])
             continue
 
