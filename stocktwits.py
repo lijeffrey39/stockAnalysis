@@ -400,6 +400,9 @@ def main():
 		# date = datetime.datetime(dateNow.year, 1, 14)
 		# dateUpTo = datetime.datetime(dateNow.year, 3, 1
 
+		findNewUserChange()
+		return
+		
 		date = datetime.datetime(dateNow.year, 5, 18)
 		dateUpTo = datetime.datetime(dateNow.year, 6, 4)
 
