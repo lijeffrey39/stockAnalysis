@@ -1,5 +1,9 @@
 import os
 import datetime
+import requests
+import time
+from .hyperparameters import constants
+
 from . import scroll
 
 from .fileIO import *
@@ -34,20 +38,28 @@ ideaAttr = 'st__tZJhLh'
 
 # Return soup object page of that user
 def findPageUser(username, days, driver, savePage):
-
 	dateNow = datetime.datetime.now()
-
-	# if html is stored
-	path = 'usersPages/' + username + '.html'
-	if (os.path.isfile(path)):
-		print("File Exists")
-		soup = BeautifulSoup(open(path), 'html.parser')
-		return soup
 
 	url = "https://stocktwits.com/" + username
 	failPath = "failedList.csv"
 
+	user_page = requests.get(url)
+	soup = BeautifulSoup(user_page.content, 'html.parser')
+	initial_state_dict = str(soup.find_all('script')[5])
+	fields = {'ideas', 'joinDate', 'followers', 'following', 'likeCount', 'subscribersCount', 'subscribedToCount'}
+	user_info_dict = {}
+	for f in fields:
+		start_idx = initial_state_dict.find(f)
+		end_idx = initial_state_dict.find(',', start_idx)
+		user_field_info = initial_state_dict[start_idx:end_idx].split(':')
+		user_info_dict[f] = int(user_field_info[1])
+
+	#Filter users here
+	print('Number of Ideas: %d' %user_info_dict['ideas'])
+	if user_info_dict['ideas'] < constants['min_idea_threshold']:
+		return None
 	# Handle if it times out after 20 sec
+	start = time.time()
 	try:
 		driver.get(url)
 	except:
@@ -66,11 +78,8 @@ def findPageUser(username, days, driver, savePage):
 
 	html = driver.page_source
 	soup = BeautifulSoup(html, 'html.parser')
-
-	if (savePage):
-		with open(path, "w") as file:
-		    file.write(str(soup))
-
+	end = time.time()
+	print('Parsing user took %d seconds' % (end - start))
 	return soup
 
 
