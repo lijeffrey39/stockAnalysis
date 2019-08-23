@@ -49,10 +49,6 @@ def findPageUser(username):
         driver = webdriver.Chrome(executable_path = constants['driver_bin'], options = constants['chrome_options'])
 		driver.set_page_load_timeout(45)
     except Exception as e:
-<<<<<<< HEAD
-        # ERROR: Session not created exception from tab crashed (Fix later)
-        # ERROR 2: Unable to discover open pages
-        print("Session was not created WTF")
         return ('', e, end-start)
 
     driver.set_page_load_timeout(45)
@@ -60,11 +56,6 @@ def findPageUser(username):
     current_date = datetime.datetime.now()
     date_span = current_date - start_date
     current_span_hours = 24 * date_span.days + int(date_span.seconds/3600)
-=======
-        return return ('', e, 0)
-
-    dateNow = datetime.datetime.now()
->>>>>>> e1f7ee49957d77daf2a082ab01a27e29b0ccb952
     error_message = ''
     start = time.time()
     url = 'https://stocktwits.com/%s'%username
@@ -126,6 +117,7 @@ def saveUserToCSV(username, result, otherInfo):
     writeSingleList('newUserInfo.csv', currNewUserInfo)
 
 
+# Gets initial information for user 
 def findUserInfo(username):
     response = requests.get(url='https://api.stocktwits.com/api/2/streams/user/%s.json' % username)
     try:
@@ -139,24 +131,19 @@ def findUserInfo(username):
     return user_info_dict
 
 
-def analyzeUser(username, soup, daysInFuture):
-
-    
+def parseUserData(username, soup):
+	res = []
     messages = soup.find_all('div', attrs={'class': messageStreamAttr})
-    dateNow = datetime.datetime.now()
-    res = []
     for m in messages:
-        cur_res = {}
-        t = m.find('div', {'class': timeAttr})
-        t = t.find_all('a') # length of 2, first is user, second is date
+        t = m.find('div', {'class': timeAttr}).find_all('a') 
+		# t must be length of 2, first is user, second is date
         if (t == None):
             continue
 
         allT = m.find('div', {'class': messageTextAttr})
         allText = allT.find_all('div')
+		messageTextView = allText[1]
         dateTime = findDateTime(t[1].text)
-        messageTextView = allText[1]
-        user = findUser(t[0])
         textFound = messageTextView.find('div').text
         cleanText = ' '.join(removeSpecialCharacters(textFound).split())
         isBull = isBullMessage(m)
@@ -164,8 +151,8 @@ def analyzeUser(username, soup, daysInFuture):
         symbol = findSymbol(messageTextView)
         likeCnt = likeCount(m)
         commentCnt = commentCount(m)
-        
 
+		cur_res = {}
         cur_res['user'] = username
         cur_res['symbol'] = symbol
         cur_res['time'] = dateTime.strftime("%Y-%m-%d %H:%M:%S")

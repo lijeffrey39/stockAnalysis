@@ -133,16 +133,12 @@ def analyzeStocksToday():
 
 
 def analyzeUsers():
-    # db = client.get_database('stocktwits_db')
-    # allUsers = db.users_not_analyzed
-    # cursor = allUsers.find()
-    # users = list(map(lambda document: document['_id'], cursor))
-    # print(len(users))
-    # return
-    
-    users=['gpaisa']
+    db = client.get_database('stocktwits_db')
+    allUsers = db.users_not_analyzed
+    cursor = allUsers.find()
+    users = list(map(lambda document: document['_id'], cursor))
+
     for username in users:
-        """
         print(username)
         analyzedUsers = client.get_database('user_data_db').users
         if (analyzedUsers.count_documents({'_id': username}) != 0):
@@ -155,13 +151,11 @@ def analyzeUsers():
             analyzedUsers.insert_one(userInfoError)
             continue
 
-        # if (coreInfo['ideas'] < constants['min_idea_threshold']):
-        #     # analyzedUsers.insert_one(coreInfo)
-        #     continue
-        """
+        if (coreInfo['ideas'] < constants['min_idea_threshold']):
+            # analyzedUsers.insert_one(coreInfo)
+            continue
+    
         (soup, errorMsg, timeElapsed) = findPageUser(username)
-
-        """
         coreInfo['_id'] = username
         coreInfo['timeElapsed'] = timeElapsed
         if (soup == ''):
@@ -172,9 +166,7 @@ def analyzeUsers():
             coreInfo['error'] = ""
             analyzedUsers.insert_one(coreInfo)
 
-        continue
-        """
-        result = analyzeUser(username, soup, 1)
+        result = parseUserData(username, soup)
         userInfoCollection = client.get_database('user_data_db').user_info
         userInfoCollection.insert_many(result)
     
