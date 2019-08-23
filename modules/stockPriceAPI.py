@@ -22,54 +22,54 @@ currDateTimeStr = ""
 
 
 def historicalFromDict(symbol, dateTime):
-	global invalidSymbols
-	global currSymbol
-	global currHistorical
-	global currDateTimeStr
-	historial = []
-	dateTimeStr = dateTime.strftime("%Y-%m-%d")
+    global invalidSymbols
+    global currSymbol
+    global currHistorical
+    global currDateTimeStr
+    historial = []
+    dateTimeStr = dateTime.strftime("%Y-%m-%d")
 
-	if (symbol == None):
-		return []
+    if (symbol == None):
+        return []
 
-	if (symbol != currSymbol or dateTimeStr != currDateTimeStr):
-		currSymbol = symbol
-		currDateTimeStr = dateTimeStr
-		try:
-			currHistorical = get_historical_intraday(symbol, dateTime, token = "pk_55ae0f09f54547eaaa2bd514cf3badc6")
-			return currHistorical
-		except:
-			print("Invalid ticker")
-			currHistorical = []
-			return currHistorical
-	else:
-		return currHistorical
+    if (symbol != currSymbol or dateTimeStr != currDateTimeStr):
+        currSymbol = symbol
+        currDateTimeStr = dateTimeStr
+        try:
+            currHistorical = get_historical_intraday(symbol, dateTime, token = "pk_55ae0f09f54547eaaa2bd514cf3badc6")
+            return currHistorical
+        except:
+            print("Invalid ticker")
+            currHistorical = []
+            return currHistorical
+    else:
+        return currHistorical
 
 
 # Find historical stock data given date and ticker
 def findHistoricalData(dateTime, symbol, futurePrice):
-	historical = []
-	originalDateTime = dateTime
+    historical = []
+    originalDateTime = dateTime
 
-	# if it is a saturday or sunday, find friday's time if futurePrice == False
-	# Else find monday's time if it's futurePrice
-	if (futurePrice):
-		historical = historicalFromDict(symbol, dateTime)
-		delta = datetime.timedelta(1)
-		# keep going until a day is found
-		count = 0
-		while (len(historical) == 0):
-			dateTime = dateTime + delta
-			historical = historicalFromDict(symbol, dateTime)
-			count += 1
-			if (count == 10):
-				historical = []
-				dateTime = originalDateTime
-				break
-	else:
-		historical = historicalFromDict(symbol, dateTime)
+    # if it is a saturday or sunday, find friday's time if futurePrice == False
+    # Else find monday's time if it's futurePrice
+    if (futurePrice):
+        historical = historicalFromDict(symbol, dateTime)
+        delta = datetime.timedelta(1)
+        # keep going until a day is found
+        count = 0
+        while (len(historical) == 0):
+            dateTime = dateTime + delta
+            historical = historicalFromDict(symbol, dateTime)
+            count += 1
+            if (count == 10):
+                historical = []
+                dateTime = originalDateTime
+                break
+    else:
+        historical = historicalFromDict(symbol, dateTime)
 
-	return (historical, dateTime)
+    return (historical, dateTime)
 
 
 # Price of a stock at a certain time given historical data
@@ -82,27 +82,27 @@ def priceAtTime(dateTime, historical):
             foundAvg1 = ts.get('marketAverage')
             foundAvg2 = ts.get('marketHigh')
             if (foundAvg != None):
-            	found = True
-            	break
+                found = True
+                break
             else:
-            	if (foundAvg1 != None):
-            		found = True
-            		foundAvg = foundAvg1
-            		break
-            	else:
-                	continue
+                if (foundAvg1 != None):
+                    found = True
+                    foundAvg = foundAvg1
+                    break
+                else:
+                    continue
 
-	# Go from end to front
+    # Go from end to front
     if (found == False):
-    	lastPos = len(historical) - 1
-    	foundAvg = None
-    	while (foundAvg == None and lastPos > 0):
-    		last = historical[lastPos]
-    		foundAvg = last.get('average')
-    		foundAvg1 = last.get('marketAverage')
-    		if (foundAvg1 != None):
-    			foundAvg = foundAvg1
-    			break
-    		lastPos = lastPos - 1
+        lastPos = len(historical) - 1
+        foundAvg = None
+        while (foundAvg == None and lastPos > 0):
+            last = historical[lastPos]
+            foundAvg = last.get('average')
+            foundAvg1 = last.get('marketAverage')
+            if (foundAvg1 != None):
+                foundAvg = foundAvg1
+                break
+            lastPos = lastPos - 1
 
     return foundAvg

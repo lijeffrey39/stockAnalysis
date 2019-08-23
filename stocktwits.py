@@ -1,31 +1,31 @@
-import os
-import sys
-import math
-import json
-import time
 import datetime
-import operator
-import pymongo
-import optparse
+import json
+import math
 import multiprocessing
+import operator
+import optparse
+import os
+import platform
+import sys
+import time
+from multiprocessing import Pool, Process
 
+import pymongo
+from dateutil.parser import parse
 from selenium import webdriver
-from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.common.keys import Keys
 
 from bs4 import BeautifulSoup
-from dateutil.parser import parse
-from multiprocessing import Process, Pool
-
-from modules.scroll import *
+from modules.analytics import *
 from modules.fileIO import *
 from modules.helpers import *
-from modules.analytics import *
+from modules.messageExtract import *
 from modules.prediction import *
-from modules.userAnalysis import *
+from modules.scroll import *
 from modules.stockAnalysis import *
 from modules.stockPriceAPI import *
-from modules.messageExtract import *
+from modules.userAnalysis import *
 
 client = pymongo.MongoClient("mongodb+srv://lijeffrey39:test@cluster0-qthez.mongodb.net/test?retryWrites=true&w=majority")
 
@@ -153,18 +153,7 @@ def analyzeStocksToday(date):
             print("ERROR BAD")
             continue
 
-        if (MULTIPLE_DAYS):
-            dates = [datetime.datetime(2019, 6, 14),
-            datetime.datetime(2019, 6, 17),
-            datetime.datetime(2019, 6, 18),
-            datetime.datetime(2019, 6, 19),
-            datetime.datetime(2019, 6, 20),
-            datetime.datetime(2019, 6, 21)]
-
-            for d in dates:
-                extractTweets(symbol, d, soup)
-        else:
-            extractTweets(symbol, date, soup)
+        extractTweets(symbol, date, soup)
 
 
 # ------------------------------------------------------------------------
@@ -173,19 +162,17 @@ def analyzeStocksToday(date):
 
 
 def analyzeUsers():
-
-    db = client.get_database('stocktwits_db')
-    analyzedUsers = db.users
-    """
-    allUsers = db.users_not_analyzed
-    cursor = allUsers.find()
-    users = list(map(lambda document: document['_id'], cursor))
-    print(len(users))
-    return
-    """
+    # db = client.get_database('stocktwits_db')
+    # allUsers = db.users_not_analyzed
+    # cursor = allUsers.find()
+    # users = list(map(lambda document: document['_id'], cursor))
+    # print(len(users))
+    # return
+    
     users=['2Lambos']
     for username in users:
         print(username)
+        analyzedUsers = client.get_database('user_data_db').users
         if (analyzedUsers.count_documents({'_id': username}) != 0):
             continue
         coreInfo = findUserInfo(username)
@@ -197,16 +184,21 @@ def analyzeUsers():
             continue
 
         (soup, errorMsg, timeElapsed) = findPageUser(username)
-        print((soup, errorMsg, timeElapsed))
+        coreInfo['_id'] = username
+        coreInfo['timeElapsed'] = timeElapsed
         if (soup is None):
-            coreInfo['_id'] = username
             coreInfo['error'] = errorMsg
-            coreInfo['timeElapsed'] = timeElapsed
             analyzedUsers.insert_one(coreInfo)
             continue
+        else:
+            coreInfo['error'] = ""
+            analyzedUsers.insert_one(coreInfo)
 
+        continue
         result = analyzeUser(username, soup, 1)
-        print(result)
+        userInfoCollection = client.get_database('user_data_db').user_info
+        userInfoCollection.insert_one(result)
+    
 
 # ------------------------------------------------------------------------
 # --------------------------- Main Function ------------------------------
@@ -268,47 +260,14 @@ def findOutliers(stockName, date):
     print(found / count)
 
 
-
-# def savePrices():
-# 	folder = "userinfo/"
-# 	allU = allUsers()
-# 	print(len(allU))
-# 	stockNames = {}
-# 	count = 0
-
-# 	for u in allU:
-# 		l = readMultiList('userInfo/' + u + '.csv')
-
-# 		count += 1
-# 		if (count % 100 == 0):
-# 			print(count)
-
-# 		for r in l:
-# 			four = float(r[2])
-# 			nine = float(r[3])
-# 			foundDate = parse(r[1])
-# 			dateA = foundDate.strftime("%m/%d/%y")
-# 			stock = r[0]
-
-# 			if (stock not in stockNames):
-# 				stockNames[stock] = {}
-# 				stockNames[stock][dateA] = [(four + nine) / 2]
-# 			else:
-# 				if (dateA not in stockNames[stock]):
-# 					stockNames[stock][dateA] = [(four + nine) / 2]
-# 				else:
-# 					stockNames[stock][dateA].append((four + nine) / 2)
-# 	print(stockNames["TVIX"])
-
-
 def addOptions(parser):
     parser.add_option('-u', '--users',
-        action='store_true', dest="users",
-        help="parse user information")
+                      action='store_true', dest="users",
+                      help="parse user information")
 
     parser.add_option('-s', '--stocks',
-        action='store_true', dest="stocks",
-        help="parse stock information")
+                      action='store_true', dest="stocks",
+                      help="parse stock information")
 
 
 def main():
@@ -325,7 +284,7 @@ def main():
         analyzeStocksToday(date)
     else:
         # date = datetime.datetime(dateNow.year, 1, 14)
-        # dateUpTo = datetime.datetime(dateNow.year, 3, 1
+        # dateUpTo = datetime.datetime(dateNow.year, 3, 1)
 
         db = client.get_database('stocktwits_db')
         allUsers = db.all_stocks

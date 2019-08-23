@@ -1,19 +1,18 @@
-import time
 import datetime
+import time
 
+from dateutil.parser import parse
+from iexfinance.stocks import get_historical_intraday
 from selenium import webdriver
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.common.action_chains import ActionChains
 from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.common.keys import Keys
 
 from bs4 import BeautifulSoup
-from dateutil.parser import parse
-from .messageExtract import findDateTime
-from iexfinance.stocks import get_historical_intraday
-from .helpers import analyzedSymbolAlready
-from .helpers import addToFailedList
-from .fileIO import *
 
+from .fileIO import *
+from .helpers import addToFailedList, analyzedSymbolAlready
+from .messageExtract import findDateTime
 
 # ------------------------------------------------------------------------
 # ----------------------------- Variables --------------------------------
