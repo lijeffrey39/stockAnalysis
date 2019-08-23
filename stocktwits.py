@@ -1,11 +1,3 @@
-<<<<<<< HEAD
-=======
-import os
-import sys
-import math
-import json
-import time
->>>>>>> 1a1d3b1240d10828b61b2dc3bf4e40f4a8dd4802
 import datetime
 import json
 import math
@@ -170,13 +162,12 @@ def analyzeStocksToday(date):
 
 
 def analyzeUsers():
-
-    db = client.get_database('stocktwits_db')
-    allUsers = db.users_not_analyzed
-    cursor = allUsers.find()
-    users = list(map(lambda document: document['_id'], cursor))
-    print(len(users))
-    return
+    # db = client.get_database('stocktwits_db')
+    # allUsers = db.users_not_analyzed
+    # cursor = allUsers.find()
+    # users = list(map(lambda document: document['_id'], cursor))
+    # print(len(users))
+    # return
     
     users=['2Lambos']
     for username in users:
