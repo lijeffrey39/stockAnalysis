@@ -7,6 +7,7 @@ import platform
 import datetime
 import operator
 import pymongo
+import optparse
 import multiprocessing
 
 from selenium import webdriver
@@ -48,7 +49,9 @@ chrome_options.add_argument('--no-sandbox')
 cpuCount = multiprocessing.cpu_count()
 
 
-chromedriverName = 'chromedriver' if (platform.system() == "Darwin") else 'chromedriver.exe'
+chromedriverName = 'chromedriver' if
+(platform.system() == "Darwin") else 'chromedriver.exe'
+
 PROJECT_ROOT = os.getcwd()
 DRIVER_BIN = os.path.join(PROJECT_ROOT, chromedriverName)
 DAYS_BACK = 75
@@ -62,46 +65,6 @@ MULTIPLE_DAYS = True
 # ------------------------------------------------------------------------
 # ----------------------- Analyze Specific Stock -------------------------
 # ------------------------------------------------------------------------
-
-
-def computeStocksDay(date, processes):
-    path = date.strftime("stocksResults/%m-%d-%y.csv")
-    folderPath = date.strftime("stocksResults/%m-%d-%y/")
-
-    stocks = readSingleList('newStockList.csv')
-    stocks.sort()
-    stocks.remove('SPY')
-    stocks.remove('OBLN')
-
-    # actual = []
-    # dateCompare = datetime.datetime(date.year, date.month, date.day, 16)
-    # for stock in stocks:
-    # 	path = folderPath + stock + ".csv"
-    # 	if (os.path.exists(path)):
-    # 		t = os.path.getmtime(path)
-    # 		t = datetime.datetime.fromtimestamp(t)
-    # 		if (t > dateCompare):
-    # 			continue
-    # 	if (analyzedSymbolAlready(stock, folderPath) and PROGRESSIVE == False):
-    # 		continue
-    # 	else:
-    # 		actual.append(stock)
-
-    if (DEBUG):
-        analyzeStocksToday(stocks, date)
-        return
-
-    # pool = Pool()
-    # stocks = readMultiList('stockFrequency.csv')
-    # splitEqual = allocateStocks(2, stocks, actual)
-
-    # for i in range(processes):
-    # 	arguments = [splitEqual[i], date]
-    # 	pool.apply_async(analyzeStocksToday, arguments)
-
-    # pool.close()
-    # pool.join()
-    # findNewUserChange()
 
 
 def initializeFiles(folderPath, usersPath):
@@ -169,14 +132,28 @@ def extractTweets(symbol, date, soup):
     # 	continue
 
 
-def analyzeStocksToday(listStocks, date):
-    folderPath = date.strftime("stocksResults/%m-%d-%y/")
-    for symbol in listStocks:
-        analyzed = analyzedSymbolAlready(symbol, folderPath)
-        if (analyzed):
+def getAllStocks():
+    db = client.get_database('stocktwits_db')
+    allStocks = db.all_stocks
+    cursor = allStocks.find()
+    stocks = list(map(lambda document: document['_id'], cursor))
+    stocks.sort()
+    stocks.remove('SPY')
+    stocks.remove('OBLN')
+
+
+def analyzeStocksToday(date):
+    stocks = getAllStocks()
+    dateString = date.strftime("%m-%d-%y")
+
+    for symbol in stocks:
+        print(symbol)
+        db = client.get_database('stocks_data_db')
+        currCollection = db[dateString]
+
+        if (currCollection.count_documents({'_id': symbol}) != 0):
             continue
 
-        print(symbol)
         try:
             driver = webdriver.Chrome(executable_path = DRIVER_BIN, options = chrome_options)
         except:
@@ -213,6 +190,7 @@ def analyzeStocksToday(listStocks, date):
 def analyzeUsers():
     """
     db = client.get_database('stocktwits_db')
+    analyzedUsers = db.users
     allUsers = db.users_not_analyzed
     cursor = allUsers.find()
     users = list(map(lambda document: document['_id'], cursor))
@@ -226,6 +204,7 @@ def analyzeUsers():
         path = "newUserInfo/" + user + ".csv"
         if (analyzedUserAlready(user)):
             continue
+        coreInfo = findUserInfo(username)
 
         print(user)
         soup = findPageUser(user)
@@ -236,20 +215,8 @@ def analyzeUsers():
             writeSingleList(path, [])
             continue
 
-        result = analyzeUser(user, soup, days)
-        writeSingleList(path, result)
-
-        if (len(result) > 0):
-            otherInfo = findUserInfo(user, soup)
-            saveUserToCSV(user, result, otherInfo)
-        continue
-
-        stocks = []
-        for r in result:
-            stocks.append(r[0])
-
-        writeSingleList(path, result)
-
+        result = analyzeUser(username, soup, 1)
+        print(result)
 
 # ------------------------------------------------------------------------
 # --------------------------- Main Function ------------------------------
@@ -272,7 +239,7 @@ def runInterval(date, endTime, sleepTime):
     prevHour = datetime.datetime.now()
     while (datetime.datetime.now() < endTime):
         # Compute stocks
-        computeStocksDay(date, 7)
+        # computeStocksDay(date, 7)
 
         # View how much time has passed
         newHour = datetime.datetime.now()
@@ -341,32 +308,37 @@ def findOutliers(stockName, date):
 # 					stockNames[stock][dateA] = [(four + nine) / 2]
 # 				else:
 # 					stockNames[stock][dateA].append((four + nine) / 2)
-
 # 	print(stockNames["TVIX"])
 
+
+def addOptions(parser):
+    parser.add_option('-u', '--users',
+        action='store_true', dest="users",
+        help="parse user information")
+
+    parser.add_option('-s', '--stocks',
+        action='store_true', dest="stocks",
+        help="parse stock information")
+
+
 def main():
-    args = sys.argv
+    parser = optparse.OptionParser()
+    addOptions(parser)
+
+    options, args = parser.parse_args()
     dateNow = datetime.datetime.now()
 
-    if (len(args) > 1):
-        dayUser = args[1]
-        if (dayUser == "day"):
-            date = datetime.datetime(dateNow.year, dateNow.month, 14)
-            computeStocksDay(date, 1)
-        else:
-            analyzeUsers()
+    if (options.users):
+        analyzeUsers()
+    elif (options.stocks):
+        date = datetime.datetime(dateNow.year, dateNow.month, dateNow.day)
+        analyzeStocksToday(date)
     else:
-        # date = datetime.datetime(dateNow.year, 5, 17)
-        # computeStocksDay(date, 1)
-        # computeUsersDay('userInfo.csv', 'allNewUsers.csv', 1, 10)
-        # return
-
         # date = datetime.datetime(dateNow.year, 1, 14)
         # dateUpTo = datetime.datetime(dateNow.year, 3, 1
 
         db = client.get_database('stocktwits_db')
-        allUsers = db.users_not_analyzed
-        print(allUsers.count_documents({}))
+        allUsers = db.all_stocks
         return
         
         date = datetime.datetime(dateNow.year, 5, 18)
