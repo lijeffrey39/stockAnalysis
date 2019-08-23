@@ -6,9 +6,9 @@ import operator
 import optparse
 import os
 import platform
+import ssl
 import sys
 import time
-import ssl
 from multiprocessing import Pool, Process
 
 import pymongo
@@ -21,25 +21,15 @@ from bs4 import BeautifulSoup
 from modules.analytics import *
 from modules.fileIO import *
 from modules.helpers import *
+from modules.hyperparameters import *
 from modules.messageExtract import *
 from modules.prediction import *
 from modules.scroll import *
 from modules.stockAnalysis import *
 from modules.stockPriceAPI import *
 from modules.userAnalysis import *
-from modules.hyperparameters import *
 
 client = pymongo.MongoClient("mongodb+srv://lijeffrey39:test@cluster0-qthez.mongodb.net/test?retryWrites=true&w=majority", ssl_cert_reqs=ssl.CERT_NONE)
-
-# ------------------------------------------------------------------------
-# -------------------------- Global Variables ----------------------------
-# ------------------------------------------------------------------------
-
-cpuCount = multiprocessing.cpu_count()
-DAYS_BACK = 75
-DEBUG = True
-PROGRESSIVE = False
-MULTIPLE_DAYS = True
 
 
 # ------------------------------------------------------------------------
@@ -48,41 +38,40 @@ MULTIPLE_DAYS = True
 
 
 def getAllStocks():
-    db = client.get_database('stocktwits_db')
-    allStocks = db.all_stocks
+    allStocks = client.get_database('stocktwits_db').all_stocks
     cursor = allStocks.find()
     stocks = list(map(lambda document: document['_id'], cursor))
     stocks.sort()
     stocks.remove('SPY')
     stocks.remove('OBLN')
+    return stocks
 
 
 def analyzeStocksToday():
     stocks = getAllStocks()
-    dateNow = datetime.datetime.now()
-    dateString = dateNow.strftime("%m-%d-%y")
-    dateStringErrors = dateNow.strftime("%m-%d-%y-errors")
+    dateString = datetime.datetime.now().strftime("%Y-%m-%d")
 
     for symbol in stocks:
         print(symbol)
-        db = client.get_database('stocks_data_db')
-        currCollection = db[dateString]
-        if (currCollection.count_documents({'_id': symbol}) != 0 or 
-            db[dateStringErrors].count_documents({'_id': symbol}) != 0):
+        tweetsCollection = client.get_database('stocks_data_db').stock_tweets
+        tweetsErrorCollection = client.get_database('stocks_data_db').stock_tweets_errors
+        if (tweetsCollection.count_documents({'date': dateString, 'symbol': symbol}) != 0 or 
+            tweetsErrorCollection.count_documents({'date': dateString, 'symbol': symbol}) != 0):
             continue
 
         (soup, errorMsg, timeElapsed) = findPageStock(symbol)
         if (soup is ''):
-            currCollectionErrors = db[dateStringErrors]
-            stockError = {'_id': symbol, 'error': errorMsg, 'timeElapsed': timeElapsed}
-            if (currCollectionErrors.count_documents({'_id': symbol}) != 0):
+            tweetsErrorCollection = client.get_database('stocks_data_db').stock_tweets_errors
+            stockError = {'date': dateString, 'symbol': symbol, 'error': errorMsg, 'timeElapsed': timeElapsed}
+            if (tweetsErrorCollection.count_documents({'date': dateString, 'symbol': symbol}) != 0):
                 continue
-            currCollectionErrors.insert_one(stockError)
+            tweetsErrorCollection.insert_one(stockError)
             continue
 
         result = parseStockData(symbol, soup)
-        stockDataCollection = client.get_database('stocks_data_db')[dateString]
+        stockDataCollection = client.get_database('stocks_data_db').stock_tweets
         stockDataCollection.insert_many(result)
+
 
 # ------------------------------------------------------------------------
 # ----------------------- Analyze Specific User --------------------------
@@ -102,6 +91,7 @@ def analyzeUsers():
             continue
         coreInfo = findUserInfo(username)
 
+        # If API is down/user doesnt exist
         if (not coreInfo):
             errorMsg = "User doesn't exist"
             userInfoError = {'_id': username, 'error': errorMsg}
@@ -116,6 +106,7 @@ def analyzeUsers():
                 analyzedUsers.insert_one(userInfoError)
                 continue
 
+        # If number of ideas are < the curren min threshold
         if (coreInfo['ideas'] < constants['min_idea_threshold']):
             coreInfo['error'] = 'Not enough ideas'
             coreInfo['_id'] = username

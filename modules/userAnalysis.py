@@ -23,10 +23,7 @@ from .stockPriceAPI import *
 # ------------------------------------------------------------------------
 
 
-# TODO
-# Invalid symbols so they aren't check again
-invalidSymbols = []
-messageStreamAttr = 'st_1m1w96g'
+# TODO: Invalid symbols so they aren't check again
 timeAttr = 'st_2q3fdlM'
 messageTextAttr = 'st_29E11sZ'
 ideaAttr = 'st__tZJhLh'
@@ -35,7 +32,6 @@ ideaAttr = 'st__tZJhLh'
 # ------------------------------------------------------------------------
 # ----------------------------- Functions --------------------------------
 # ------------------------------------------------------------------------
-
 
 
 # Return soup object page of that user
@@ -170,16 +166,17 @@ def findUserInfoDriver(username):
 # Gets initial information for user 
 def findUserInfo(username):
     response = requests.get(url='https://api.stocktwits.com/api/2/streams/user/%s.json' % username)
-    try:
-        info = response.json()['user']
-    except KeyError:
-        return None
 
-    # If exceed the 200 limited API calls
+     # If exceed the 200 limited API calls
     try:
         responseStatus = response.json()['response']['status']
         if (responseStatus == 429):
             return {'ideas': -1}
+    except KeyError:
+        return None
+
+    try:
+        info = response.json()['user']
     except KeyError:
         return None
 
@@ -192,7 +189,7 @@ def findUserInfo(username):
 
 def parseUserData(username, soup):
     res = []
-    messages = soup.find_all('div', attrs={'class': messageStreamAttr})
+    messages = soup.find_all('div', attrs={'class': constants['messageStreamAttr']})
     for m in messages:
         t = m.find('div', {'class': timeAttr}).find_all('a') 
         # t must be length of 2, first is user, second is date

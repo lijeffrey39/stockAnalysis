@@ -1,4 +1,5 @@
 import datetime
+import time
 import os
 
 from selenium import webdriver
@@ -40,7 +41,7 @@ def findPageStock(symbol):
 
     dateNow = datetime.datetime.now()
     datePrev = datetime.datetime(dateNow.year, dateNow.month, dateNow.day)
-    hoursBack = ((dateNow - datePrev).total_seconds / 3600.0) + 1
+    hoursBack = ((dateNow - datePrev).total_seconds() / 3600.0) + 1
 
     error_message = ''
     start = time.time()
@@ -91,7 +92,7 @@ def parseStockData(symbol, soup):
         likeCnt = likeCount(m)
         commentCnt = commentCount(m)
 
-        if (isValidMessage(dateTime, date, isBull, user, symbol, 0) == False):
+        if (username == None or dateTime == None):
             continue
 
         cur_res = {}
@@ -102,6 +103,7 @@ def parseStockData(symbol, soup):
         cur_res['likeCnt'] = likeCnt
         cur_res['commentCnt'] = commentCnt
         cur_res['cleanText'] = cleanText
+        cur_res['date'] = dateTime.strftime("%Y-%m-%d")
 
         res.append(cur_res)
 
