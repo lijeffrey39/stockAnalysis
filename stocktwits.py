@@ -8,6 +8,7 @@ import os
 import platform
 import sys
 import time
+import ssl
 from multiprocessing import Pool, Process
 
 import pymongo
@@ -28,7 +29,7 @@ from modules.stockPriceAPI import *
 from modules.userAnalysis import *
 from modules.hyperparameters import *
 
-client = pymongo.MongoClient("mongodb+srv://lijeffrey39:test@cluster0-qthez.mongodb.net/test?retryWrites=true&w=majority")
+client = pymongo.MongoClient("mongodb+srv://lijeffrey39:test@cluster0-qthez.mongodb.net/test?retryWrites=true&w=majority", ssl_cert_reqs=ssl.CERT_NONE)
 
 # ------------------------------------------------------------------------
 # -------------------------- Global Variables ----------------------------
@@ -152,7 +153,8 @@ def analyzeUsers():
             continue
 
         if (coreInfo['ideas'] < constants['min_idea_threshold']):
-            # analyzedUsers.insert_one(coreInfo)
+            coreInfo['error'] = 'Not enough ideas'
+            analyzedUsers.insert_one(coreInfo)
             continue
     
         (soup, errorMsg, timeElapsed) = findPageUser(username)
