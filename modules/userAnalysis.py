@@ -42,35 +42,27 @@ ideaAttr = 'st__tZJhLh'
 
 # Return soup object page of that user
 def findPageUser(username):
-    # sometimes it says session was not created
-    driver=None
+    driver = None
     try:
-        print(constants['driver_bin'])
         driver = webdriver.Chrome(executable_path = constants['driver_bin'], options = constants['chrome_options'])
+		driver.set_page_load_timeout(45)
     except Exception as e:
-        # ERROR: Session not created exception from tab crashed (Fix later)
-        # ERROR 2: Unable to discover open pages
-        print("Session was not created WTF")
-        print('Error: %s' % e)
-        return
+        return return ('', e, 0)
 
-    driver.set_page_load_timeout(45)
     dateNow = datetime.datetime.now()
     error_message = ''
-    #Filter users here
     start = time.time()
     url = 'https://stocktwits.com/%s'%username
     try:
         driver.get(url)
     except Exception as e:
         print("Timed Out from findPageUser")
-        error_message = e
         end = time.time()
         driver.quit()
         return ('', e, end - start)
 
     try:
-        foundEnough = scroll.scrollFor(driver, 10)
+        scroll.scrollFor(driver, 10)
     except Exception as e:
         driver.quit()
         end = time.time()
@@ -117,7 +109,6 @@ def saveUserToCSV(username, result, otherInfo):
     currNewUserInfo.append(resNewUserInfo)
     currNewUserInfo.sort(key = lambda x: float(x[3]), reverse = True)
     writeSingleList('newUserInfo.csv', currNewUserInfo)
-
 
 
 def findUserInfo(username):
