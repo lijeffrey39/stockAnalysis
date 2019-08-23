@@ -3,7 +3,6 @@ import sys
 import math
 import json
 import time
-import platform
 import datetime
 import operator
 import pymongo
@@ -35,25 +34,11 @@ client = pymongo.MongoClient("mongodb+srv://lijeffrey39:test@cluster0-qthez.mong
 # ------------------------------------------------------------------------
 
 
-chrome_options = webdriver.ChromeOptions()
-prefs = {"profile.managed_default_content_settings.images": 2}
-chrome_options.add_experimental_option("prefs", prefs)
-chrome_options.add_experimental_option("prefs", prefs)
-# chrome_options.add_argument("--headless")
-# chrome_options.add_argument('log-level=3')
-chrome_options.add_argument("--disable-extensions")
-chrome_options.add_argument('disable-infobars')
-chrome_options.add_argument('--disable-gpu')
-chrome_options.add_argument('start-maximized')
-chrome_options.add_argument('--no-sandbox')
+
 cpuCount = multiprocessing.cpu_count()
 
 
-chromedriverName = 'chromedriver' if
-(platform.system() == "Darwin") else 'chromedriver.exe'
 
-PROJECT_ROOT = os.getcwd()
-DRIVER_BIN = os.path.join(PROJECT_ROOT, chromedriverName)
 DAYS_BACK = 75
 SAVE_USER_PAGE = False
 SAVE_STOCK_PAGE = False
@@ -188,31 +173,36 @@ def analyzeStocksToday(date):
 
 
 def analyzeUsers():
-    """
+
     db = client.get_database('stocktwits_db')
     analyzedUsers = db.users
+    """
     allUsers = db.users_not_analyzed
     cursor = allUsers.find()
     users = list(map(lambda document: document['_id'], cursor))
     print(len(users))
     return
     """
-
-
-    users = ['supersayin']
-    for user in users:
-        path = "newUserInfo/" + user + ".csv"
-        if (analyzedUserAlready(user)):
+    users=['2Lambos']
+    for username in users:
+        print(username)
+        if (analyzedUsers.count_documents({'_id': username}) != 0):
             continue
         coreInfo = findUserInfo(username)
 
-        print(user)
-        soup = findPageUser(user)
-        driver.quit()
+        if (not coreInfo):
+            errorMsg = "User doesn't exist"
+            userInfoError = {'_id': username, 'error': errorMsg}
+            analyzedUsers.insert_one(userInfoError)
+            continue
 
-        # If the page doesn't have enought bull/bear indicators
-        if (soup == None):
-            writeSingleList(path, [])
+        (soup, errorMsg, timeElapsed) = findPageUser(username)
+        print((soup, errorMsg, timeElapsed))
+        if (soup is None):
+            coreInfo['_id'] = username
+            coreInfo['error'] = errorMsg
+            coreInfo['timeElapsed'] = timeElapsed
+            analyzedUsers.insert_one(coreInfo)
             continue
 
         result = analyzeUser(username, soup, 1)

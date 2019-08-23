@@ -11,6 +11,10 @@ from .stockPriceAPI import *
 from .messageExtract import *
 
 from bs4 import BeautifulSoup
+
+from selenium import webdriver
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.action_chains import ActionChains
 from selenium.common.exceptions import TimeoutException
 
 from .helpers import addToFailedList
@@ -39,43 +43,43 @@ ideaAttr = 'st__tZJhLh'
 # Return soup object page of that user
 def findPageUser(username):
     # sometimes it says session was not created
-    if validate_
+    driver=None
     try:
-        driver = webdriver.Chrome(executable_path = DRIVER_BIN, options = chrome_options)
-    except:
+        print(constants['driver_bin'])
+        driver = webdriver.Chrome(executable_path = constants['driver_bin'], options = constants['chrome_options'])
+    except Exception as e:
         # ERROR: Session not created exception from tab crashed (Fix later)
         # ERROR 2: Unable to discover open pages
         print("Session was not created WTF")
-        failPath = "failedList.csv"
-        addToFailedList(failPath, datetime.datetime.now(), username)
-        writeSingleList(path, [])
+        print('Error: %s' % e)
+        return
 
     driver.set_page_load_timeout(45)
     dateNow = datetime.datetime.now()
     error_message = ''
     #Filter users here
     start = time.time()
+    url = 'https://stocktwits.com/%s'%username
     try:
         driver.get(url)
     except Exception as e:
         print("Timed Out from findPageUser")
         error_message = e
         end = time.time()
-        driver.close()
+        driver.quit()
         return ('', e, end-start)
 
     try:
-        foundEnough = scroll.scrollFor(username, days, driver, False)
+        foundEnough = scroll.scrollFor(username, 5, driver, False)
     except Exception as e:
-        addToFailedList(failPath, dateNow, username)
-        driver.close()
+        driver.quit()
         return ('', e, end-start)
 
     html = driver.page_source
     soup = BeautifulSoup(html, 'html.parser')
     end = time.time()
     print('Parsing user took %d seconds' % (end - start))
-    driver.close()
+    driver.quit()
     return (soup, error_message, (end-start))
 
 
