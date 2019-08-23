@@ -124,13 +124,12 @@ def commentCount(message):
 def isBullMessage(message):
 
 	bullBearText = message.find('span', attrs={'class': bullBearAttr})
-	bullBearSpan = bullBearText.find_all('span')
-
-	if (len(bullBearSpan) == 0):
+	if bullBearText is None:
 		return None
+	bullBearSpan = bullBearText.find_all('span')
+	
+	if (bullBearSpan[0].text == "Bearish"):
+		return False
 	else:
-		if (bullBearSpan[0].text == "Bearish"):
-			return False
-		else:
-			return True
+		return True
 

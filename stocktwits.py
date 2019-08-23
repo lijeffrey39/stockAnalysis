@@ -165,7 +165,7 @@ def analyzeUsers():
     # print(len(users))
     # return
     
-    users=['Gpaisa']
+    users=['gpaisa']
     for username in users:
         """
         print(username)
@@ -183,7 +183,7 @@ def analyzeUsers():
         # if (coreInfo['ideas'] < constants['min_idea_threshold']):
         #     # analyzedUsers.insert_one(coreInfo)
         #     continue
-
+        """
         (soup, errorMsg, timeElapsed) = findPageUser(username)
 
         """
@@ -191,17 +191,17 @@ def analyzeUsers():
         coreInfo['timeElapsed'] = timeElapsed
         if (soup is None):
             coreInfo['error'] = errorMsg
-            # analyzedUsers.insert_one(coreInfo)
+            analyzedUsers.insert_one(coreInfo)
             continue
         else:
             coreInfo['error'] = ""
-            # analyzedUsers.insert_one(coreInfo)
+            analyzedUsers.insert_one(coreInfo)
 
         continue
         """
         result = analyzeUser(username, soup, 1)
         userInfoCollection = client.get_database('user_data_db').user_info
-        userInfoCollection.insert_one(result)
+        userInfoCollection.insert_many(result)
     
 
 # ------------------------------------------------------------------------
