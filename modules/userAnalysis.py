@@ -2,6 +2,8 @@ import os
 import datetime
 import requests
 import time
+import datetime
+
 from .hyperparameters import constants
 
 from . import scroll
@@ -51,11 +53,13 @@ def findPageUser(username):
         # ERROR: Session not created exception from tab crashed (Fix later)
         # ERROR 2: Unable to discover open pages
         print("Session was not created WTF")
-        print('Error: %s' % e)
-        return
+        return ('', e, end-start)
 
     driver.set_page_load_timeout(45)
-    dateNow = datetime.datetime.now()
+    start_date = datetime.datetime(2019, 7, 22)
+    current_date = datetime.datetime.now()
+    date_span = current_date - start_date
+    current_span_hours = 24 * date_span.days + int(date_span.seconds/3600)
     error_message = ''
     #Filter users here
     start = time.time()
@@ -70,7 +74,7 @@ def findPageUser(username):
         return ('', e, end-start)
 
     try:
-        foundEnough = scroll.scrollFor(username, 5, driver, False)
+        foundEnough = scroll.scrollFor(username, 5, driver, False )
     except Exception as e:
         driver.quit()
         return ('', e, end-start)
@@ -134,10 +138,11 @@ def findUserInfo(username):
 
 def analyzeUser(username, soup, daysInFuture):
 
+    
     messages = soup.find_all('div', attrs={'class': messageStreamAttr})
     dateNow = datetime.datetime.now()
     res = []
-
+    print(messages[0])
     for m in messages:
         t = m.find('div', {'class': timeAttr})
         t = t.find_all('a') # length of 2, first is user, second is date

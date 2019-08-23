@@ -171,6 +171,7 @@ def analyzeUsers():
     
     users=['2Lambos']
     for username in users:
+        """
         print(username)
         analyzedUsers = client.get_database('user_data_db').users
         if (analyzedUsers.count_documents({'_id': username}) != 0):
@@ -182,8 +183,10 @@ def analyzeUsers():
             userInfoError = {'_id': username, 'error': errorMsg}
             analyzedUsers.insert_one(userInfoError)
             continue
-
+        """
         (soup, errorMsg, timeElapsed) = findPageUser(username)
+
+        """
         coreInfo['_id'] = username
         coreInfo['timeElapsed'] = timeElapsed
         if (soup is None):
@@ -195,6 +198,7 @@ def analyzeUsers():
             analyzedUsers.insert_one(coreInfo)
 
         continue
+        """
         result = analyzeUser(username, soup, 1)
         userInfoCollection = client.get_database('user_data_db').user_info
         userInfoCollection.insert_one(result)
