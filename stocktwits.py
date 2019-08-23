@@ -26,6 +26,7 @@ from modules.scroll import *
 from modules.stockAnalysis import *
 from modules.stockPriceAPI import *
 from modules.userAnalysis import *
+from modules.hyperparameters import *
 
 client = pymongo.MongoClient("mongodb+srv://lijeffrey39:test@cluster0-qthez.mongodb.net/test?retryWrites=true&w=majority")
 
@@ -33,12 +34,7 @@ client = pymongo.MongoClient("mongodb+srv://lijeffrey39:test@cluster0-qthez.mong
 # -------------------------- Global Variables ----------------------------
 # ------------------------------------------------------------------------
 
-
-
 cpuCount = multiprocessing.cpu_count()
-
-
-
 DAYS_BACK = 75
 SAVE_USER_PAGE = False
 SAVE_STOCK_PAGE = False
@@ -169,7 +165,7 @@ def analyzeUsers():
     # print(len(users))
     # return
     
-    users=['2Lambos']
+    users=['Gpaisa']
     for username in users:
         print(username)
         analyzedUsers = client.get_database('user_data_db').users
@@ -183,16 +179,20 @@ def analyzeUsers():
             analyzedUsers.insert_one(userInfoError)
             continue
 
+        # if (coreInfo['ideas'] < constants['min_idea_threshold']):
+        #     # analyzedUsers.insert_one(coreInfo)
+        #     continue
+
         (soup, errorMsg, timeElapsed) = findPageUser(username)
         coreInfo['_id'] = username
         coreInfo['timeElapsed'] = timeElapsed
         if (soup is None):
             coreInfo['error'] = errorMsg
-            analyzedUsers.insert_one(coreInfo)
+            # analyzedUsers.insert_one(coreInfo)
             continue
         else:
             coreInfo['error'] = ""
-            analyzedUsers.insert_one(coreInfo)
+            # analyzedUsers.insert_one(coreInfo)
 
         continue
         result = analyzeUser(username, soup, 1)

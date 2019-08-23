@@ -67,20 +67,21 @@ def findPageUser(username):
         error_message = e
         end = time.time()
         driver.quit()
-        return ('', e, end-start)
+        return ('', e, end - start)
 
     try:
-        foundEnough = scroll.scrollFor(username, 5, driver, False)
+        foundEnough = scroll.scrollFor(driver, 10)
     except Exception as e:
         driver.quit()
-        return ('', e, end-start)
+        end = time.time()
+        return ('', e, end - start)
 
     html = driver.page_source
     soup = BeautifulSoup(html, 'html.parser')
     end = time.time()
     print('Parsing user took %d seconds' % (end - start))
     driver.quit()
-    return (soup, error_message, (end-start))
+    return (soup, error_message, (end - start))
 
 
 # First write to userCalculated, then write to newUserInfo.csv
