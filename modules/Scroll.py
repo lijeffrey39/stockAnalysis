@@ -29,42 +29,42 @@ messageStreamAttr = 'st_2o0zabc'
 
 
 def findLastTime(messages):
-	lastMessage = messages[len(messages) - 1].text
-	t = lastMessage.split('\n')
-	if (t[0] == "Bearish" or t[0] == "Bullish"):
-		dateTime = findDateTime(t[2])
-		return dateTime
-	else:
-		dateTime = findDateTime(t[1])
-		return dateTime
+    lastMessage = messages[len(messages) - 1].text
+    t = lastMessage.split('\n')
+    if (t[0] == "Bearish" or t[0] == "Bullish"):
+        dateTime = findDateTime(t[2])
+        return dateTime
+    else:
+        dateTime = findDateTime(t[1])
+        return dateTime
 
 
 # Scroll for # days
 def scrollFor(driver, hoursBack):
-	currTime = datetime.datetime.now()
-	oldTime = currTime - datetime.timedelta(hours = hoursBack)
-	last_height = ""
+    currTime = datetime.datetime.now()
+    oldTime = currTime - datetime.timedelta(hours = hoursBack)
+    last_height = ""
 
-	while(True):
-		new_height = driver.execute_script("return document.body.scrollHeight")
-		time.sleep(constants['scroll_pause_time'])
+    while(True):
+        new_height = driver.execute_script("return document.body.scrollHeight")
+        time.sleep(constants['scroll_pause_time'])
 
-		messages = driver.find_elements_by_class_name(messageStreamAttr)
-		if (len(messages) > constants['max_tweets']):
-			break
+        messages = driver.find_elements_by_class_name(messageStreamAttr)
+        if (len(messages) > constants['max_tweets']):
+            break
 
-		if (len(messages) == 0):
-			raise Exception('Len of messages was 0 ???')
+        if (len(messages) == 0):
+            raise Exception('Len of messages was 0 ???')
 
-		currTime = findLastTime(messages)
-		if (currTime == None):
-			raise Exception('How did this happend')
-		
-		if (currTime < oldTime):
-			break
+        currTime = findLastTime(messages)
+        if (currTime == None):
+            raise Exception('How did this happend')
+        
+        if (currTime < oldTime):
+            break
 
-		last_height = new_height
-		driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+        last_height = new_height
+        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
 
-	print("Finished Reading")
-	return True
+    print("Finished Reading")
+    return True

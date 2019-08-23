@@ -1,8 +1,9 @@
 import datetime
-from iexfinance.stocks import get_historical_intraday
 from multiprocessing import current_process
-from .fileIO import *
 
+from iexfinance.stocks import get_historical_intraday
+
+from .fileIO import *
 
 # ------------------------------------------------------------------------
 # ----------------------------- Variables --------------------------------

@@ -47,7 +47,7 @@ def findPageUser(username):
     driver = None
     try:
         driver = webdriver.Chrome(executable_path = constants['driver_bin'], options = constants['chrome_options'])
-		driver.set_page_load_timeout(45)
+        driver.set_page_load_timeout(45)
     except Exception as e:
         return ('', e, end-start)
 
@@ -132,17 +132,17 @@ def findUserInfo(username):
 
 
 def parseUserData(username, soup):
-	res = []
+    res = []
     messages = soup.find_all('div', attrs={'class': messageStreamAttr})
     for m in messages:
         t = m.find('div', {'class': timeAttr}).find_all('a') 
-		# t must be length of 2, first is user, second is date
+        # t must be length of 2, first is user, second is date
         if (t == None):
             continue
 
         allT = m.find('div', {'class': messageTextAttr})
         allText = allT.find_all('div')
-		messageTextView = allText[1]
+        messageTextView = allText[1]
         dateTime = findDateTime(t[1].text)
         textFound = messageTextView.find('div').text
         cleanText = ' '.join(removeSpecialCharacters(textFound).split())
@@ -152,7 +152,7 @@ def parseUserData(username, soup):
         likeCnt = likeCount(m)
         commentCnt = commentCount(m)
 
-		cur_res = {}
+        cur_res = {}
         cur_res['user'] = username
         cur_res['symbol'] = symbol
         cur_res['time'] = dateTime.strftime("%Y-%m-%d %H:%M:%S")
