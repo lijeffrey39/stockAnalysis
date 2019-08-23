@@ -6,6 +6,7 @@ import time
 import platform
 import datetime
 import operator
+import pymongo
 import multiprocessing
 
 from selenium import webdriver
@@ -26,6 +27,7 @@ from modules.stockAnalysis import *
 from modules.stockPriceAPI import *
 from modules.messageExtract import *
 
+client = pymongo.MongoClient("mongodb+srv://lijeffrey39:test@cluster0-qthez.mongodb.net/test?retryWrites=true&w=majority")
 
 # ------------------------------------------------------------------------
 # -------------------------- Global Variables ----------------------------
@@ -63,145 +65,144 @@ MULTIPLE_DAYS = True
 
 
 def computeStocksDay(date, processes):
-	path = date.strftime("stocksResults/%m-%d-%y.csv")
-	folderPath = date.strftime("stocksResults/%m-%d-%y/")
+    path = date.strftime("stocksResults/%m-%d-%y.csv")
+    folderPath = date.strftime("stocksResults/%m-%d-%y/")
 
-	stocks = readSingleList('newStockList.csv')
-	stocks.sort()
-	stocks.remove('SPY')
-	stocks.remove('OBLN')
+    stocks = readSingleList('newStockList.csv')
+    stocks.sort()
+    stocks.remove('SPY')
+    stocks.remove('OBLN')
 
-	# actual = []
-	# dateCompare = datetime.datetime(date.year, date.month, date.day, 16)
-	# for stock in stocks:
-	# 	path = folderPath + stock + ".csv"
-	# 	if (os.path.exists(path)):
-	# 		t = os.path.getmtime(path)
-	# 		t = datetime.datetime.fromtimestamp(t)
-	# 		if (t > dateCompare):
-	# 			continue
-	# 	if (analyzedSymbolAlready(stock, folderPath) and PROGRESSIVE == False):
-	# 		continue
-	# 	else:
-	# 		actual.append(stock)
+    # actual = []
+    # dateCompare = datetime.datetime(date.year, date.month, date.day, 16)
+    # for stock in stocks:
+    # 	path = folderPath + stock + ".csv"
+    # 	if (os.path.exists(path)):
+    # 		t = os.path.getmtime(path)
+    # 		t = datetime.datetime.fromtimestamp(t)
+    # 		if (t > dateCompare):
+    # 			continue
+    # 	if (analyzedSymbolAlready(stock, folderPath) and PROGRESSIVE == False):
+    # 		continue
+    # 	else:
+    # 		actual.append(stock)
 
-	if (DEBUG):
-		analyzeStocksToday(stocks, date)
-		return
+    if (DEBUG):
+        analyzeStocksToday(stocks, date)
+        return
 
-	# pool = Pool()
-	# stocks = readMultiList('stockFrequency.csv')
-	# splitEqual = allocateStocks(2, stocks, actual)
+    # pool = Pool()
+    # stocks = readMultiList('stockFrequency.csv')
+    # splitEqual = allocateStocks(2, stocks, actual)
 
-	# for i in range(processes):
-	# 	arguments = [splitEqual[i], date]
-	# 	pool.apply_async(analyzeStocksToday, arguments)
+    # for i in range(processes):
+    # 	arguments = [splitEqual[i], date]
+    # 	pool.apply_async(analyzeStocksToday, arguments)
 
-	# pool.close()
-	# pool.join()
-	# findNewUserChange()
+    # pool.close()
+    # pool.join()
+    # findNewUserChange()
 
 
 def initializeFiles(folderPath, usersPath):
-	# create empty folder
-	if not os.path.exists(folderPath):
-	    os.makedirs(folderPath)
-	    print("Creating empty folder")
+    # create empty folder
+    if not os.path.exists(folderPath):
+        os.makedirs(folderPath)
+        print("Creating empty folder")
 
-	# create empty user path file
-	if (os.path.isfile(usersPath) == False):
-		with open(usersPath, "w") as my_empty_csv:
-			pass
+    # create empty user path file
+    if (os.path.isfile(usersPath) == False):
+        with open(usersPath, "w") as my_empty_csv:
+            pass
+
 
 def extractTweets(symbol, date, soup):
-	bulls = 0
-	bears = 0
-	users = []
-	result = getBearBull(symbol, date, soup)
-	usersPath = date.strftime("newUsers/newUsersList-%m-%d-%y.csv")
-	folderPath = date.strftime("stocksResults/%m-%d-%y/")
-	initializeFiles(folderPath, usersPath)
+    bulls = 0
+    bears = 0
+    users = []
+    result = getBearBull(symbol, date, soup)
+    usersPath = date.strftime("newUsers/newUsersList-%m-%d-%y.csv")
+    folderPath = date.strftime("stocksResults/%m-%d-%y/")
+    initializeFiles(folderPath, usersPath)
 
-	for d in result:
-		user = d[0]
-		bull = d[1]
-		users.append(user)
-		if (bull):
-			bulls += 1
-		else:
-			bears += 1
+    for d in result:
+        user = d[0]
+        bull = d[1]
+        users.append(user)
+        if (bull):
+            bulls += 1
+        else:
+            bears += 1
 
-	bullBearRatio = bulls
-	try:
-		bullBearRatio = round(bulls / bears, 2)
-	except:
-		failPath = "failedList.csv"
-		addToFailedList(failPath, date, symbol)
-		pass
+    bullBearRatio = bulls
+    try:
+        bullBearRatio = round(bulls / bears, 2)
+    except:
+        failPath = "failedList.csv"
+        addToFailedList(failPath, date, symbol)
+        pass
 
-	users = list(set(users))
-	addToNewList(users, usersPath)
-	tempPath = folderPath + symbol + ".csv"
-	writeSingleList(tempPath, result)
-	print("%s: (%d/%d %0.2f)" % (symbol, bulls, bears, bullBearRatio))
+    users = list(set(users))
+    addToNewList(users, usersPath)
+    tempPath = folderPath + symbol + ".csv"
+    writeSingleList(tempPath, result)
+    print("%s: (%d/%d %0.2f)" % (symbol, bulls, bears, bullBearRatio))
 
-	# analyzed = analyzedSymbolAlready(symbol, folderPath)
-	# if (analyzed and PROGRESSIVE):
-	# 	filePath = folderPath + symbol + '.csv'
-	# 	stockRead = readMultiList(filePath)
-	# 	mappedRead = set(list(map(lambda x: ''.join([str(x[0]), str(x[2]), str(x[3])]), stockRead)))
-	# 	realRes = []
-	#
-	# 	for s in result:
-	# 		sString = ''.join([str(s[0]), str(s[2]), str(s[3])])
-	# 		if (sString not in mappedRead):
-	# 			realRes.append(s)
-	#
-	# 	print(len(realRes))
-	# 	stockRead.extend(realRes)
-	# 	stockRead = list(filter(lambda x: len(x) > 2, stockRead))
-	# 	stockRead = list(map(lambda x: [x[0], x[1], str(x[2]), x[3], x[4]], stockRead))
-	# 	stockRead.sort(key = lambda x: parse(x[2]), reverse = True)
-	# 	writeSingleList(filePath, stockRead)
-	# 	continue
-
-
+    # analyzed = analyzedSymbolAlready(symbol, folderPath)
+    # if (analyzed and PROGRESSIVE):
+    # 	filePath = folderPath + symbol + '.csv'
+    # 	stockRead = readMultiList(filePath)
+    # 	mappedRead = set(list(map(lambda x: ''.join([str(x[0]), str(x[2]), str(x[3])]), stockRead)))
+    # 	realRes = []
+    #
+    # 	for s in result:
+    # 		sString = ''.join([str(s[0]), str(s[2]), str(s[3])])
+    # 		if (sString not in mappedRead):
+    # 			realRes.append(s)
+    #
+    # 	print(len(realRes))
+    # 	stockRead.extend(realRes)
+    # 	stockRead = list(filter(lambda x: len(x) > 2, stockRead))
+    # 	stockRead = list(map(lambda x: [x[0], x[1], str(x[2]), x[3], x[4]], stockRead))
+    # 	stockRead.sort(key = lambda x: parse(x[2]), reverse = True)
+    # 	writeSingleList(filePath, stockRead)
+    # 	continue
 
 
 def analyzeStocksToday(listStocks, date):
-	folderPath = date.strftime("stocksResults/%m-%d-%y/")
-	for symbol in listStocks:
-		analyzed = analyzedSymbolAlready(symbol, folderPath)
-		if (analyzed):
-			continue
+    folderPath = date.strftime("stocksResults/%m-%d-%y/")
+    for symbol in listStocks:
+        analyzed = analyzedSymbolAlready(symbol, folderPath)
+        if (analyzed):
+            continue
 
-		print(symbol)
-		try:
-			driver = webdriver.Chrome(executable_path = DRIVER_BIN, options = chrome_options)
-		except:
-			driver.quit()
-			continue
+        print(symbol)
+        try:
+            driver = webdriver.Chrome(executable_path = DRIVER_BIN, options = chrome_options)
+        except:
+            driver.quit()
+            continue
 
-		driver.set_page_load_timeout(45)
-		(soup, error) = findPageStock(symbol, date, driver, SAVE_STOCK_PAGE)
-		driver.quit()
+        driver.set_page_load_timeout(45)
+        (soup, error) = findPageStock(symbol, date, driver, SAVE_STOCK_PAGE)
+        driver.quit()
 
-		if (error):
-			print("ERROR BAD")
-			continue
+        if (error):
+            print("ERROR BAD")
+            continue
 
-		if (MULTIPLE_DAYS):
-			dates = [datetime.datetime(2019, 6, 14),
-			datetime.datetime(2019, 6, 17),
-			datetime.datetime(2019, 6, 18),
-			datetime.datetime(2019, 6, 19),
-			datetime.datetime(2019, 6, 20),
-			datetime.datetime(2019, 6, 21)]
+        if (MULTIPLE_DAYS):
+            dates = [datetime.datetime(2019, 6, 14),
+            datetime.datetime(2019, 6, 17),
+            datetime.datetime(2019, 6, 18),
+            datetime.datetime(2019, 6, 19),
+            datetime.datetime(2019, 6, 20),
+            datetime.datetime(2019, 6, 21)]
 
-			for d in dates:
-				extractTweets(symbol, d, soup)
-		else:
-			extractTweets(symbol, date, soup)
+            for d in dates:
+                extractTweets(symbol, d, soup)
+        else:
+            extractTweets(symbol, date, soup)
 
 
 # ------------------------------------------------------------------------
@@ -209,82 +210,45 @@ def analyzeStocksToday(listStocks, date):
 # ------------------------------------------------------------------------
 
 
-
-def computeUsersDay(outputPath, inputPath, days, processes):
-	users = readSingleList('allNewUsers.csv')
-
-	actual = []
-	for user in users:
-		if (analyzedUserAlready(user)):
-			continue
-		else:
-			actual.append(user)
-
-	print('USERS: ', len(actual))
-	actual.remove('AnalystRatingsNetwork')
-	actual.remove('ChartMill')
-	actual.remove('ElliottwaveForecast')
-	actual.remove('EstimizeAlerts')
-	actual.remove('Etrading')
-
-	if (DEBUG):
-		analyzeUsers(actual, days, outputPath)
-		return
-
-	splitEqual = list(chunks(actual, processes))
-	pool = Pool()
-
-	for i in range(processes):
-		arguments = [splitEqual[i], days, outputPath]
-		pool.apply_async(analyzeUsers, arguments)
-
-	pool.close()
-	pool.join()
+def analyzeUsers():
+    """
+    db = client.get_database('stocktwits_db')
+    allUsers = db.users_not_analyzed
+    cursor = allUsers.find()
+    users = list(map(lambda document: document['_id'], cursor))
+    print(len(users))
+    return
+    """
 
 
+    users = ['supersayin']
+    for user in users:
+        path = "newUserInfo/" + user + ".csv"
+        if (analyzedUserAlready(user)):
+            continue
 
-def analyzeUsers(users, days, path):
-	for user in users:
-		path = "newUserInfo/" + user + ".csv"
-		if (analyzedUserAlready(user)):
-			continue
+        print(user)
+        soup = findPageUser(user)
+        driver.quit()
 
-		print(user)
+        # If the page doesn't have enought bull/bear indicators
+        if (soup == None):
+            writeSingleList(path, [])
+            continue
 
-		# sometimes it says session was not created
-		try:
-			driver = webdriver.Chrome(executable_path = DRIVER_BIN, options = chrome_options)
-		except:
-			# ERROR: Session not created exception from tab crashed (Fix later)
-			# ERROR 2: Unable to discover open pages
-			print("Session was not created WTF")
-			failPath = "failedList.csv"
-			addToFailedList(failPath, datetime.datetime.now(), user)
-			writeSingleList(path, [])
-			continue
+        result = analyzeUser(user, soup, days)
+        writeSingleList(path, result)
 
-		driver.set_page_load_timeout(45)
-		soup = findPageUser(user, DAYS_BACK, driver, SAVE_USER_PAGE)
-		driver.quit()
+        if (len(result) > 0):
+            otherInfo = findUserInfo(user, soup)
+            saveUserToCSV(user, result, otherInfo)
+        continue
 
-		# If the page doesn't have enought bull/bear indicators
-		if (soup == None):
-			writeSingleList(path, [])
-			continue
+        stocks = []
+        for r in result:
+            stocks.append(r[0])
 
-		result = analyzeUser(user, soup, days)
-		writeSingleList(path, result)
-
-		if (len(result) > 0):
-			otherInfo = findUserInfo(user, soup)
-			saveUserToCSV(user, result, otherInfo)
-		continue
-
-		stocks = []
-		for r in result:
-			stocks.append(r[0])
-
-		writeSingleList(path, result)
+        writeSingleList(path, result)
 
 
 # ------------------------------------------------------------------------
@@ -305,46 +269,46 @@ def analyzeUsers(users, days, path):
 # Find outliers in stocks
 
 def runInterval(date, endTime, sleepTime):
-	prevHour = datetime.datetime.now()
-	while (datetime.datetime.now() < endTime):
-		# Compute stocks
-		computeStocksDay(date, 7)
+    prevHour = datetime.datetime.now()
+    while (datetime.datetime.now() < endTime):
+        # Compute stocks
+        computeStocksDay(date, 7)
 
-		# View how much time has passed
-		newHour = datetime.datetime.now()
-		secPassed = (newHour - prevHour).seconds
+        # View how much time has passed
+        newHour = datetime.datetime.now()
+        secPassed = (newHour - prevHour).seconds
 
-		if (secPassed > sleepTime):
-			prevHour = newHour
-		else:
-			timeRest = sleepTime - secPassed
-			time.sleep(timeRest)
+        if (secPassed > sleepTime):
+            prevHour = newHour
+        else:
+            timeRest = sleepTime - secPassed
+            time.sleep(timeRest)
 
 
 def findOutliers(stockName, date):
-	folder = "userinfo/"
-	allU = allUsers()
-	print(len(allU))
-	found = 0
-	count = 0
+    folder = "userinfo/"
+    allU = allUsers()
+    print(len(allU))
+    found = 0
+    count = 0
 
-	for u in allU:
-		l = readMultiList('userInfo/' + u + '.csv')
+    for u in allU:
+        l = readMultiList('userInfo/' + u + '.csv')
 
-		for r in l:
-			four = float(r[2])
-			nine = float(r[3])
-			foundDate = parse(r[1])
+        for r in l:
+            four = float(r[2])
+            nine = float(r[3])
+            foundDate = parse(r[1])
 
-			if (r[0] == stockName
-				and foundDate.year == date.year
-				and foundDate.day == date.day
-				and foundDate.month == date.month):
-				count += 2
-				found += four
-				found += nine
+            if (r[0] == stockName
+                and foundDate.year == date.year
+                and foundDate.day == date.day
+                and foundDate.month == date.month):
+                count += 2
+                found += four
+                found += nine
 
-	print(found / count)
+    print(found / count)
 
 
 
@@ -381,73 +345,75 @@ def findOutliers(stockName, date):
 # 	print(stockNames["TVIX"])
 
 def main():
-	args = sys.argv
-	dateNow = datetime.datetime.now()
+    args = sys.argv
+    dateNow = datetime.datetime.now()
 
-	if (len(args) > 1):
-		dayUser = args[1]
-		if (dayUser == "day"):
-			date = datetime.datetime(dateNow.year, dateNow.month, 14)
-			computeStocksDay(date, 1)
-		else:
-			computeUsersDay('userInfo.csv', 'allNewUsers.csv', 1, 10)
-	else:
-		# date = datetime.datetime(dateNow.year, 5, 17)
-		# computeStocksDay(date, 1)
-		# computeUsersDay('userInfo.csv', 'allNewUsers.csv', 1, 10)
-		# return
+    if (len(args) > 1):
+        dayUser = args[1]
+        if (dayUser == "day"):
+            date = datetime.datetime(dateNow.year, dateNow.month, 14)
+            computeStocksDay(date, 1)
+        else:
+            analyzeUsers()
+    else:
+        # date = datetime.datetime(dateNow.year, 5, 17)
+        # computeStocksDay(date, 1)
+        # computeUsersDay('userInfo.csv', 'allNewUsers.csv', 1, 10)
+        # return
 
-		# date = datetime.datetime(dateNow.year, 1, 14)
-		# dateUpTo = datetime.datetime(dateNow.year, 3, 1
+        # date = datetime.datetime(dateNow.year, 1, 14)
+        # dateUpTo = datetime.datetime(dateNow.year, 3, 1
 
-		findNewUserChange()
-		return
-		
-		date = datetime.datetime(dateNow.year, 5, 18)
-		dateUpTo = datetime.datetime(dateNow.year, 6, 4)
+        db = client.get_database('stocktwits_db')
+        allUsers = db.users_not_analyzed
+        print(allUsers.count_documents({}))
+        return
+        
+        date = datetime.datetime(dateNow.year, 5, 18)
+        dateUpTo = datetime.datetime(dateNow.year, 6, 4)
 
-		currDate = datetime.datetime.now()
-		dates = findTradingDays(date, dateUpTo)
-		# dates = dates[0: len(dates)]
+        currDate = datetime.datetime.now()
+        dates = findTradingDays(date, dateUpTo)
+        # dates = dates[0: len(dates)]
 
-		print(dates)
-		# dates = [datetime.datetime(dateNow.year, 5, 21)]
+        print(dates)
+        # dates = [datetime.datetime(dateNow.year, 5, 21)]
 
-		money = 2000
-		startMoney = 2000
-		totalReturn = 0
-		x = 0
-		y = 0
-		dictPrices = {}
-		for date in dates:
-			weights = [9, 0.48, 0.45, 0.64, 1.92]
+        money = 2000
+        startMoney = 2000
+        totalReturn = 0
+        x = 0
+        y = 0
+        dictPrices = {}
+        for date in dates:
+            weights = [9, 0.48, 0.45, 0.64, 1.92]
 
-			(res, hitPercent) = topStocks(date, money, weights)
-			(foundReturn, pos, neg, newRes) = calcReturnBasedResults(date, res)
+            (res, hitPercent) = topStocks(date, money, weights)
+            (foundReturn, pos, neg, newRes) = calcReturnBasedResults(date, res)
 
-			for new in newRes:
-				if (new[0] not in dictPrices):
-					dictPrices[new[0]] = new[1]
-				else:
-					dictPrices[new[0]] += new[1]
+            for new in newRes:
+                if (new[0] not in dictPrices):
+                    dictPrices[new[0]] = new[1]
+                else:
+                    dictPrices[new[0]] += new[1]
 
-			x += pos
-			y += neg
-			if (foundReturn >= 0):
-				print("%s $%.2f +%.2f%%    Hit: %.2f%%" % (date.strftime("%m-%d-%y"), foundReturn,
-					round((((money + foundReturn) / money) - 1) * 100, 2), hitPercent))
-			else:
-				print("%s $%.2f %.2f%%    Hit: %.2f%%" % (date.strftime("%m-%d-%y"), foundReturn,
-					round((((money + foundReturn) / money) - 1) * 100, 2), hitPercent))
-			totalReturn += foundReturn
-			money += foundReturn
+            x += pos
+            y += neg
+            if (foundReturn >= 0):
+                print("%s $%.2f +%.2f%%    Hit: %.2f%%" % (date.strftime("%m-%d-%y"), foundReturn,
+                    round((((money + foundReturn) / money) - 1) * 100, 2), hitPercent))
+            else:
+                print("%s $%.2f %.2f%%    Hit: %.2f%%" % (date.strftime("%m-%d-%y"), foundReturn,
+                    round((((money + foundReturn) / money) - 1) * 100, 2), hitPercent))
+            totalReturn += foundReturn
+            money += foundReturn
 
-		sorted_x = sorted(dictPrices.items(), key = operator.itemgetter(1))
-		# print(sorted_x)
-		print("$%d -> $%d" % (startMoney, startMoney + totalReturn))
-		print("+%.2f%%" % (round((((startMoney + totalReturn) / startMoney) - 1) * 100, 2)))
-		print("+%d -%d" % (x, y))
+        sorted_x = sorted(dictPrices.items(), key = operator.itemgetter(1))
+        # print(sorted_x)
+        print("$%d -> $%d" % (startMoney, startMoney + totalReturn))
+        print("+%.2f%%" % (round((((startMoney + totalReturn) / startMoney) - 1) * 100, 2)))
+        print("+%d -%d" % (x, y))
 
 
 if __name__ == "__main__":
-	main()
+    main()
