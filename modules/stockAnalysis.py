@@ -5,8 +5,10 @@ from .fileIO import *
 from .stockPriceAPI import *
 from .messageExtract import *
 from bs4 import BeautifulSoup
+from .hyperparameters import constants
 
 from selenium.common.exceptions import TimeoutException
+from selenium import webdriver
 
 from .helpers import addToFailedList
 
@@ -26,60 +28,44 @@ messageTextAttr = 'st_29E11sZ'
 # ------------------------------------------------------------------------
 
 
-
-# def addToFailedList(date, stock):
-# 	path = "failedList.csv"
-# 	failedList = readMultiList(path)
-# 	failedList.append([date, stock, True])
-# 	writeSingleList(path, failedList)
-# 	return
-
-
 # Return soup object page of that stock
-def findPageStock(symbol, date, driver, savePage):
+def findPageStock(symbol):
+    driver = None
+    try:
+        driver = webdriver.Chrome(executable_path = constants['driver_bin'], options = constants['chrome_options'])
+		driver.set_page_load_timeout(45)
+    except Exception as e:
+        return return ('', e, 0)
 
 	dateNow = datetime.datetime.now()
-	days = (dateNow - date).days # days to scroll for
+	datePrev = datetime.datetime(dateNow.year, dateNow.month, dateNow.day)
+	hoursBack = ((dateNow - datePrev).total_seconds / 3600.0) + 1
 
-	# if html is stored
-	path = 'stocksPages/' + symbol + '.html'
-	if (os.path.isfile(path)):
-		print("File Exists")
-		# html = open(path, "r")
-		soup = BeautifulSoup(open(path), 'html.parser')
-		print("Finished Reading in")
-		return (soup, False)
-
+	error_message = ''
+	start = time.time()
 	url = "https://stocktwits.com/symbol/" + symbol
-	failPath = "failedList.csv"
 
 	# Handling exceptions and random shit
 	try:
 		driver.get(url)
 	except:
-		print("Timed Out from findPageStock")
-		addToFailedList(failPath, date, symbol)
-		return (None, True)
+		end = time.time()
+        driver.quit()
+		return ('', e, end - start)
 
 	try:
-	  	foundEnough = scroll.scrollFor(symbol, days, driver, False)
+	  	scroll.scrollFor(driver, hoursBack)
 	except:
-		print("RIPing")
-		addToFailedList(failPath, date, symbol)
-		foundEnough = scroll.scrollFor(symbol, days, driver, False)
-
-	if (foundEnough == False):
-		return (None, True)
+		driver.quit()
+        end = time.time()
+        return ('', e, end - start)
 
 	html = driver.page_source
 	soup = BeautifulSoup(html, 'html.parser')
-
-	# If want to save page for "constant" time access
-	if (savePage):
-		with open(path, "w") as file:
-		    file.write(str(soup))
-
-	return (soup, False)
+	end = time.time()
+    print('Parsing user took %d seconds' % (end - start))
+    driver.quit()
+	return (soup, error_message, (end - start))
 
 
 

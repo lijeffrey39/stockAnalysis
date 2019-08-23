@@ -36,8 +36,6 @@ client = pymongo.MongoClient("mongodb+srv://lijeffrey39:test@cluster0-qthez.mong
 
 cpuCount = multiprocessing.cpu_count()
 DAYS_BACK = 75
-SAVE_USER_PAGE = False
-SAVE_STOCK_PAGE = False
 DEBUG = True
 PROGRESSIVE = False
 MULTIPLE_DAYS = True
@@ -92,26 +90,6 @@ def extractTweets(symbol, date, soup):
     writeSingleList(tempPath, result)
     print("%s: (%d/%d %0.2f)" % (symbol, bulls, bears, bullBearRatio))
 
-    # analyzed = analyzedSymbolAlready(symbol, folderPath)
-    # if (analyzed and PROGRESSIVE):
-    # 	filePath = folderPath + symbol + '.csv'
-    # 	stockRead = readMultiList(filePath)
-    # 	mappedRead = set(list(map(lambda x: ''.join([str(x[0]), str(x[2]), str(x[3])]), stockRead)))
-    # 	realRes = []
-    #
-    # 	for s in result:
-    # 		sString = ''.join([str(s[0]), str(s[2]), str(s[3])])
-    # 		if (sString not in mappedRead):
-    # 			realRes.append(s)
-    #
-    # 	print(len(realRes))
-    # 	stockRead.extend(realRes)
-    # 	stockRead = list(filter(lambda x: len(x) > 2, stockRead))
-    # 	stockRead = list(map(lambda x: [x[0], x[1], str(x[2]), x[3], x[4]], stockRead))
-    # 	stockRead.sort(key = lambda x: parse(x[2]), reverse = True)
-    # 	writeSingleList(filePath, stockRead)
-    # 	continue
-
 
 def getAllStocks():
     db = client.get_database('stocktwits_db')
@@ -123,32 +101,29 @@ def getAllStocks():
     stocks.remove('OBLN')
 
 
-def analyzeStocksToday(date):
+def analyzeStocksToday():
     stocks = getAllStocks()
-    dateString = date.strftime("%m-%d-%y")
+    dateNow = datetime.datetime.now()
+    dateString = dateNow.strftime("%m-%d-%y")
 
     for symbol in stocks:
         print(symbol)
         db = client.get_database('stocks_data_db')
         currCollection = db[dateString]
-
         if (currCollection.count_documents({'_id': symbol}) != 0):
             continue
 
-        try:
-            driver = webdriver.Chrome(executable_path = DRIVER_BIN, options = chrome_options)
-        except:
-            driver.quit()
+        (soup, errorMsg, timeElapsed) = findPageStock(symbol)
+        if (soup is ''):
+            dateStringErrors = dateNow.strftime("%m-%d-%y-errors")
+            currCollectionErrors = db[dateStringErrors]
+            stockError = {'_id': symbol, 'error': errorMsg, 'timeElapsed': timeElapsed}
+            if (currCollectionErrors.count_documents({'_id': symbol}) != 0):
+                continue
+            currCollectionErrors.insert_one(stockError)
             continue
 
-        driver.set_page_load_timeout(45)
-        (soup, error) = findPageStock(symbol, date, driver, SAVE_STOCK_PAGE)
-        driver.quit()
-
-        if (error):
-            print("ERROR BAD")
-            continue
-
+        continue
         extractTweets(symbol, date, soup)
 
 
@@ -189,7 +164,7 @@ def analyzeUsers():
         """
         coreInfo['_id'] = username
         coreInfo['timeElapsed'] = timeElapsed
-        if (soup is None):
+        if (soup == ''):
             coreInfo['error'] = errorMsg
             analyzedUsers.insert_one(coreInfo)
             continue
@@ -284,8 +259,7 @@ def main():
     if (options.users):
         analyzeUsers()
     elif (options.stocks):
-        date = datetime.datetime(dateNow.year, dateNow.month, dateNow.day)
-        analyzeStocksToday(date)
+        analyzeStocksToday()
     else:
         # date = datetime.datetime(dateNow.year, 1, 14)
         # dateUpTo = datetime.datetime(dateNow.year, 3, 1)
