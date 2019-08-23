@@ -1,16 +1,17 @@
-import os
 import datetime
+import os
+
+from selenium import webdriver
+from selenium.common.exceptions import TimeoutException
+
+from bs4 import BeautifulSoup
+
 from . import scroll
 from .fileIO import *
-from .stockPriceAPI import *
-from .messageExtract import *
-from bs4 import BeautifulSoup
-from .hyperparameters import constants
-
-from selenium.common.exceptions import TimeoutException
-from selenium import webdriver
-
 from .helpers import addToFailedList
+from .hyperparameters import constants
+from .messageExtract import *
+from .stockPriceAPI import *
 
 
 # ------------------------------------------------------------------------
@@ -68,40 +69,40 @@ def findPageStock(symbol):
     return (soup, error_message, (end - start))
 
 
-
-def getBearBull(symbol, date, soup):
-    savedSymbolHistorical = []
-    try:
-        savedSymbolHistorical = get_historical_intraday(symbol, date, token = "pk_55ae0f09f54547eaaa2bd514cf3badc6")
-    except:
-        return []
-
-    messages = soup.find_all('div', attrs={'class': messageStreamAttr})
+def parseStockData(symbol, soup):
     res = []
+    messages = soup.find_all('div', attrs={'class': messageStreamAttr})
 
-    print(len(messages))
+    # want to add new users to users_not_analyzed table
     for m in messages:
-        t = m.find('div', {'class': timeAttr})
-        t = t.find_all('a') # length of 2, first is user, second is date
+        t = m.find('div', {'class': timeAttr}).find_all('a')
+        # length of 2, first is user, second is date
         if (t == None):
             continue
 
         allT = m.find('div', {'class': messageTextAttr})
         allText = allT.find_all('div')
         dateTime = findDateTime(t[1].text)
-        user = findUser(t[0])
+        username = findUser(t[0])
         textFound = allText[1].find('div').text
         cleanText = ' '.join(removeSpecialCharacters(textFound).split())
         isBull = isBullMessage(m)
 
-        # print(cleanText, user, dateTime)
+        likeCnt = likeCount(m)
+        commentCnt = commentCount(m)
 
         if (isValidMessage(dateTime, date, isBull, user, symbol, 0) == False):
             continue
 
-        foundAvg = priceAtTime(dateTime, savedSymbolHistorical) # fix this function to take dateTimeadjusted
+        cur_res = {}
+        cur_res['symbol'] = symbol
+        cur_res['user'] = username
+        cur_res['time'] = dateTime.strftime("%Y-%m-%d %H:%M:%S")
+        cur_res['isBull'] = isBull
+        cur_res['likeCnt'] = likeCnt
+        cur_res['commentCnt'] = commentCnt
+        cur_res['cleanText'] = cleanText
 
-        messageInfo = [user, isBull, dateTime, foundAvg, cleanText]
-        res.append(messageInfo)
+        res.append(cur_res)
 
     return res

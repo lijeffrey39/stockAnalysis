@@ -47,51 +47,6 @@ MULTIPLE_DAYS = True
 # ------------------------------------------------------------------------
 
 
-def initializeFiles(folderPath, usersPath):
-    # create empty folder
-    if not os.path.exists(folderPath):
-        os.makedirs(folderPath)
-        print("Creating empty folder")
-
-    # create empty user path file
-    if (os.path.isfile(usersPath) == False):
-        with open(usersPath, "w") as my_empty_csv:
-            pass
-
-
-def extractTweets(symbol, date, soup):
-    bulls = 0
-    bears = 0
-    users = []
-    result = getBearBull(symbol, date, soup)
-    usersPath = date.strftime("newUsers/newUsersList-%m-%d-%y.csv")
-    folderPath = date.strftime("stocksResults/%m-%d-%y/")
-    initializeFiles(folderPath, usersPath)
-
-    for d in result:
-        user = d[0]
-        bull = d[1]
-        users.append(user)
-        if (bull):
-            bulls += 1
-        else:
-            bears += 1
-
-    bullBearRatio = bulls
-    try:
-        bullBearRatio = round(bulls / bears, 2)
-    except:
-        failPath = "failedList.csv"
-        addToFailedList(failPath, date, symbol)
-        pass
-
-    users = list(set(users))
-    addToNewList(users, usersPath)
-    tempPath = folderPath + symbol + ".csv"
-    writeSingleList(tempPath, result)
-    print("%s: (%d/%d %0.2f)" % (symbol, bulls, bears, bullBearRatio))
-
-
 def getAllStocks():
     db = client.get_database('stocktwits_db')
     allStocks = db.all_stocks
@@ -106,17 +61,18 @@ def analyzeStocksToday():
     stocks = getAllStocks()
     dateNow = datetime.datetime.now()
     dateString = dateNow.strftime("%m-%d-%y")
+    dateStringErrors = dateNow.strftime("%m-%d-%y-errors")
 
     for symbol in stocks:
         print(symbol)
         db = client.get_database('stocks_data_db')
         currCollection = db[dateString]
-        if (currCollection.count_documents({'_id': symbol}) != 0):
+        if (currCollection.count_documents({'_id': symbol}) != 0 or 
+            db[dateStringErrors].count_documents({'_id': symbol}) != 0):
             continue
 
         (soup, errorMsg, timeElapsed) = findPageStock(symbol)
         if (soup is ''):
-            dateStringErrors = dateNow.strftime("%m-%d-%y-errors")
             currCollectionErrors = db[dateStringErrors]
             stockError = {'_id': symbol, 'error': errorMsg, 'timeElapsed': timeElapsed}
             if (currCollectionErrors.count_documents({'_id': symbol}) != 0):
@@ -124,9 +80,9 @@ def analyzeStocksToday():
             currCollectionErrors.insert_one(stockError)
             continue
 
-        continue
-        extractTweets(symbol, date, soup)
-
+        result = parseStockData(symbol, soup)
+        stockDataCollection = client.get_database('stocks_data_db')[dateString]
+        stockDataCollection.insert_many(result)
 
 # ------------------------------------------------------------------------
 # ----------------------- Analyze Specific User --------------------------
@@ -151,6 +107,14 @@ def analyzeUsers():
             userInfoError = {'_id': username, 'error': errorMsg}
             analyzedUsers.insert_one(userInfoError)
             continue
+
+        # If exceed the 200 limited API calls
+        if (coreInfo['ideas'] == -1):
+            (coreInfo, errorMsg) = findUserInfoDriver(username)
+            if (not coreInfo):
+                userInfoError = {'_id': username, 'error': errorMsg}
+                analyzedUsers.insert_one(userInfoError)
+                continue
 
         if (coreInfo['ideas'] < constants['min_idea_threshold']):
             coreInfo['error'] = 'Not enough ideas'

@@ -23,5 +23,6 @@ constants = {
     'project_root': project_root,
     'driver_bin': driver_bin,
     'chrome_options': chrome_options,
-    'scroll_pause_time': 2
+    'scroll_pause_time': 2,
+    'messageStreamAttr': 'st_2o0zabc'
 }

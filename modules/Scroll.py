@@ -15,13 +15,6 @@ from .helpers import addToFailedList, analyzedSymbolAlready
 from .hyperparameters import constants
 from .messageExtract import findDateTime
 
-# ------------------------------------------------------------------------
-# ----------------------------- Variables --------------------------------
-# ------------------------------------------------------------------------
-
-
-messageStreamAttr = 'st_2o0zabc'
-
 
 # ------------------------------------------------------------------------
 # ----------------------------- Functions --------------------------------
@@ -49,7 +42,7 @@ def scrollFor(driver, hoursBack):
         new_height = driver.execute_script("return document.body.scrollHeight")
         time.sleep(constants['scroll_pause_time'])
 
-        messages = driver.find_elements_by_class_name(messageStreamAttr)
+        messages = driver.find_elements_by_class_name(constants['messageStreamAttr'])
         if (len(messages) > constants['max_tweets']):
             break
 

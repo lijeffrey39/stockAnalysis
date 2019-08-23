@@ -1,26 +1,22 @@
+import datetime
 import os
-import datetime
-import requests
 import time
-import datetime
 
-from .hyperparameters import constants
-
-from . import scroll
-
-from .fileIO import *
-from .stockPriceAPI import *
-from .messageExtract import *
+import requests
+from dateutil import parser
+from selenium import webdriver
+from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.common.keys import Keys
 
 from bs4 import BeautifulSoup
 
-from selenium import webdriver
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.common.action_chains import ActionChains
-from selenium.common.exceptions import TimeoutException
-
+from . import scroll
+from .fileIO import *
 from .helpers import addToFailedList
-
+from .hyperparameters import constants
+from .messageExtract import *
+from .stockPriceAPI import *
 
 # ------------------------------------------------------------------------
 # ----------------------------- Variables --------------------------------
@@ -66,6 +62,12 @@ def findPageUser(username):
         end = time.time()
         driver.quit()
         return ('', e, end - start)
+
+    messages = driver.find_elements_by_class_name(constants['messageStreamAttr'])
+    if (len(messages) == 0):
+        driver.quit()
+        end = time.time()
+        return ('', 'User has no tweets', end - start)
 
     try:
         scroll.scrollFor(driver, current_span_hours)
@@ -117,6 +119,54 @@ def saveUserToCSV(username, result, otherInfo):
     writeSingleList('newUserInfo.csv', currNewUserInfo)
 
 
+def parseKOrInt(s):
+    if ('k' in s):
+        num = float(s[:-1])
+        return int(num * 1000)
+    else:
+        return int(s)
+
+
+# Gets initial information for user from selenium
+def findUserInfoDriver(username):
+    driver = None
+    try:
+        driver = webdriver.Chrome(executable_path = constants['driver_bin'], options = constants['chrome_options'])
+        driver.set_page_load_timeout(45)
+    except Exception as e:
+        return (None, e)
+
+    driver.set_page_load_timeout(45)
+    url = 'https://stocktwits.com/%s'%username
+    try:
+        driver.get(url)
+    except Exception as e:
+        return (None, e)
+
+    user_info_dict = dict()
+    html = driver.page_source
+    soup = BeautifulSoup(html, 'html.parser')
+    ideas = soup.find_all('h2', attrs={'class': ideaAttr})
+    memberTextArray = soup.find_all('span', attrs={'class': 'st_21r0FbC st_2fTou_q'})
+
+    if (len(memberTextArray) >= 1):
+        try:
+            joinDateArray = memberTextArray[-1].text.split(' ')[2:]
+            joinDate = ' '.join(map(str, joinDateArray))
+            dateTime = parser.parse(joinDate).strftime("%Y-%m-%d")
+            user_info_dict['join_date'] = dateTime
+        except Exception as e:
+            return (None, e)
+
+    fields = {'followers', 'following', 'ideas', 'like_count'}
+    count = 0
+    for f in fields:
+        user_info_dict[f] = parseKOrInt(ideas[count].text)
+        count += 1
+    
+    return (user_info_dict, '')
+    
+
 # Gets initial information for user 
 def findUserInfo(username):
     response = requests.get(url='https://api.stocktwits.com/api/2/streams/user/%s.json' % username)
@@ -124,6 +174,15 @@ def findUserInfo(username):
         info = response.json()['user']
     except KeyError:
         return None
+
+    # If exceed the 200 limited API calls
+    try:
+        responseStatus = response.json()['response']['status']
+        if (responseStatus == 429):
+            return {'ideas': -1}
+    except KeyError:
+        return None
+
     user_info_dict = dict()
     fields = {'join_date', 'followers', 'following', 'ideas', 'like_count'}
     for f in fields:
