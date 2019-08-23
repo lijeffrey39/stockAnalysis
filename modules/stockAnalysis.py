@@ -35,7 +35,7 @@ def findPageStock(symbol):
         driver = webdriver.Chrome(executable_path = constants['driver_bin'], options = constants['chrome_options'])
         driver.set_page_load_timeout(45)
     except Exception as e:
-        return return ('', e, 0)
+        return ('', e, 0)
 
     dateNow = datetime.datetime.now()
     datePrev = datetime.datetime(dateNow.year, dateNow.month, dateNow.day)
