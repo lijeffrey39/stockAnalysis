@@ -145,6 +145,9 @@ def findUserInfoDriver(username):
     ideas = soup.find_all('h2', attrs={'class': ideaAttr})
     memberTextArray = soup.find_all('span', attrs={'class': 'st_21r0FbC st_2fTou_q'})
 
+    if (len(ideas) == 0):
+        return (None, "User doesn't exist")
+
     if (len(memberTextArray) >= 1):
         try:
             joinDateArray = memberTextArray[-1].text.split(' ')[2:]
