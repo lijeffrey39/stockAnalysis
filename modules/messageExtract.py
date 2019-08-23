@@ -28,7 +28,6 @@ bullBearAttr = 'st_11GoBZI'
 # ------------------------------------------------------------------------
 
 
-
 def isValidMessage(dateTime, dateNow, isBull, user, symbol, daysInFuture):
 	if (dateTime == None):
 		return False
