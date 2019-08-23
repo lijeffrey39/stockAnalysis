@@ -154,6 +154,7 @@ def analyzeUsers():
 
         if (coreInfo['ideas'] < constants['min_idea_threshold']):
             coreInfo['error'] = 'Not enough ideas'
+            coreInfo['_id'] = username
             analyzedUsers.insert_one(coreInfo)
             continue
     
