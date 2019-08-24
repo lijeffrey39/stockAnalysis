@@ -169,7 +169,6 @@ def findUserInfoDriver(username):
     user_info_dict['like_count'] = parseKOrInt(ideas[3].text)
 
     driver.quit()
-    print(user_info_dict)
     return (user_info_dict, '')
 
 

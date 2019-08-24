@@ -78,7 +78,7 @@ def parseStockData(symbol, soup):
     for m in messages:
         t = m.find('div', {'class': timeAttr}).find_all('a')
         # length of 2, first is user, second is date
-        if (t == None):
+        if (t is None):
             continue
 
         allT = m.find('div', {'class': messageTextAttr})
@@ -92,7 +92,7 @@ def parseStockData(symbol, soup):
         likeCnt = likeCount(m)
         commentCnt = commentCount(m)
 
-        if (username == None or dateTime == None):
+        if (username is None or dateTime is None):
             continue
 
         cur_res = {}

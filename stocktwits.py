@@ -157,7 +157,7 @@ def analyzeUsers():
         result = parseUserData(username, soup)
         userInfoCollection = client.get_database('user_data_db').user_info
         userInfoCollection.insert_many(result)
-    
+
 
 # ------------------------------------------------------------------------
 # --------------------------- Main Function ------------------------------
@@ -173,50 +173,6 @@ def analyzeUsers():
 # 8. Implement better caching
 # 10. Find faster way to update templists folder
 # 13. For dictPredictions, find the middle number of users for prediction rate
-
-# Find outliers in stocks
-
-def runInterval(date, endTime, sleepTime):
-    prevHour = datetime.datetime.now()
-    while (datetime.datetime.now() < endTime):
-        # Compute stocks
-        # computeStocksDay(date, 7)
-
-        # View how much time has passed
-        newHour = datetime.datetime.now()
-        secPassed = (newHour - prevHour).seconds
-
-        if (secPassed > sleepTime):
-            prevHour = newHour
-        else:
-            timeRest = sleepTime - secPassed
-            time.sleep(timeRest)
-
-
-def findOutliers(stockName, date):
-    folder = "userinfo/"
-    allU = allUsers()
-    print(len(allU))
-    found = 0
-    count = 0
-
-    for u in allU:
-        l = readMultiList('userInfo/' + u + '.csv')
-
-        for r in l:
-            four = float(r[2])
-            nine = float(r[3])
-            foundDate = parse(r[1])
-
-            if (r[0] == stockName
-                and foundDate.year == date.year
-                and foundDate.day == date.day
-                and foundDate.month == date.month):
-                count += 2
-                found += four
-                found += nine
-
-    print(found / count)
 
 
 def addOptions(parser):
