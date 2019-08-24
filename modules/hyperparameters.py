@@ -12,7 +12,7 @@ chrome_options.add_argument("--disable-extensions")
 chrome_options.add_argument('disable-infobars')
 chrome_options.add_argument('--disable-gpu')
 chrome_options.add_argument('start-maximized')
-chrome_options.add_argument('--no-sandbox')
+# chrome_options.add_argument('--no-sandbox')
 
 chrome_driver_name = 'chromedriver' if (platform.system() == "Darwin") else 'chromedriver.exe'
 project_root = os.getcwd()

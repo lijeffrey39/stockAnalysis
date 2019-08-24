@@ -33,6 +33,10 @@ ideaAttr = 'st__tZJhLh'
 # ----------------------------- Functions --------------------------------
 # ------------------------------------------------------------------------
 
+def endDriver(driver):
+    driver.close()
+    driver.quit()
+
 
 # Return soup object page of that user
 def findPageUser(username):
@@ -42,7 +46,7 @@ def findPageUser(username):
                                   options=constants['chrome_options'])
         driver.set_page_load_timeout(45)
     except Exception as e:
-        return ('', str(e), end-start)
+        return ('', str(e), 0)
 
     driver.set_page_load_timeout(45)
     start_date = datetime.datetime(2019, 7, 22)
@@ -57,19 +61,19 @@ def findPageUser(username):
     except Exception as e:
         print("Timed Out from findPageUser")
         end = time.time()
-        driver.quit()
+        endDriver(driver)
         return ('', str(e), end - start)
 
     messages = driver.find_elements_by_class_name(constants['messageStreamAttr'])
     if (len(messages) == 0):
-        driver.quit()
+        endDriver(driver)
         end = time.time()
         return ('', 'User has no tweets', end - start)
 
     try:
         scroll.scrollFor(driver, current_span_hours)
     except Exception as e:
-        driver.quit()
+        endDriver(driver)
         end = time.time()
         return ('', str(e), end - start)
 
@@ -77,7 +81,7 @@ def findPageUser(username):
     soup = BeautifulSoup(html, 'html.parser')
     end = time.time()
     print('Parsing user took %d seconds' % (end - start))
-    driver.quit()
+    endDriver(driver)
     return (soup, error_message, (end - start))
 
 
@@ -132,7 +136,7 @@ def findUserInfoDriver(username):
                                   options=constants['chrome_options'])
         driver.set_page_load_timeout(45)
     except Exception as e:
-        driver.quit()
+        endDriver(driver)
         return (None, str(e))
 
     driver.set_page_load_timeout(45)
@@ -140,7 +144,7 @@ def findUserInfoDriver(username):
     try:
         driver.get(url)
     except Exception as e:
-        driver.quit()
+        endDriver(driver)
         return (None, str(e))
 
     user_info_dict = dict()
@@ -150,7 +154,7 @@ def findUserInfoDriver(username):
     memberTextArray = soup.find_all('span', attrs={'class': 'st_21r0FbC st_2fTou_q'})
 
     if (len(ideas) == 0):
-        driver.quit()
+        endDriver(driver)
         return (None, "User doesn't exist")
 
     if (len(memberTextArray) >= 1):
@@ -160,7 +164,7 @@ def findUserInfoDriver(username):
             dateTime = parser.parse(joinDate).strftime("%Y-%m-%d")
             user_info_dict['join_date'] = dateTime
         except Exception as e:
-            driver.quit()
+            endDriver(driver)
             return (None, str(e))
 
     user_info_dict['ideas'] = parseKOrInt(ideas[0].text)
@@ -168,7 +172,7 @@ def findUserInfoDriver(username):
     user_info_dict['followers'] = parseKOrInt(ideas[2].text)
     user_info_dict['like_count'] = parseKOrInt(ideas[3].text)
 
-    driver.quit()
+    endDriver(driver)
     return (user_info_dict, '')
 
 
