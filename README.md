@@ -12,14 +12,15 @@ Flags: <br />
 
 ```
 # scrape the current day's tweets for all stocks
-python3 stocktwits.py -stocks --daysback 0 
+python3 stocktwits.py --stocks --daysback 0 
 ```
 
 2. Scrape data from users
 
 ```
 # scrape tweets from all users 
-python3 stocktwits.py -users --daysback 75 
+python3 stocktwits.py --users --daysback 75 
+python3 stocktwits.py --u --daysback 20 
 ```
 
 
@@ -27,7 +28,7 @@ python3 stocktwits.py -users --daysback 75
 
 ```
 # calculate returns for each day back from current day
-python3 stocktwits.py -returns --daysback 30 --numstocks 5 
+python3 stocktwits.py --returns --daysback 30 --numstocks 5 
 ```
 
 4. Predict stocks

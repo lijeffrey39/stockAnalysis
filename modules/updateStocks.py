@@ -5,6 +5,7 @@ import hashlib
 import pymongo
 import time
 
+
 def updateStock(ticker, hours_back, interval=5):
     api_call = 'https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=%s&interval=%dmin&outputsize=full&apikey=%s' % (ticker, interval, constants['alpha_vantage_api_key'])
     response = requests.get(url=api_call)

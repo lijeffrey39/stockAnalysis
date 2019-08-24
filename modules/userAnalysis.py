@@ -1,36 +1,29 @@
+import datetime
 import os
-import datetime
-import requests
 import time
-import datetime
 
-from .hyperparameters import constants
-
-from . import scroll
-
-from .fileIO import *
-from .stockPriceAPI import *
-from .messageExtract import *
+import requests
+from dateutil import parser
+from selenium import webdriver
+from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.common.keys import Keys
 
 from bs4 import BeautifulSoup
 
-from selenium import webdriver
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.common.action_chains import ActionChains
-from selenium.common.exceptions import TimeoutException
-
+from . import scroll
+from .fileIO import *
 from .helpers import addToFailedList
-
+from .hyperparameters import constants
+from .messageExtract import *
+from .stockPriceAPI import *
 
 # ------------------------------------------------------------------------
 # ----------------------------- Variables --------------------------------
 # ------------------------------------------------------------------------
 
 
-# TODO
-# Invalid symbols so they aren't check again
-invalidSymbols = []
-messageStreamAttr = 'st_1m1w96g'
+# TODO: Invalid symbols so they aren't check again
 timeAttr = 'st_2q3fdlM'
 messageTextAttr = 'st_29E11sZ'
 ideaAttr = 'st__tZJhLh'
@@ -40,47 +33,55 @@ ideaAttr = 'st__tZJhLh'
 # ----------------------------- Functions --------------------------------
 # ------------------------------------------------------------------------
 
+def endDriver(driver):
+    driver.close()
+    driver.quit()
 
 
 # Return soup object page of that user
 def findPageUser(username):
     driver = None
     try:
-        driver = webdriver.Chrome(executable_path = constants['driver_bin'], options = constants['chrome_options'])
-		driver.set_page_load_timeout(45)
+        driver = webdriver.Chrome(executable_path=constants['driver_bin'],
+                                  options=constants['chrome_options'])
+        driver.set_page_load_timeout(45)
     except Exception as e:
-        end = time.time()
-        return ('', e, end-start)
+        return ('', str(e), 0)
 
     driver.set_page_load_timeout(45)
     start_date = datetime.datetime(2019, 7, 22)
     current_date = datetime.datetime.now()
     date_span = current_date - start_date
     current_span_hours = 24 * date_span.days + int(date_span.seconds/3600)
-
     error_message = ''
     start = time.time()
-    url = 'https://stocktwits.com/%s'%username
+    url = 'https://stocktwits.com/%s' % username
     try:
         driver.get(url)
     except Exception as e:
         print("Timed Out from findPageUser")
         end = time.time()
-        driver.quit()
-        return ('', e, end - start)
+        endDriver(driver)
+        return ('', str(e), end - start)
+
+    messages = driver.find_elements_by_class_name(constants['messageStreamAttr'])
+    if (len(messages) == 0):
+        endDriver(driver)
+        end = time.time()
+        return ('', 'User has no tweets', end - start)
 
     try:
-        scroll.scrollFor(driver, 10)
+        scroll.scrollFor(driver, current_span_hours)
     except Exception as e:
-        driver.quit()
+        endDriver(driver)
         end = time.time()
-        return ('', e, end - start)
+        return ('', str(e), end - start)
 
     html = driver.page_source
     soup = BeautifulSoup(html, 'html.parser')
     end = time.time()
     print('Parsing user took %d seconds' % (end - start))
-    driver.quit()
+    endDriver(driver)
     return (soup, error_message, (end - start))
 
 
@@ -119,12 +120,79 @@ def saveUserToCSV(username, result, otherInfo):
     writeSingleList('newUserInfo.csv', currNewUserInfo)
 
 
+def parseKOrInt(s):
+    if ('k' in s):
+        num = float(s[:-1])
+        return int(num * 1000)
+    else:
+        return int(s)
+
+
+# Gets initial information for user from selenium
+def findUserInfoDriver(username):
+    driver = None
+    try:
+        driver = webdriver.Chrome(executable_path=constants['driver_bin'],
+                                  options=constants['chrome_options'])
+        driver.set_page_load_timeout(45)
+    except Exception as e:
+        endDriver(driver)
+        return (None, str(e))
+
+    driver.set_page_load_timeout(45)
+    url = 'https://stocktwits.com/%s' % username
+    try:
+        driver.get(url)
+    except Exception as e:
+        endDriver(driver)
+        return (None, str(e))
+
+    user_info_dict = dict()
+    html = driver.page_source
+    soup = BeautifulSoup(html, 'html.parser')
+    ideas = soup.find_all('h2', attrs={'class': ideaAttr})
+    memberTextArray = soup.find_all('span', attrs={'class': 'st_21r0FbC st_2fTou_q'})
+
+    if (len(ideas) == 0):
+        endDriver(driver)
+        return (None, "User doesn't exist")
+
+    if (len(memberTextArray) >= 1):
+        try:
+            joinDateArray = memberTextArray[-1].text.split(' ')[2:]
+            joinDate = ' '.join(map(str, joinDateArray))
+            dateTime = parser.parse(joinDate).strftime("%Y-%m-%d")
+            user_info_dict['join_date'] = dateTime
+        except Exception as e:
+            endDriver(driver)
+            return (None, str(e))
+
+    user_info_dict['ideas'] = parseKOrInt(ideas[0].text)
+    user_info_dict['following'] = parseKOrInt(ideas[1].text)
+    user_info_dict['followers'] = parseKOrInt(ideas[2].text)
+    user_info_dict['like_count'] = parseKOrInt(ideas[3].text)
+
+    endDriver(driver)
+    return (user_info_dict, '')
+
+
+# Gets initial information for user
 def findUserInfo(username):
     response = requests.get(url='https://api.stocktwits.com/api/2/streams/user/%s.json' % username)
+
+    # If exceed the 200 limited API calls
+    try:
+        responseStatus = response.json()['response']['status']
+        if (responseStatus == 429):
+            return {'ideas': -1}
+    except KeyError:
+        return None
+
     try:
         info = response.json()['user']
     except KeyError:
         return None
+
     user_info_dict = dict()
     fields = {'join_date', 'followers', 'following', 'ideas', 'like_count'}
     for f in fields:
@@ -132,24 +200,19 @@ def findUserInfo(username):
     return user_info_dict
 
 
-def analyzeUser(username, soup, daysInFuture):
-
-    
-    messages = soup.find_all('div', attrs={'class': messageStreamAttr})
-    dateNow = datetime.datetime.now()
+def parseUserData(username, soup):
     res = []
+    messages = soup.find_all('div', attrs={'class': constants['messageStreamAttr']})
     for m in messages:
-        cur_res = {}
-        t = m.find('div', {'class': timeAttr})
-        t = t.find_all('a') # length of 2, first is user, second is date
-        if (t == None):
+        t = m.find('div', {'class': timeAttr}).find_all('a')
+        # t must be length of 2, first is user, second is date
+        if (t is None):
             continue
 
         allT = m.find('div', {'class': messageTextAttr})
         allText = allT.find_all('div')
-        dateTime = findDateTime(t[1].text)
         messageTextView = allText[1]
-        user = findUser(t[0])
+        dateTime = findDateTime(t[1].text)
         textFound = messageTextView.find('div').text
         cleanText = ' '.join(removeSpecialCharacters(textFound).split())
         isBull = isBullMessage(m)
@@ -157,8 +220,8 @@ def analyzeUser(username, soup, daysInFuture):
         symbol = findSymbol(messageTextView)
         likeCnt = likeCount(m)
         commentCnt = commentCount(m)
-        
 
+        cur_res = {}
         cur_res['user'] = username
         cur_res['symbol'] = symbol
         cur_res['time'] = dateTime.strftime("%Y-%m-%d %H:%M:%S")
