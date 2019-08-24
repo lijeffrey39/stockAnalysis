@@ -128,19 +128,20 @@ def parseKOrInt(s):
 def findUserInfoDriver(username):
     driver = None
     try:
-        driver = webdriver.Chrome(executable_path = constants['driver_bin'], options = constants['chrome_options'])
+        driver = webdriver.Chrome(executable_path=constants['driver_bin'],
+                                  options=constants['chrome_options'])
         driver.set_page_load_timeout(45)
     except Exception as e:
         driver.quit()
-        return (None, e)
+        return (None, str(e))
 
     driver.set_page_load_timeout(45)
-    url = 'https://stocktwits.com/%s'%username
+    url = 'https://stocktwits.com/%s' % username
     try:
         driver.get(url)
     except Exception as e:
         driver.quit()
-        return (None, e)
+        return (None, str(e))
 
     user_info_dict = dict()
     html = driver.page_source
@@ -160,23 +161,23 @@ def findUserInfoDriver(username):
             user_info_dict['join_date'] = dateTime
         except Exception as e:
             driver.quit()
-            return (None, e)
+            return (None, str(e))
 
-    fields = {'followers', 'following', 'ideas', 'like_count'}
+    fields = {'ideas', 'following', 'followers', 'like_count'}
     count = 0
     for f in fields:
         user_info_dict[f] = parseKOrInt(ideas[count].text)
         count += 1
-    
+
     driver.quit()
     return (user_info_dict, '')
-    
 
-# Gets initial information for user 
+
+# Gets initial information for user
 def findUserInfo(username):
     response = requests.get(url='https://api.stocktwits.com/api/2/streams/user/%s.json' % username)
 
-     # If exceed the 200 limited API calls
+    # If exceed the 200 limited API calls
     try:
         responseStatus = response.json()['response']['status']
         if (responseStatus == 429):
@@ -200,9 +201,9 @@ def parseUserData(username, soup):
     res = []
     messages = soup.find_all('div', attrs={'class': constants['messageStreamAttr']})
     for m in messages:
-        t = m.find('div', {'class': timeAttr}).find_all('a') 
+        t = m.find('div', {'class': timeAttr}).find_all('a')
         # t must be length of 2, first is user, second is date
-        if (t == None):
+        if (t is None):
             continue
 
         allT = m.find('div', {'class': messageTextAttr})

@@ -1,6 +1,6 @@
 import datetime
-import time
 import os
+import time
 
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
@@ -13,7 +13,6 @@ from .helpers import addToFailedList
 from .hyperparameters import constants
 from .messageExtract import *
 from .stockPriceAPI import *
-
 
 # ------------------------------------------------------------------------
 # ----------------------------- Variables --------------------------------
@@ -31,7 +30,7 @@ messageTextAttr = 'st_29E11sZ'
 
 
 # Return soup object page of that stock
-def findPageStock(symbol):
+def findPageStock(symbol, date):
     driver = None
     try:
         driver = webdriver.Chrome(executable_path=constants['driver_bin'],
@@ -41,12 +40,12 @@ def findPageStock(symbol):
         return ('', str(e), 0)
 
     dateNow = datetime.datetime.now()
-    datePrev = datetime.datetime(dateNow.year, dateNow.month, dateNow.day)
+    datePrev = datetime.datetime(date.year, date.month, date.day)
     hoursBack = ((dateNow - datePrev).total_seconds() / 3600.0) + 1
 
     error_message = ''
     start = time.time()
-    url = "https://stocktwits.com/symbol/" + symbol
+    url = "https://stocktwits.com/symbol/%s" % symbol
 
     # Handling exceptions and random shit
     try:

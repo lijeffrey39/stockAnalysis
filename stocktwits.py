@@ -29,7 +29,9 @@ from modules.stockAnalysis import *
 from modules.stockPriceAPI import *
 from modules.userAnalysis import *
 
-client = pymongo.MongoClient("mongodb+srv://lijeffrey39:test@cluster0-qthez.mongodb.net/test?retryWrites=true&w=majority", ssl_cert_reqs=ssl.CERT_NONE)
+client = pymongo.MongoClient("mongodb+srv://lijeffrey39:test@cluster0-qthez."
+                             "mongodb.net/test?retryWrites=true&w=majority",
+                             ssl_cert_reqs=ssl.CERT_NONE)
 
 
 # ------------------------------------------------------------------------
@@ -47,29 +49,57 @@ def getAllStocks():
     return stocks
 
 
-def analyzeStocksToday():
+def shouldParseStock(symbol, dateString):
+    db = client.get_database('stocks_data_db')
+    tweetsErrorCollection = db.stock_tweets_errors
+    if (tweetsErrorCollection.
+            count_documents({'symbol': symbol,
+                             'date': dateString}) != 0):
+        return False
+
+    tweetsCollection = db.stock_tweets
+    tweetsForDay = tweetsCollection.find({'symbol': symbol,
+                                          'date': dateString})
+    tweetsMapped = list(map(lambda document: document, tweetsForDay))
+    timesMapped = list(map(lambda tweet: parse(tweet['time']), tweetsMapped))
+    timesMapped.sort(reverse=True)
+
+    if (len(timesMapped) == 0):
+        return True
+
+    lastTime = timesMapped[0]
+    currTime = datetime.datetime.now()
+    totalHoursBack = (currTime - lastTime).total_seconds() / 3600.0
+
+    # need to continue to parse if data is more than 3 hours old
+    if (totalHoursBack > 3.0):
+        return True
+    else:
+        return False
+
+
+def analyzeStocks(date):
     stocks = getAllStocks()
-    dateString = datetime.datetime.now().strftime("%Y-%m-%d")
+    dateString = date.strftime("%Y-%m-%d")
 
     for symbol in stocks:
         print(symbol)
-        tweetsCollection = client.get_database('stocks_data_db').stock_tweets
-        tweetsErrorCollection = client.get_database('stocks_data_db').stock_tweets_errors
-        if (tweetsCollection.count_documents({'date': dateString, 'symbol': symbol}) != 0 or 
-            tweetsErrorCollection.count_documents({'date': dateString, 'symbol': symbol}) != 0):
+        if (shouldParseStock(symbol, dateString) is False):
             continue
 
-        (soup, errorMsg, timeElapsed) = findPageStock(symbol)
+        (soup, errorMsg, timeElapsed) = findPageStock(symbol, date)
+        db = client.get_database('stocks_data_db')
         if (soup is ''):
-            tweetsErrorCollection = client.get_database('stocks_data_db').stock_tweets_errors
-            stockError = {'date': dateString, 'symbol': symbol, 'error': errorMsg, 'timeElapsed': timeElapsed}
-            if (tweetsErrorCollection.count_documents({'date': dateString, 'symbol': symbol}) != 0):
-                continue
+            tweetsErrorCollection = db.stock_tweets_errors
+            stockError = {'date': dateString,
+                          'symbol': symbol,
+                          'error': errorMsg,
+                          'timeElapsed': timeElapsed}
             tweetsErrorCollection.insert_one(stockError)
             continue
 
         result = parseStockData(symbol, soup)
-        stockDataCollection = client.get_database('stocks_data_db').stock_tweets
+        stockDataCollection = db.stock_tweets
         stockDataCollection.insert_many(result)
 
 
@@ -209,7 +239,9 @@ def main():
     if (options.users):
         analyzeUsers()
     elif (options.stocks):
-        analyzeStocksToday()
+        now = datetime.datetime.now()
+        date = datetime.datetime(now.year, now.month, 23)
+        analyzeStocks(date)
     else:
         # date = datetime.datetime(dateNow.year, 1, 14)
         # dateUpTo = datetime.datetime(dateNow.year, 3, 1)
