@@ -163,13 +163,13 @@ def findUserInfoDriver(username):
             driver.quit()
             return (None, str(e))
 
-    fields = {'ideas', 'following', 'followers', 'like_count'}
-    count = 0
-    for f in fields:
-        user_info_dict[f] = parseKOrInt(ideas[count].text)
-        count += 1
+    user_info_dict['ideas'] = parseKOrInt(ideas[0].text)
+    user_info_dict['following'] = parseKOrInt(ideas[1].text)
+    user_info_dict['followers'] = parseKOrInt(ideas[2].text)
+    user_info_dict['like_count'] = parseKOrInt(ideas[3].text)
 
     driver.quit()
+    print(user_info_dict)
     return (user_info_dict, '')
 
 
