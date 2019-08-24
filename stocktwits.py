@@ -4,6 +4,7 @@ import math
 import multiprocessing
 import operator
 import optparse
+import argparse
 import os
 import platform
 import sys
@@ -26,9 +27,10 @@ from modules.scroll import *
 from modules.stockAnalysis import *
 from modules.stockPriceAPI import *
 from modules.userAnalysis import *
-from modules.hyperparameters import *
+from modules.hyperparameters import constants
 
-client = pymongo.MongoClient("mongodb+srv://lijeffrey39:test@cluster0-qthez.mongodb.net/test?retryWrites=true&w=majority")
+client = constants['db_client']
+
 
 # ------------------------------------------------------------------------
 # -------------------------- Global Variables ----------------------------
@@ -248,14 +250,14 @@ def addOptions(parser):
                       action='store_true', dest="stocks",
                       help="parse stock information")
 
-
 def main():
-    parser = optparse.OptionParser()
-    addOptions(parser)
+    opt_parser = optparse.OptionParser()
+    addOptions(opt_parser)
 
-    options, args = parser.parse_args()
+    options, args = opt_parser.parse_args()
     dateNow = datetime.datetime.now()
 
+    updateAllStocks()
     if (options.users):
         analyzeUsers()
     elif (options.stocks):

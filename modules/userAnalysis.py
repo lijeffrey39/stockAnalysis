@@ -49,10 +49,7 @@ def findPageUser(username):
         driver = webdriver.Chrome(executable_path = constants['driver_bin'], options = constants['chrome_options'])
 		driver.set_page_load_timeout(45)
     except Exception as e:
-<<<<<<< HEAD
-        # ERROR: Session not created exception from tab crashed (Fix later)
-        # ERROR 2: Unable to discover open pages
-        print("Session was not created WTF")
+        end = time.time()
         return ('', e, end-start)
 
     driver.set_page_load_timeout(45)
@@ -60,11 +57,7 @@ def findPageUser(username):
     current_date = datetime.datetime.now()
     date_span = current_date - start_date
     current_span_hours = 24 * date_span.days + int(date_span.seconds/3600)
-=======
-        return return ('', e, 0)
 
-    dateNow = datetime.datetime.now()
->>>>>>> e1f7ee49957d77daf2a082ab01a27e29b0ccb952
     error_message = ''
     start = time.time()
     url = 'https://stocktwits.com/%s'%username
