@@ -35,7 +35,7 @@ def findLastTime(messages):
 # Scroll for # days
 def scrollFor(driver, hoursBack):
     currTime = datetime.datetime.now()
-    oldTime = currTime - datetime.timedelta(hours = hoursBack)
+    oldTime = currTime - datetime.timedelta(hours=hoursBack)
     last_height = ""
 
     while(True):
@@ -50,14 +50,15 @@ def scrollFor(driver, hoursBack):
             raise Exception('Len of messages was 0 ???')
 
         currTime = findLastTime(messages)
-        if (currTime == None):
+        if (currTime is None):
             raise Exception('How did this happend')
-        
+
+        print(currTime, oldTime)
         if (currTime < oldTime):
             break
 
         last_height = new_height
-        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+        driver.execute_script("window.scrollTo(0,document.body.scrollHeight);")
 
     print("Finished Reading")
     return True

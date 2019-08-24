@@ -50,7 +50,7 @@ def findPageUser(username):
     current_span_hours = 24 * date_span.days + int(date_span.seconds/3600)
     error_message = ''
     start = time.time()
-    url = 'https://stocktwits.com/%s'%username
+    url = 'https://stocktwits.com/%s' % username
     try:
         driver.get(url)
     except Exception as e:
@@ -130,6 +130,7 @@ def findUserInfoDriver(username):
         driver = webdriver.Chrome(executable_path = constants['driver_bin'], options = constants['chrome_options'])
         driver.set_page_load_timeout(45)
     except Exception as e:
+        driver.quit()
         return (None, e)
 
     driver.set_page_load_timeout(45)
@@ -137,6 +138,7 @@ def findUserInfoDriver(username):
     try:
         driver.get(url)
     except Exception as e:
+        driver.quit()
         return (None, e)
 
     user_info_dict = dict()
@@ -146,6 +148,7 @@ def findUserInfoDriver(username):
     memberTextArray = soup.find_all('span', attrs={'class': 'st_21r0FbC st_2fTou_q'})
 
     if (len(ideas) == 0):
+        driver.quit()
         return (None, "User doesn't exist")
 
     if (len(memberTextArray) >= 1):
@@ -155,6 +158,7 @@ def findUserInfoDriver(username):
             dateTime = parser.parse(joinDate).strftime("%Y-%m-%d")
             user_info_dict['join_date'] = dateTime
         except Exception as e:
+            driver.quit()
             return (None, e)
 
     fields = {'followers', 'following', 'ideas', 'like_count'}
@@ -163,6 +167,7 @@ def findUserInfoDriver(username):
         user_info_dict[f] = parseKOrInt(ideas[count].text)
         count += 1
     
+    driver.quit()
     return (user_info_dict, '')
     
 
