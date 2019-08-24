@@ -34,10 +34,11 @@ messageTextAttr = 'st_29E11sZ'
 def findPageStock(symbol):
     driver = None
     try:
-        driver = webdriver.Chrome(executable_path = constants['driver_bin'], options = constants['chrome_options'])
+        driver = webdriver.Chrome(executable_path=constants['driver_bin'],
+                                  options=constants['chrome_options'])
         driver.set_page_load_timeout(45)
     except Exception as e:
-        return ('', e, 0)
+        return ('', str(e), 0)
 
     dateNow = datetime.datetime.now()
     datePrev = datetime.datetime(dateNow.year, dateNow.month, dateNow.day)
@@ -50,17 +51,17 @@ def findPageStock(symbol):
     # Handling exceptions and random shit
     try:
         driver.get(url)
-    except:
+    except Exception as e:
         end = time.time()
         driver.quit()
-        return ('', e, end - start)
+        return ('', str(e), end - start)
 
     try:
-          scroll.scrollFor(driver, hoursBack)
-    except:
+        scroll.scrollFor(driver, hoursBack)
+    except Exception as e:
         driver.quit()
         end = time.time()
-        return ('', e, end - start)
+        return ('', str(e), end - start)
 
     html = driver.page_source
     soup = BeautifulSoup(html, 'html.parser')

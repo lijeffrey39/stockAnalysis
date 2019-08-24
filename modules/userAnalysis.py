@@ -38,10 +38,11 @@ ideaAttr = 'st__tZJhLh'
 def findPageUser(username):
     driver = None
     try:
-        driver = webdriver.Chrome(executable_path = constants['driver_bin'], options = constants['chrome_options'])
+        driver = webdriver.Chrome(executable_path=constants['driver_bin'],
+                                  options=constants['chrome_options'])
         driver.set_page_load_timeout(45)
     except Exception as e:
-        return ('', e, end-start)
+        return ('', str(e), end-start)
 
     driver.set_page_load_timeout(45)
     start_date = datetime.datetime(2019, 7, 22)
@@ -57,7 +58,7 @@ def findPageUser(username):
         print("Timed Out from findPageUser")
         end = time.time()
         driver.quit()
-        return ('', e, end - start)
+        return ('', str(e), end - start)
 
     messages = driver.find_elements_by_class_name(constants['messageStreamAttr'])
     if (len(messages) == 0):
@@ -70,7 +71,7 @@ def findPageUser(username):
     except Exception as e:
         driver.quit()
         end = time.time()
-        return ('', e, end - start)
+        return ('', str(e), end - start)
 
     html = driver.page_source
     soup = BeautifulSoup(html, 'html.parser')

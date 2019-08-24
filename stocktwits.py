@@ -112,7 +112,7 @@ def analyzeUsers():
             coreInfo['_id'] = username
             analyzedUsers.insert_one(coreInfo)
             continue
-    
+
         (soup, errorMsg, timeElapsed) = findPageUser(username)
         coreInfo['_id'] = username
         coreInfo['timeElapsed'] = timeElapsed
