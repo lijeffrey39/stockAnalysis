@@ -14,7 +14,7 @@ def updateStock(ticker, hours_back, interval=5):
     try:
         price_data = response.json()['Time Series (%dmin)' % (interval)]
     except KeyError:
-        time.sleep(100)
+        time.sleep(60)
         response = requests.get(url=api_call)
         try:
             price_data = response.json()['Time Series (%dmin)' % (interval)]
@@ -41,11 +41,21 @@ def updateStock(ticker, hours_back, interval=5):
 
             #stock_data_collection.update({'_id':id}, {'$set': price_data_dict}, upsert=True)
     stock_data_collection.insert_many(price_data_list)
+
+
 def updateAllStocks(hours_back=24, interval=5):
-    all_tickers = constants['db_client'].get_database('stocktwits_db').all_stocks
-    for t in all_tickers.find({}):
+    all_tickers = constants['db_client'].get_database('stocktwits_db').all_stocks.find({})
+    for t in all_tickers:
+        if t['_id'] in already_written:
+            continue
         print('Updating stock data for ticker %s' % (t['_id']))
-        updateStock(t['_id'].strip(), hours_back, interval)
+        updateStock(t['_id'], hours_back, interval)
+        written_file.write(t['_id']+'\n')
 
-
+already_written = set()
+with open('already_written.txt', 'r') as f:
+    for line in f:
+        already_written.add(line.strip())
+written_file = open('already_written.txt', 'a+')
 updateAllStocks(hours_back=24*35)
+written_file.close()
