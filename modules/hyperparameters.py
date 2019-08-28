@@ -19,7 +19,7 @@ project_root = os.getcwd()
 driver_bin = os.path.join(project_root, chrome_driver_name)
 constants = {
     'min_idea_threshold': 150,
-    'max_tweets': 450,
+    'max_tweets': 600,
     'project_root': project_root,
     'driver_bin': driver_bin,
     'chrome_options': chrome_options,

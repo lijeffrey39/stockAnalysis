@@ -108,6 +108,9 @@ def analyzeStocks(date):
 # ------------------------------------------------------------------------
 
 
+# def shouldParseUser(username):
+
+
 def analyzeUsers():
     db = client.get_database('stocktwits_db')
     allUsers = db.users_not_analyzed
