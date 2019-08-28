@@ -5,6 +5,7 @@ import hashlib
 import pymongo
 import time
 import argparse
+import pytz
 
 
 def updateStock(ticker, hours_back, interval=5, insert=False):
@@ -27,14 +28,17 @@ def updateStock(ticker, hours_back, interval=5, insert=False):
     stock_data_collection = constants['db_client'].get_database('stocks_data_db').stock_data
     for timestamp_s in price_data:
         price_data_dict = {}
-        timestamp = datetime.datetime.strptime(timestamp_s, '%Y-%m-%d %H:%M:%S')
-        datetime_elapsed = datetime.datetime.now() - timestamp
+        etz = pytz.timezone('US/Eastern')
+        timestamp = etz.localize(datetime.datetime.strptime(timestamp_s, '%Y-%m-%d %H:%M:%S'))
+        now = datetime.datetime.now(etz)
+        datetime_elapsed = now - timestamp
         hours_elapsed = 24 * datetime_elapsed.days + int(datetime_elapsed.seconds/3600)
         if hours_elapsed > hours_back:
-            break
+            continue
         else:
             id = ticker+timestamp_s
-            price_data_dict['_id'] = id
+            if insert:
+                price_data_dict['_id'] = id
             price_data_dict['ticker'] = ticker
             price_data_dict['timestamp'] = timestamp_s
             price_data_dict['date'] = timestamp_s[:10]
@@ -59,7 +63,7 @@ def insertStock(ticker, hours_back, interval=5):
     return 1
 
     
-def updateAllStocks(hours_back=24, interval=5):
+def updateAllStocks(hours_back=48, interval=5):
     all_tickers = constants['db_client'].get_database('stocktwits_db').all_stocks.find({})
     for t in all_tickers:
         print('Updating stock data for ticker %s' % (t['_id']))
