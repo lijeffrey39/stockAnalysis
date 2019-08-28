@@ -1,6 +1,7 @@
 from selenium import webdriver
 import platform
 import os
+import pymongo 
 
 chrome_options = webdriver.ChromeOptions()
 prefs = {"profile.managed_default_content_settings.images": 2}
@@ -24,5 +25,7 @@ constants = {
     'driver_bin': driver_bin,
     'chrome_options': chrome_options,
     'scroll_pause_time': 2,
+    'alpha_vantage_api_key': 'K8CFYSOMVFPGSXTM', 
+    'db_client' : pymongo.MongoClient("mongodb+srv://lijeffrey39:test@cluster0-qthez.mongodb.net/test?retryWrites=true&w=majority"),
     'messageStreamAttr': 'st_2o0zabc'
 }
