@@ -24,6 +24,10 @@ chrome_options.add_argument('start-maximized')
 chrome_driver_name = 'chromedriver' if (platform.system() == "Darwin") else 'chromedriver.exe'
 project_root = os.getcwd()
 driver_bin = os.path.join(project_root, chrome_driver_name)
+timeZoneName = datetime.now(tzlocal()).tzname()
+if (timeZoneName == 'Coordinated Universal Time'):
+    timeZoneName = 'UTC'
+
 constants = {
     'min_idea_threshold': 150,
     'max_tweets': 600,
@@ -41,6 +45,6 @@ constants = {
                                           "retryWrites=true&w=majority",
                                           ssl_cert_reqs=ssl.CERT_NONE),
     'messageStreamAttr': 'st_2o0zabc',
-    'current_timezone': datetime.now(tzlocal()).tzname()
+    'current_timezone': timeZoneName,
     'eastern_timezone': pytz.timezone('US/Eastern')
 }

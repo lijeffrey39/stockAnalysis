@@ -53,8 +53,8 @@ def findPageUser(username):
     driver.set_page_load_timeout(45)
 
     # Hardcoded to the first day we have historical stock data
-    start_date = datetime(2019, 7, 22)
-    current_date = datetime.now()
+    start_date = datetime.datetime(2019, 7, 22)
+    current_date = datetime.datetime.now()
     date_span = current_date - start_date
     current_span_hours = 24 * date_span.days + int(date_span.seconds/3600)
     error_message = ''
