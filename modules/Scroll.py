@@ -11,7 +11,6 @@ from selenium.webdriver.common.keys import Keys
 from bs4 import BeautifulSoup
 
 from .fileIO import *
-from .helpers import addToFailedList, analyzedSymbolAlready
 from .hyperparameters import constants
 from .messageExtract import findDateTime
 

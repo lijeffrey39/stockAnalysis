@@ -9,7 +9,6 @@ from bs4 import BeautifulSoup
 
 from . import scroll
 from .fileIO import *
-from .helpers import addToFailedList
 from .hyperparameters import constants
 from .messageExtract import *
 from .stockPriceAPI import *

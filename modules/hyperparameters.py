@@ -29,8 +29,8 @@ if (timeZoneName == 'Coordinated Universal Time'):
     timeZoneName = 'UTC'
 
 constants = {
-    'min_idea_threshold': 150,
-    'max_tweets': 600,
+    'min_idea_threshold': 200,
+    'max_tweets': 900,
     'project_root': project_root,
     'driver_bin': driver_bin,
     'chrome_options': chrome_options,
@@ -44,6 +44,11 @@ constants = {
                                           "cluster0-mlfxz.mongodb.net/test?"
                                           "retryWrites=true&w=majority",
                                           ssl_cert_reqs=ssl.CERT_NONE),
+    'stocktweets_client': pymongo.MongoClient("mongodb+srv://lijeffrey39:"
+                                              "<password>@cluster0-0x7lu."
+                                              "mongodb.net/test?retryWrites"
+                                              "=true&w=majority",
+                                              ssl_cert_reqs=ssl.CERT_NONE),
     'messageStreamAttr': 'st_2o0zabc',
     'current_timezone': timeZoneName,
     'eastern_timezone': pytz.timezone('US/Eastern')

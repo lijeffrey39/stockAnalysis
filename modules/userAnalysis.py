@@ -15,7 +15,7 @@ from bs4 import BeautifulSoup
 
 from . import scroll
 from .fileIO import *
-from .helpers import addToFailedList
+from .helpers import convertToEST
 from .hyperparameters import constants
 from .messageExtract import *
 from .stockPriceAPI import *
@@ -227,11 +227,7 @@ def parseUserData(username, soup):
         if (dateTime is None):
             continue
 
-        if (constants['current_timezone'] != 'EDT'):
-            # localize to current time zone
-            currTimeZone = pytz.timezone(constants['current_timezone'])
-            dateTime = currTimeZone.localize(dateTime)
-            dateTime = dateTime.astimezone(constants['eastern_timezone'])
+        dateTime = convertToEST(dateTime)
 
         cur_res = {}
         cur_res['user'] = username

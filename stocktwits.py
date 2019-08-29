@@ -33,6 +33,7 @@ from modules.hyperparameters import constants
 
 client = constants['db_client']
 clientUser = constants['db_user_client']
+clientStockTweets = constants['stocktweets_client']
 
 
 # ------------------------------------------------------------------------
@@ -60,7 +61,7 @@ def getAllStocks():
 
 
 def shouldParseStock(symbol, dateString):
-    db = client.get_database('stocks_data_db')
+    db = clientStockTweets.get_database('stocks_data_db')
     tweetsErrorCollection = db.stock_tweets_errors
     if (tweetsErrorCollection.
             count_documents({'symbol': symbol,
@@ -98,7 +99,7 @@ def analyzeStocks(date):
             continue
 
         (soup, errorMsg, timeElapsed) = findPageStock(symbol, date)
-        db = client.get_database('stocks_data_db')
+        db = clientStockTweets.get_database('stocks_data_db')
         if (soup is ''):
             tweetsErrorCollection = db.stock_tweets_errors
             stockError = {'date': dateString,
@@ -175,6 +176,9 @@ def analyzeUsers():
             analyzedUsers.insert_one(coreInfo)
 
         result = parseUserData(username, soup)
+        if (len(result) == 0):
+            continue
+            
         userInfoCollection = clientUser.get_database('user_data_db').user_info
         userInfoCollection.insert_many(result)
 
