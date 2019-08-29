@@ -1,6 +1,8 @@
-import datetime
+from datetime import *
+from dateutil.tz import *
 import os
 import time
+import pytz
 
 import requests
 from dateutil import parser
@@ -49,8 +51,10 @@ def findPageUser(username):
         return ('', str(e), 0)
 
     driver.set_page_load_timeout(45)
-    start_date = datetime.datetime(2019, 7, 22)
-    current_date = datetime.datetime.now()
+
+    # Hardcoded to the first day we have historical stock data
+    start_date = datetime(2019, 7, 22)
+    current_date = datetime.now()
     date_span = current_date - start_date
     current_span_hours = 24 * date_span.days + int(date_span.seconds/3600)
     error_message = ''
@@ -202,7 +206,8 @@ def findUserInfo(username):
 
 def parseUserData(username, soup):
     res = []
-    messages = soup.find_all('div', attrs={'class': constants['messageStreamAttr']})
+    messages = soup.find_all('div',
+                             attrs={'class': constants['messageStreamAttr']})
     for m in messages:
         t = m.find('div', {'class': timeAttr}).find_all('a')
         # t must be length of 2, first is user, second is date
@@ -212,23 +217,29 @@ def parseUserData(username, soup):
         allT = m.find('div', {'class': messageTextAttr})
         allText = allT.find_all('div')
         messageTextView = allText[1]
-        dateTime = findDateTime(t[1].text)
-        textFound = messageTextView.find('div').text
-        cleanText = ' '.join(removeSpecialCharacters(textFound).split())
+        textFound = messageTextView.find('div').text  # No post processing
         isBull = isBullMessage(m)
-
-        symbol = findSymbol(messageTextView)
         likeCnt = likeCount(m)
         commentCnt = commentCount(m)
 
+        # need to convert to EDT time zone
+        dateTime = findDateTime(t[1].text)
+        if (dateTime is None):
+            continue
+
+        if (constants['current_timezone'] != 'EDT'):
+            # localize to current time zone
+            currTimeZone = pytz.timezone(constants['current_timezone'])
+            dateTime = currTimeZone.localize(dateTime)
+            dateTime = dateTime.astimezone(constants['eastern_timezone'])
+
         cur_res = {}
         cur_res['user'] = username
-        cur_res['symbol'] = symbol
         cur_res['time'] = dateTime.strftime("%Y-%m-%d %H:%M:%S")
         cur_res['isBull'] = isBull
-        cur_res['likeCnt'] = likeCnt
-        cur_res['commentCnt'] = commentCnt
-        cur_res['cleanText'] = cleanText
+        cur_res['likeCount'] = likeCnt
+        cur_res['commentCount'] = commentCnt
+        cur_res['messageText'] = textFound
         res.append(cur_res)
 
     return res

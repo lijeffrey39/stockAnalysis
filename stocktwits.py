@@ -32,6 +32,7 @@ from modules.userAnalysis import *
 from modules.hyperparameters import constants
 
 client = constants['db_client']
+clientUser = constants['db_user_client']
 
 
 # ------------------------------------------------------------------------
@@ -117,7 +118,36 @@ def analyzeStocks(date):
 # ------------------------------------------------------------------------
 
 
-# def shouldParseUser(username):
+def shouldParseUser(username):
+    analyzedUsers = clientUser.get_database('user_data_db').users
+    if (analyzedUsers.count_documents({'_id': username}) != 0):
+        return None
+
+    coreInfo = findUserInfo(username)
+
+    # If API is down/user doesnt exist
+    if (not coreInfo):
+        errorMsg = "User doesn't exist"
+        userInfoError = {'_id': username, 'error': errorMsg}
+        analyzedUsers.insert_one(userInfoError)
+        return None
+
+    # If exceed the 200 limited API calls
+    if (coreInfo['ideas'] == -1):
+        (coreInfo, errorMsg) = findUserInfoDriver(username)
+        if (not coreInfo):
+            userInfoError = {'_id': username, 'error': errorMsg}
+            analyzedUsers.insert_one(userInfoError)
+            return None
+
+    # If number of ideas are < the curren min threshold
+    if (coreInfo['ideas'] < constants['min_idea_threshold']):
+        coreInfo['error'] = 'Not enough ideas'
+        coreInfo['_id'] = username
+        analyzedUsers.insert_one(coreInfo)
+        return None
+
+    return coreInfo
 
 
 def analyzeUsers():
@@ -128,33 +158,11 @@ def analyzeUsers():
 
     for username in users:
         print(username)
-        analyzedUsers = client.get_database('user_data_db').users
-        if (analyzedUsers.count_documents({'_id': username}) != 0):
-            continue
-        coreInfo = findUserInfo(username)
-
-        # If API is down/user doesnt exist
+        coreInfo = shouldParseUser(username)
         if (not coreInfo):
-            errorMsg = "User doesn't exist"
-            userInfoError = {'_id': username, 'error': errorMsg}
-            analyzedUsers.insert_one(userInfoError)
             continue
 
-        # If exceed the 200 limited API calls
-        if (coreInfo['ideas'] == -1):
-            (coreInfo, errorMsg) = findUserInfoDriver(username)
-            if (not coreInfo):
-                userInfoError = {'_id': username, 'error': errorMsg}
-                analyzedUsers.insert_one(userInfoError)
-                continue
-
-        # If number of ideas are < the curren min threshold
-        if (coreInfo['ideas'] < constants['min_idea_threshold']):
-            coreInfo['error'] = 'Not enough ideas'
-            coreInfo['_id'] = username
-            analyzedUsers.insert_one(coreInfo)
-            continue
-
+        analyzedUsers = clientUser.get_database('user_data_db').users
         (soup, errorMsg, timeElapsed) = findPageUser(username)
         coreInfo['_id'] = username
         coreInfo['timeElapsed'] = timeElapsed
@@ -167,7 +175,7 @@ def analyzeUsers():
             analyzedUsers.insert_one(coreInfo)
 
         result = parseUserData(username, soup)
-        userInfoCollection = client.get_database('user_data_db').user_info
+        userInfoCollection = clientUser.get_database('user_data_db').user_info
         userInfoCollection.insert_many(result)
 
 
@@ -196,6 +204,7 @@ def addOptions(parser):
                       action='store_true', dest="stocks",
                       help="parse stock information")
 
+
 def main():
     opt_parser = optparse.OptionParser()
     addOptions(opt_parser)
@@ -203,7 +212,7 @@ def main():
     options, args = opt_parser.parse_args()
     dateNow = datetime.datetime.now()
 
-    updateAllStocks()
+    # updateAllStocks()
     if (options.users):
         analyzeUsers()
     elif (options.stocks):

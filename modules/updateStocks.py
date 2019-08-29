@@ -1,6 +1,6 @@
 from hyperparameters import constants
 import requests
-import datetime 
+import datetime
 import hashlib
 import pymongo
 import time
@@ -55,10 +55,10 @@ def insertStock(ticker, hours_back, interval=5):
         return -1
     except pymongo.errors.BulkWriteError:
         print('Stock data already exists. Try updateStock instead')
-    stock_db.insert({'_id':ticker})
+    stock_db.insert({'_id': ticker})
     return 1
 
-    
+
 def updateAllStocks(hours_back=24, interval=5):
     all_tickers = constants['db_client'].get_database('stocktwits_db').all_stocks.find({})
     for t in all_tickers:
@@ -68,13 +68,14 @@ def updateAllStocks(hours_back=24, interval=5):
         except KeyError:
             print('Ticker %s does not exist' % (interval))
 
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-u', action='store_true', dest='update', default=False)
     results = parser.parse_args()
     if results.update:
         updateAllStocks()
-    
+
 
 if __name__ == '__main__':
     main()

@@ -1,7 +1,13 @@
-from selenium import webdriver
-import platform
+import datetime
 import os
-import pymongo 
+import ssl
+import platform
+import pytz
+from datetime import *
+from dateutil.tz import *
+
+import pymongo
+from selenium import webdriver
 
 chrome_options = webdriver.ChromeOptions()
 prefs = {"profile.managed_default_content_settings.images": 2}
@@ -25,7 +31,16 @@ constants = {
     'driver_bin': driver_bin,
     'chrome_options': chrome_options,
     'scroll_pause_time': 2,
-    'alpha_vantage_api_key': 'K8CFYSOMVFPGSXTM', 
-    'db_client' : pymongo.MongoClient("mongodb+srv://lijeffrey39:test@cluster0-qthez.mongodb.net/test?retryWrites=true&w=majority"),
-    'messageStreamAttr': 'st_2o0zabc'
+    'alpha_vantage_api_key': 'K8CFYSOMVFPGSXTM',
+    'db_client': pymongo.MongoClient("mongodb+srv://lijeffrey39:test@cluster0"
+                                     "-qthez.mongodb.net/test?retryWrites=true"
+                                     "&w=majority",
+                                     ssl_cert_reqs=ssl.CERT_NONE),
+    'db_user_client': pymongo.MongoClient("mongodb+srv://lijeffrey39:test@"
+                                          "cluster0-mlfxz.mongodb.net/test?"
+                                          "retryWrites=true&w=majority",
+                                          ssl_cert_reqs=ssl.CERT_NONE),
+    'messageStreamAttr': 'st_2o0zabc',
+    'current_timezone': datetime.now(tzlocal()).tzname()
+    'eastern_timezone': pytz.timezone('US/Eastern')
 }
