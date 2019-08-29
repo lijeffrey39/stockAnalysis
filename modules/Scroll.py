@@ -35,8 +35,10 @@ def findLastTime(messages):
 # Scroll for # days
 def scrollFor(driver, hoursBack):
     currTime = datetime.datetime.now()
-    oldTime = currTime - datetime.timedelta(hours=hoursBack)
+    compareTime = currTime - datetime.timedelta(hours=hoursBack)
     last_height = ""
+    prevTime = None
+    countSame = 0
 
     while(True):
         new_height = driver.execute_script("return document.body.scrollHeight")
@@ -51,11 +53,19 @@ def scrollFor(driver, hoursBack):
 
         currTime = findLastTime(messages)
         if (currTime is None):
-            raise Exception('How did this happend')
+            raise Exception('How did this happen')
 
-        print(currTime, oldTime)
-        if (currTime < oldTime):
+        print(currTime, compareTime)
+        if (currTime < compareTime):
             break
+
+        if (prevTime == currTime):
+            countSame += 1
+        else:
+            prevTime = currTime
+
+        if (countSame == 5):
+            raise Exception('Scroll for too long')
 
         last_height = new_height
         driver.execute_script("window.scrollTo(0,document.body.scrollHeight);")
