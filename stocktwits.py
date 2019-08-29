@@ -171,14 +171,15 @@ def analyzeUsers():
             coreInfo['error'] = errorMsg
             analyzedUsers.insert_one(coreInfo)
             continue
-        else:
-            coreInfo['error'] = ""
-            analyzedUsers.insert_one(coreInfo)
 
         result = parseUserData(username, soup)
         if (len(result) == 0):
+            coreInfo['error'] = "Empty result list"
+            analyzedUsers.insert_one(coreInfo)
             continue
-            
+
+        coreInfo['error'] = ""
+        analyzedUsers.insert_one(coreInfo)
         userInfoCollection = clientUser.get_database('user_data_db').user_info
         userInfoCollection.insert_many(result)
 
