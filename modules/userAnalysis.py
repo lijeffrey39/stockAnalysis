@@ -1,8 +1,5 @@
-from datetime import *
-from dateutil.tz import *
 import os
-import time
-import pytz
+import datetime
 
 import requests
 from dateutil import parser
@@ -19,6 +16,7 @@ from .helpers import convertToEST
 from .hyperparameters import constants
 from .messageExtract import *
 from .stockPriceAPI import *
+import time
 
 # ------------------------------------------------------------------------
 # ----------------------------- Variables --------------------------------
