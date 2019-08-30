@@ -29,21 +29,15 @@ messageTextAttr = 'st_29E11sZ'
 
 
 # Return soup object page of that stock
-def findPageStock(symbol, date):
+def findPageStock(symbol, date, hoursBack):
     driver = None
     try:
         driver = webdriver.Chrome(executable_path=constants['driver_bin'],
-                                  options=constants['chrome_options'])
-        driver.set_page_load_timeout(45)
+                                  options=constants['chrome_options'],
+                                  desired_capabilities=constants['caps'])
+        driver.set_page_load_timeout(90)
     except Exception as e:
         return ('', str(e), 0)
-
-    dateNow = convertToEST(datetime.datetime.now())
-    dateNow = dateNow.replace(tzinfo=None)
-    datePrev = datetime.datetime(date.year, date.month, date.day)
-    hoursBack = ((dateNow - datePrev).total_seconds() / 3600.0) + 1
-
-    print(dateNow, datePrev, hoursBack)
 
     error_message = ''
     start = time.time()
@@ -110,5 +104,4 @@ def parseStockData(symbol, soup):
         cur_res['date'] = dateTime.strftime("%Y-%m-%d")
 
         res.append(cur_res)
-
     return res

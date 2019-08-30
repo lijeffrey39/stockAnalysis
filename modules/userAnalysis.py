@@ -44,11 +44,9 @@ def findPageUser(username):
     try:
         driver = webdriver.Chrome(executable_path=constants['driver_bin'],
                                   options=constants['chrome_options'])
-        driver.set_page_load_timeout(45)
+        driver.set_page_load_timeout(90)
     except Exception as e:
         return ('', str(e), 0)
-
-    driver.set_page_load_timeout(45)
 
     # Hardcoded to the first day we have historical stock data
     start_date = convertToEST(datetime.datetime(2019, 7, 22))
@@ -136,12 +134,11 @@ def findUserInfoDriver(username):
     try:
         driver = webdriver.Chrome(executable_path=constants['driver_bin'],
                                   options=constants['chrome_options'])
-        driver.set_page_load_timeout(45)
+        driver.set_page_load_timeout(90)
     except Exception as e:
         endDriver(driver)
         return (None, str(e))
 
-    driver.set_page_load_timeout(45)
     url = 'https://stocktwits.com/%s' % username
     try:
         driver.get(url)

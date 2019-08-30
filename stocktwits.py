@@ -66,7 +66,7 @@ def shouldParseStock(symbol, dateString):
     if (tweetsErrorCollection.
             count_documents({'symbol': symbol,
                              'date': dateString}) != 0):
-        return False
+        return (False, 0)
 
     lastParsed = db.last_parsed
     lastTime = lastParsed.find({'_id': symbol})
@@ -75,17 +75,27 @@ def shouldParseStock(symbol, dateString):
 
     if (len(tweetsMapped) == 0):
         lastParsed.insert_one({'_id': symbol, 'time': currTime})
-        return True
+        dateNow = convertToEST(datetime.datetime.now())
+        dateNow = dateNow.replace(tzinfo=None)
+        datePrev = parse(dateString)
+        hoursBack = ((dateNow - datePrev).total_seconds() / 3600.0) + 1
+        print(dateNow, datePrev, hoursBack)
+        return (True, hoursBack)
 
     lastTime = tweetsMapped[0]['time']
     currTime = currTime.replace(tzinfo=None)
     totalHoursBack = (currTime - lastTime).total_seconds() / 3600.0
+    print(lastTime, currTime, totalHoursBack)
 
     # need to continue to parse if data is more than 3 hours old
     if (totalHoursBack > 3.0):
-        return True
+        # update last parsed time as current time
+        query = {'_id': symbol}
+        newVal = {'$set': {'time': currTime}}
+        lastParsed.update_one(query, newVal)
+        return (True, totalHoursBack)
     else:
-        return False
+        return (False, 0)
 
 
 def analyzeStocks(date):
@@ -94,10 +104,11 @@ def analyzeStocks(date):
 
     for symbol in stocks:
         print(symbol)
-        if (shouldParseStock(symbol, dateString) is False):
+        (shouldParse, hours) = shouldParseStock(symbol, dateString)
+        if (shouldParse is False):
             continue
 
-        (soup, errorMsg, timeElapsed) = findPageStock(symbol, date)
+        (soup, errorMsg, timeElapsed) = findPageStock(symbol, date, hours)
         db = clientStockTweets.get_database('stocks_data_db')
         if (soup is ''):
             tweetsErrorCollection = db.stock_tweets_errors
@@ -109,8 +120,29 @@ def analyzeStocks(date):
             continue
 
         result = parseStockData(symbol, soup)
+
         stockDataCollection = db.stock_tweets
-        stockDataCollection.insert_many(result)
+        lastMessageTimeCollection = db.last_message
+        lastTime = lastMessageTimeCollection.find({'_id': symbol})
+        timesMapped = list(map(lambda document: document, lastTime))
+        currLastTime = parse(result[0]['time'])
+
+        if (len(timesMapped) == 0):
+            stockDataCollection.insert_many(result)
+            newLastMessage = {'_id': symbol, 'time': currLastTime}
+            lastMessageTimeCollection.insert_one(newLastMessage)
+            continue
+
+        lastTime = timesMapped[0]['time']
+        newResult = []
+        for tweet in result:
+            if (parse(tweet['time']) > lastTime):
+                newResult.append(tweet)
+
+        query = {'_id': symbol}
+        newVal = {'$set': {'time': currLastTime}}
+        lastMessageTimeCollection.update_one(query, newVal)
+        stockDataCollection.insert_many(newResult)
 
 
 # ------------------------------------------------------------------------

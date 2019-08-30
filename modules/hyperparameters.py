@@ -8,6 +8,10 @@ from dateutil.tz import *
 
 import pymongo
 from selenium import webdriver
+from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
+
+caps = DesiredCapabilities().CHROME
+caps["pageLoadStrategy"] = "normal"
 
 chrome_options = webdriver.ChromeOptions()
 prefs = {"profile.managed_default_content_settings.images": 2}
@@ -34,6 +38,7 @@ constants = {
     'project_root': project_root,
     'driver_bin': driver_bin,
     'chrome_options': chrome_options,
+    'caps': caps,
     'scroll_pause_time': 2,
     'alpha_vantage_api_key': 'K8CFYSOMVFPGSXTM',
     'db_client': pymongo.MongoClient("mongodb+srv://lijeffrey39:test@cluster0"
