@@ -35,6 +35,7 @@ def findLastTime(messages):
 # Scroll for # days
 def scrollFor(driver, hoursBack):
     currTime = convertToEST(datetime.datetime.now())
+    currTime = currTime.replace(tzinfo=None)
     compareTime = currTime - datetime.timedelta(hours=hoursBack)
     last_height = ""
     prevTime = None

@@ -39,6 +39,7 @@ def findPageStock(symbol, date):
         return ('', str(e), 0)
 
     dateNow = convertToEST(datetime.datetime.now())
+    dateNow = dateNow.replace(tzinfo=None)
     datePrev = datetime.datetime(date.year, date.month, date.day)
     hoursBack = ((dateNow - datePrev).total_seconds() / 3600.0) + 1
 
