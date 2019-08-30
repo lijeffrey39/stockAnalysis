@@ -45,7 +45,7 @@ constants = {
                                           "retryWrites=true&w=majority",
                                           ssl_cert_reqs=ssl.CERT_NONE),
     'stocktweets_client': pymongo.MongoClient("mongodb+srv://lijeffrey39:"
-                                              "<password>@cluster0-0x7lu."
+                                              "test@cluster0-0x7lu."
                                               "mongodb.net/test?retryWrites"
                                               "=true&w=majority",
                                               ssl_cert_reqs=ssl.CERT_NONE),

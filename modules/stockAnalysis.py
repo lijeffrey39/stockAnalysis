@@ -1,6 +1,5 @@
 import datetime
 import os
-import time
 
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
@@ -9,16 +8,17 @@ from bs4 import BeautifulSoup
 
 from . import scroll
 from .fileIO import *
+from .helpers import convertToEST
 from .hyperparameters import constants
 from .messageExtract import *
 from .stockPriceAPI import *
+import time
 
 # ------------------------------------------------------------------------
 # ----------------------------- Variables --------------------------------
 # ------------------------------------------------------------------------
 
 
-messageStreamAttr = 'st_2o0zabc'
 timeAttr = 'st_2q3fdlM'
 messageTextAttr = 'st_29E11sZ'
 
@@ -38,9 +38,11 @@ def findPageStock(symbol, date):
     except Exception as e:
         return ('', str(e), 0)
 
-    dateNow = datetime.datetime.now()
-    datePrev = datetime.datetime(date.year, date.month, date.day)
+    dateNow = convertToEST(datetime.datetime.now())
+    datePrev = convertToEST(datetime.datetime(date.year, date.month, date.day))
     hoursBack = ((dateNow - datePrev).total_seconds() / 3600.0) + 1
+
+    print(dateNow, datePrev, hoursBack)
 
     error_message = ''
     start = time.time()
@@ -71,7 +73,8 @@ def findPageStock(symbol, date):
 
 def parseStockData(symbol, soup):
     res = []
-    messages = soup.find_all('div', attrs={'class': messageStreamAttr})
+    messages = soup.find_all('div', 
+                             attrs={'class': constants['messageStreamAttr']})
 
     # want to add new users to users_not_analyzed table
     for m in messages:
@@ -82,26 +85,27 @@ def parseStockData(symbol, soup):
 
         allT = m.find('div', {'class': messageTextAttr})
         allText = allT.find_all('div')
-        dateTime = findDateTime(t[1].text)
         username = findUser(t[0])
-        textFound = allText[1].find('div').text
-        cleanText = ' '.join(removeSpecialCharacters(textFound).split())
+        textFound = allText[1].find('div').text  # No post processing
         isBull = isBullMessage(m)
-
         likeCnt = likeCount(m)
         commentCnt = commentCount(m)
 
+        # need to convert to EDT time zone
+        dateTime = findDateTime(t[1].text)
         if (username is None or dateTime is None):
             continue
+            
+        dateTime = convertToEST(dateTime)
 
         cur_res = {}
         cur_res['symbol'] = symbol
         cur_res['user'] = username
         cur_res['time'] = dateTime.strftime("%Y-%m-%d %H:%M:%S")
         cur_res['isBull'] = isBull
-        cur_res['likeCnt'] = likeCnt
-        cur_res['commentCnt'] = commentCnt
-        cur_res['cleanText'] = cleanText
+        cur_res['likeCount'] = likeCnt
+        cur_res['commentCount'] = commentCnt
+        cur_res['messageText'] = textFound
         cur_res['date'] = dateTime.strftime("%Y-%m-%d")
 
         res.append(cur_res)

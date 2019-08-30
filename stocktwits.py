@@ -68,18 +68,16 @@ def shouldParseStock(symbol, dateString):
                              'date': dateString}) != 0):
         return False
 
-    tweetsCollection = db.stock_tweets
-    tweetsForDay = tweetsCollection.find({'symbol': symbol,
-                                          'date': dateString})
-    tweetsMapped = list(map(lambda document: document, tweetsForDay))
-    timesMapped = list(map(lambda tweet: parse(tweet['time']), tweetsMapped))
-    timesMapped.sort(reverse=True)
+    lastParsed = db.last_parsed
+    lastTime = lastParsed.find({'_id': symbol})
+    tweetsMapped = list(map(lambda document: document, lastTime))
+    currTime = convertToEST(datetime.datetime.now())
 
-    if (len(timesMapped) == 0):
+    if (len(tweetsMapped) == 0):
+        lastParsed.insert_one({'_id': symbol, 'time': currTime})
         return True
 
-    lastTime = timesMapped[0]
-    currTime = datetime.datetime.now()
+    lastTime = tweetsMapped[0]['time']
     totalHoursBack = (currTime - lastTime).total_seconds() / 3600.0
 
     # need to continue to parse if data is more than 3 hours old
@@ -221,8 +219,8 @@ def main():
     if (options.users):
         analyzeUsers()
     elif (options.stocks):
-        now = datetime.datetime.now()
-        date = datetime.datetime(now.year, now.month, 23)
+        now = convertToEST(datetime.datetime.now())
+        date = datetime.datetime(now.year, now.month, 30)
         analyzeStocks(date)
     else:
         # date = datetime.datetime(dateNow.year, 1, 14)

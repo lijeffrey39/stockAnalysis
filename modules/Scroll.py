@@ -11,6 +11,7 @@ from selenium.webdriver.common.keys import Keys
 from bs4 import BeautifulSoup
 
 from .fileIO import *
+from .helpers import convertToEST
 from .hyperparameters import constants
 from .messageExtract import findDateTime
 
@@ -33,7 +34,7 @@ def findLastTime(messages):
 
 # Scroll for # days
 def scrollFor(driver, hoursBack):
-    currTime = datetime.datetime.now()
+    currTime = convertToEST(datetime.datetime.now())
     compareTime = currTime - datetime.timedelta(hours=hoursBack)
     last_height = ""
     prevTime = None

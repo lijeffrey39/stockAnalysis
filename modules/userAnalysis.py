@@ -51,8 +51,8 @@ def findPageUser(username):
     driver.set_page_load_timeout(45)
 
     # Hardcoded to the first day we have historical stock data
-    start_date = datetime.datetime(2019, 7, 22)
-    current_date = datetime.datetime.now()
+    start_date = convertToEST(datetime.datetime(2019, 7, 22))
+    current_date = convertToEST(datetime.datetime.now())
     date_span = current_date - start_date
     current_span_hours = 24 * date_span.days + int(date_span.seconds/3600)
     error_message = ''
@@ -214,8 +214,7 @@ def parseUserData(username, soup):
 
         allT = m.find('div', {'class': messageTextAttr})
         allText = allT.find_all('div')
-        messageTextView = allText[1]
-        textFound = messageTextView.find('div').text  # No post processing
+        textFound = allText[1].find('div').text  # No post processing
         isBull = isBullMessage(m)
         likeCnt = likeCount(m)
         commentCnt = commentCount(m)
