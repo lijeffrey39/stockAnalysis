@@ -39,7 +39,7 @@ def findPageStock(symbol, date):
         return ('', str(e), 0)
 
     dateNow = convertToEST(datetime.datetime.now())
-    datePrev = convertToEST(datetime.datetime(date.year, date.month, date.day))
+    datePrev = datetime.datetime(date.year, date.month, date.day)
     hoursBack = ((dateNow - datePrev).total_seconds() / 3600.0) + 1
 
     print(dateNow, datePrev, hoursBack)
@@ -95,7 +95,7 @@ def parseStockData(symbol, soup):
         dateTime = findDateTime(t[1].text)
         if (username is None or dateTime is None):
             continue
-            
+
         dateTime = convertToEST(dateTime)
 
         cur_res = {}
