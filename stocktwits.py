@@ -60,6 +60,8 @@ def getAllStocks():
     return stocks
 
 
+# Returns whether the stock should be parsed or not
+# Will be parsed if it has been more than 12 hours since the last time it was
 def shouldParseStock(symbol, dateString):
     db = clientStockTweets.get_database('stocks_data_db')
     tweetsErrorCollection = db.stock_tweets_errors
@@ -72,26 +74,24 @@ def shouldParseStock(symbol, dateString):
     lastTime = lastParsed.find({'_id': symbol})
     tweetsMapped = list(map(lambda document: document, lastTime))
     currTime = convertToEST(datetime.datetime.now())
+    dateNow = currTime.replace(tzinfo=None)
 
     if (len(tweetsMapped) == 0):
-        lastParsed.insert_one({'_id': symbol, 'time': currTime})
-        dateNow = convertToEST(datetime.datetime.now())
-        dateNow = dateNow.replace(tzinfo=None)
+        lastParsed.insert_one({'_id': symbol, 'time': dateNow})
         datePrev = parse(dateString)
         hoursBack = ((dateNow - datePrev).total_seconds() / 3600.0) + 1
         print(dateNow, datePrev, hoursBack)
         return (True, hoursBack)
 
     lastTime = tweetsMapped[0]['time']
-    currTime = currTime.replace(tzinfo=None)
-    totalHoursBack = (currTime - lastTime).total_seconds() / 3600.0
-    print(lastTime, currTime, totalHoursBack)
+    totalHoursBack = (dateNow - lastTime).total_seconds() / 3600.0
+    print(lastTime, dateNow, totalHoursBack)
 
     # need to continue to parse if data is more than 3 hours old
-    if (totalHoursBack > 3.0):
+    if (totalHoursBack > constants['hoursBackToAnalyze']):
         # update last parsed time as current time
         query = {'_id': symbol}
-        newVal = {'$set': {'time': currTime}}
+        newVal = {'$set': {'time': dateNow}}
         lastParsed.update_one(query, newVal)
         return (True, totalHoursBack)
     else:
@@ -155,12 +155,12 @@ def shouldParseUser(username):
     if (analyzedUsers.count_documents({'_id': username}) != 0):
         return None
 
-    coreInfo = findUserInfo(username)
+    (coreInfo, error) = findUserInfo(username)
 
     # If API is down/user doesnt exist
     if (not coreInfo):
         errorMsg = "User doesn't exist"
-        userInfoError = {'_id': username, 'error': errorMsg}
+        userInfoError = {'_id': username, 'error': error}
         analyzedUsers.insert_one(userInfoError)
         return None
 

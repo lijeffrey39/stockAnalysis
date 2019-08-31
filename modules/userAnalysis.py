@@ -183,20 +183,20 @@ def findUserInfo(username):
     try:
         responseStatus = response.json()['response']['status']
         if (responseStatus == 429):
-            return {'ideas': -1}
-    except KeyError:
-        return None
+            return ({'ideas': -1}, '')
+    except Exception as e:
+        return (None, str(e))
 
     try:
         info = response.json()['user']
-    except KeyError:
-        return None
+    except Exception as e:
+        return (None, str(e))
 
     user_info_dict = dict()
     fields = {'join_date', 'followers', 'following', 'ideas', 'like_count'}
     for f in fields:
         user_info_dict[f] = info[f]
-    return user_info_dict
+    return (user_info_dict, '')
 
 
 def parseUserData(username, soup):
