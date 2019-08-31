@@ -124,6 +124,9 @@ def parseKOrInt(s):
     if ('k' in s):
         num = float(s[:-1])
         return int(num * 1000)
+    elif ('m' in s):
+        num = float(s[:-1])
+        return int(num * 1000000)
     else:
         return int(s)
 
