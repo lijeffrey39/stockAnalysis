@@ -1,9 +1,10 @@
 import datetime
 from multiprocessing import current_process
 
-from iexfinance.stocks import get_historical_intraday
+#from iexfinance.stocks import get_historical_intraday
 
-from .fileIO import *
+#from .fileIO import *
+from hyperparameters import constants 
 
 # ------------------------------------------------------------------------
 # ----------------------------- Variables --------------------------------
@@ -20,6 +21,33 @@ currDateTimeStr = ""
 # ------------------------------------------------------------------------
 # ----------------------------- Functions --------------------------------
 # ------------------------------------------------------------------------
+
+def getPrice(ticker, time):
+    #time should be in datetime.datetime format
+    market_open = datetime.datetime(time.year, time.month, time.day, 9, 35)
+    market_close = datetime.datetime(time.year, time.month, time.day, 16, 0)
+    if time > market_open and time < market_close:
+        rounded_minute = 5 * round((float(time.minute) + float(time.second)/60)/5)
+        minute_adjustment = datetime.timedelta(minutes=rounded_minute-time.minute)
+        adj_time = time + minute_adjustment
+        adj_time = adj_time.replace(second=0, microsecond=0)
+        query_time_s = adj_time.strftime('%Y-%m-%d %H:%M:%S')
+
+    if time > market_close:
+        tomorrow = time + datetime.timedelta(days=1)
+        next_opening = tomorrow.replace(hour=9, minute=35, second=0)
+        query_time_s = next_opening.strftime('%Y-%m-%d %H:%M:%S')
+
+    if time < market_open:
+        query_time_s = market_open.strftime('%Y-%m-%d %H:%M:%S')
+
+    query_id = ticker+query_time_s
+    stock_price_db = constants['db_client'].get_database('stocks_data_db').stock_data 
+    price_data = stock_price_db.find_one({'_id':query_id})
+    return price_data['price']
+
+
+
 
 
 def historicalFromDict(symbol, dateTime):
