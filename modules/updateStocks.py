@@ -39,8 +39,10 @@ def updateStock(ticker, hours_back, interval=5, insert=False):
             id = ticker+timestamp_s
             if insert:
                 price_data_dict['_id'] = id
+            """
             price_data_dict['ticker'] = ticker
             price_data_dict['timestamp'] = timestamp_s
+            """
             price_data_dict['date'] = timestamp_s[:10]
             price_data_dict['price'] = 0.5 * round((float(price_data[timestamp_s]['2. high'])+float(price_data[timestamp_s]['3. low'])), 2)
             if insert:
@@ -63,14 +65,15 @@ def insertStock(ticker, hours_back, interval=5):
     return 1
 
     
-def updateAllStocks(hours_back=48, interval=5):
-    all_tickers = constants['db_client'].get_database('stocktwits_db').all_stocks.find({})
+def updateAllStocks(hours_back=24*8, interval=5):
+    all_tickers = constants['db_client'].get_database('stocktwits_db').all_stocks.find({}, no_cursor_timeout=True)
     for t in all_tickers:
         print('Updating stock data for ticker %s' % (t['_id']))
         try:
             updateStock(t['_id'], hours_back, interval)
         except KeyError:
             print('Ticker %s does not exist' % (interval))
+    all_tickers.close()
 
 def main():
     parser = argparse.ArgumentParser()
