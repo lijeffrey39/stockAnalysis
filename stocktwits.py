@@ -32,6 +32,8 @@ from modules.userAnalysis import *
 from modules.hyperparameters import constants
 
 client = constants['db_client']
+clientUser = constants['db_user_client']
+clientStockTweets = constants['stocktweets_client']
 
 
 # ------------------------------------------------------------------------
@@ -58,33 +60,42 @@ def getAllStocks():
     return stocks
 
 
+# Returns whether the stock should be parsed or not
+# Will be parsed if it has been more than 12 hours since the last time it was
 def shouldParseStock(symbol, dateString):
-    db = client.get_database('stocks_data_db')
+    db = clientStockTweets.get_database('stocks_data_db')
     tweetsErrorCollection = db.stock_tweets_errors
     if (tweetsErrorCollection.
             count_documents({'symbol': symbol,
                              'date': dateString}) != 0):
-        return False
+        return (False, 0)
 
-    tweetsCollection = db.stock_tweets
-    tweetsForDay = tweetsCollection.find({'symbol': symbol,
-                                          'date': dateString})
-    tweetsMapped = list(map(lambda document: document, tweetsForDay))
-    timesMapped = list(map(lambda tweet: parse(tweet['time']), tweetsMapped))
-    timesMapped.sort(reverse=True)
+    lastParsed = db.last_parsed
+    lastTime = lastParsed.find({'_id': symbol})
+    tweetsMapped = list(map(lambda document: document, lastTime))
+    currTime = convertToEST(datetime.datetime.now())
+    dateNow = currTime.replace(tzinfo=None)
 
-    if (len(timesMapped) == 0):
-        return True
+    if (len(tweetsMapped) == 0):
+        lastParsed.insert_one({'_id': symbol, 'time': dateNow})
+        datePrev = parse(dateString)
+        hoursBack = ((dateNow - datePrev).total_seconds() / 3600.0) + 1
+        print(dateNow, datePrev, hoursBack)
+        return (True, hoursBack)
 
-    lastTime = timesMapped[0]
-    currTime = datetime.datetime.now()
-    totalHoursBack = (currTime - lastTime).total_seconds() / 3600.0
+    lastTime = tweetsMapped[0]['time']
+    totalHoursBack = (dateNow - lastTime).total_seconds() / 3600.0
+    print(lastTime, dateNow, totalHoursBack)
 
     # need to continue to parse if data is more than 3 hours old
-    if (totalHoursBack > 3.0):
-        return True
+    if (totalHoursBack > constants['hoursBackToAnalyze']):
+        # update last parsed time as current time
+        query = {'_id': symbol}
+        newVal = {'$set': {'time': dateNow}}
+        lastParsed.update_one(query, newVal)
+        return (True, totalHoursBack)
     else:
-        return False
+        return (False, 0)
 
 
 def analyzeStocks(date):
@@ -93,11 +104,12 @@ def analyzeStocks(date):
 
     for symbol in stocks:
         print(symbol)
-        if (shouldParseStock(symbol, dateString) is False):
+        (shouldParse, hours) = shouldParseStock(symbol, dateString)
+        if (shouldParse is False):
             continue
 
-        (soup, errorMsg, timeElapsed) = findPageStock(symbol, date)
-        db = client.get_database('stocks_data_db')
+        (soup, errorMsg, timeElapsed) = findPageStock(symbol, date, hours)
+        db = clientStockTweets.get_database('stocks_data_db')
         if (soup is ''):
             tweetsErrorCollection = db.stock_tweets_errors
             stockError = {'date': dateString,
@@ -108,13 +120,66 @@ def analyzeStocks(date):
             continue
 
         result = parseStockData(symbol, soup)
+
         stockDataCollection = db.stock_tweets
-        stockDataCollection.insert_many(result)
+        lastMessageTimeCollection = db.last_message
+        lastTime = lastMessageTimeCollection.find({'_id': symbol})
+        timesMapped = list(map(lambda document: document, lastTime))
+        currLastTime = parse(result[0]['time'])
+
+        if (len(timesMapped) == 0):
+            stockDataCollection.insert_many(result)
+            newLastMessage = {'_id': symbol, 'time': currLastTime}
+            lastMessageTimeCollection.insert_one(newLastMessage)
+            continue
+
+        lastTime = timesMapped[0]['time']
+        newResult = []
+        for tweet in result:
+            if (parse(tweet['time']) > lastTime):
+                newResult.append(tweet)
+
+        query = {'_id': symbol}
+        newVal = {'$set': {'time': currLastTime}}
+        lastMessageTimeCollection.update_one(query, newVal)
+        stockDataCollection.insert_many(newResult)
 
 
 # ------------------------------------------------------------------------
 # ----------------------- Analyze Specific User --------------------------
 # ------------------------------------------------------------------------
+
+
+def shouldParseUser(username):
+    analyzedUsers = clientUser.get_database('user_data_db').users
+    if (analyzedUsers.count_documents({'_id': username}) != 0):
+        return None
+
+    (coreInfo, error) = findUserInfo(username)
+
+    # If API is down/user doesnt exist
+    if (not coreInfo):
+        errorMsg = "User doesn't exist"
+        userInfoError = {'_id': username, 'error': error}
+        analyzedUsers.insert_one(userInfoError)
+        return None
+
+    # If exceed the 200 limited API calls
+    if (coreInfo['ideas'] == -1):
+        (coreInfo, errorMsg) = findUserInfoDriver(username)
+        if (not coreInfo):
+            userInfoError = {'_id': username, 'error': errorMsg}
+            analyzedUsers.insert_one(userInfoError)
+            return None
+
+    # If number of ideas are < the curren min threshold
+    if (coreInfo['ideas'] < constants['min_idea_threshold']):
+        coreInfo['error'] = 'Not enough ideas'
+        coreInfo['_id'] = username
+        analyzedUsers.insert_one(coreInfo)
+        return None
+
+    return coreInfo
 
 
 def analyzeUsers():
@@ -125,33 +190,11 @@ def analyzeUsers():
 
     for username in users:
         print(username)
-        analyzedUsers = client.get_database('user_data_db').users
-        if (analyzedUsers.count_documents({'_id': username}) != 0):
-            continue
-        coreInfo = findUserInfo(username)
-
-        # If API is down/user doesnt exist
+        coreInfo = shouldParseUser(username)
         if (not coreInfo):
-            errorMsg = "User doesn't exist"
-            userInfoError = {'_id': username, 'error': errorMsg}
-            analyzedUsers.insert_one(userInfoError)
             continue
 
-        # If exceed the 200 limited API calls
-        if (coreInfo['ideas'] == -1):
-            (coreInfo, errorMsg) = findUserInfoDriver(username)
-            if (not coreInfo):
-                userInfoError = {'_id': username, 'error': errorMsg}
-                analyzedUsers.insert_one(userInfoError)
-                continue
-
-        # If number of ideas are < the curren min threshold
-        if (coreInfo['ideas'] < constants['min_idea_threshold']):
-            coreInfo['error'] = 'Not enough ideas'
-            coreInfo['_id'] = username
-            analyzedUsers.insert_one(coreInfo)
-            continue
-
+        analyzedUsers = clientUser.get_database('user_data_db').users
         (soup, errorMsg, timeElapsed) = findPageUser(username)
         coreInfo['_id'] = username
         coreInfo['timeElapsed'] = timeElapsed
@@ -159,12 +202,16 @@ def analyzeUsers():
             coreInfo['error'] = errorMsg
             analyzedUsers.insert_one(coreInfo)
             continue
-        else:
-            coreInfo['error'] = ""
-            analyzedUsers.insert_one(coreInfo)
 
         result = parseUserData(username, soup)
-        userInfoCollection = client.get_database('user_data_db').user_info
+        if (len(result) == 0):
+            coreInfo['error'] = "Empty result list"
+            analyzedUsers.insert_one(coreInfo)
+            continue
+
+        coreInfo['error'] = ""
+        analyzedUsers.insert_one(coreInfo)
+        userInfoCollection = clientUser.get_database('user_data_db').user_info
         userInfoCollection.insert_many(result)
 
 
@@ -193,6 +240,7 @@ def addOptions(parser):
                       action='store_true', dest="stocks",
                       help="parse stock information")
 
+
 def main():
     opt_parser = optparse.OptionParser()
     addOptions(opt_parser)
@@ -200,12 +248,12 @@ def main():
     options, args = opt_parser.parse_args()
     dateNow = datetime.datetime.now()
 
-    updateAllStocks()
+    # updateAllStocks()
     if (options.users):
         analyzeUsers()
     elif (options.stocks):
-        now = datetime.datetime.now()
-        date = datetime.datetime(now.year, now.month, 23)
+        now = convertToEST(datetime.datetime.now())
+        date = datetime.datetime(now.year, now.month, 30)
         analyzeStocks(date)
     else:
         # date = datetime.datetime(dateNow.year, 1, 14)

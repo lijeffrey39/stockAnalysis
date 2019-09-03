@@ -1,6 +1,5 @@
-import datetime
 import os
-import time
+import datetime
 
 import requests
 from dateutil import parser
@@ -13,10 +12,11 @@ from bs4 import BeautifulSoup
 
 from . import scroll
 from .fileIO import *
-from .helpers import addToFailedList
+from .helpers import convertToEST
 from .hyperparameters import constants
 from .messageExtract import *
 from .stockPriceAPI import *
+import time
 
 # ------------------------------------------------------------------------
 # ----------------------------- Variables --------------------------------
@@ -44,13 +44,13 @@ def findPageUser(username):
     try:
         driver = webdriver.Chrome(executable_path=constants['driver_bin'],
                                   options=constants['chrome_options'])
-        driver.set_page_load_timeout(45)
+        driver.set_page_load_timeout(90)
     except Exception as e:
         return ('', str(e), 0)
 
-    driver.set_page_load_timeout(45)
-    start_date = datetime.datetime(2019, 7, 22)
-    current_date = datetime.datetime.now()
+    # Hardcoded to the first day we have historical stock data
+    start_date = convertToEST(datetime.datetime(2019, 7, 22))
+    current_date = convertToEST(datetime.datetime.now())
     date_span = current_date - start_date
     current_span_hours = 24 * date_span.days + int(date_span.seconds/3600)
     error_message = ''
@@ -124,6 +124,9 @@ def parseKOrInt(s):
     if ('k' in s):
         num = float(s[:-1])
         return int(num * 1000)
+    elif ('m' in s):
+        num = float(s[:-1])
+        return int(num * 1000000)
     else:
         return int(s)
 
@@ -134,12 +137,11 @@ def findUserInfoDriver(username):
     try:
         driver = webdriver.Chrome(executable_path=constants['driver_bin'],
                                   options=constants['chrome_options'])
-        driver.set_page_load_timeout(45)
+        driver.set_page_load_timeout(90)
     except Exception as e:
         endDriver(driver)
         return (None, str(e))
 
-    driver.set_page_load_timeout(45)
     url = 'https://stocktwits.com/%s' % username
     try:
         driver.get(url)
@@ -184,25 +186,26 @@ def findUserInfo(username):
     try:
         responseStatus = response.json()['response']['status']
         if (responseStatus == 429):
-            return {'ideas': -1}
-    except KeyError:
-        return None
+            return ({'ideas': -1}, '')
+    except Exception as e:
+        return (None, str(e))
 
     try:
         info = response.json()['user']
-    except KeyError:
-        return None
+    except Exception as e:
+        return (None, str(e))
 
     user_info_dict = dict()
     fields = {'join_date', 'followers', 'following', 'ideas', 'like_count'}
     for f in fields:
         user_info_dict[f] = info[f]
-    return user_info_dict
+    return (user_info_dict, '')
 
 
 def parseUserData(username, soup):
     res = []
-    messages = soup.find_all('div', attrs={'class': constants['messageStreamAttr']})
+    messages = soup.find_all('div',
+                             attrs={'class': constants['messageStreamAttr']})
     for m in messages:
         t = m.find('div', {'class': timeAttr}).find_all('a')
         # t must be length of 2, first is user, second is date
@@ -211,24 +214,25 @@ def parseUserData(username, soup):
 
         allT = m.find('div', {'class': messageTextAttr})
         allText = allT.find_all('div')
-        messageTextView = allText[1]
-        dateTime = findDateTime(t[1].text)
-        textFound = messageTextView.find('div').text
-        cleanText = ' '.join(removeSpecialCharacters(textFound).split())
+        textFound = allText[1].find('div').text  # No post processing
         isBull = isBullMessage(m)
-
-        symbol = findSymbol(messageTextView)
         likeCnt = likeCount(m)
         commentCnt = commentCount(m)
 
+        # need to convert to EDT time zone
+        dateTime = findDateTime(t[1].text)
+        if (dateTime is None):
+            continue
+
+        dateTime = convertToEST(dateTime)
+
         cur_res = {}
         cur_res['user'] = username
-        cur_res['symbol'] = symbol
         cur_res['time'] = dateTime.strftime("%Y-%m-%d %H:%M:%S")
         cur_res['isBull'] = isBull
-        cur_res['likeCnt'] = likeCnt
-        cur_res['commentCnt'] = commentCnt
-        cur_res['cleanText'] = cleanText
+        cur_res['likeCount'] = likeCnt
+        cur_res['commentCount'] = commentCnt
+        cur_res['messageText'] = textFound
         res.append(cur_res)
 
     return res

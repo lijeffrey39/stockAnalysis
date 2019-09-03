@@ -91,10 +91,10 @@ def findSymbol(message):
             foundTicker = True
 
     # Never found a ticker or more than 1 ticker
-    if (foundTicker == False or len(tickers) > 1):
-        return None
+    if (foundTicker is False or len(tickers) > 1):
+        return []
     else:
-        return tickers[0]
+        return tickers
 
 
 # Find username of a message
