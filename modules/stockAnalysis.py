@@ -92,7 +92,7 @@ def parseStockData(symbol, soup):
         # need to convert to EDT time zone
         dateTime = findDateTime(t[1].text)
         if (username is None or dateTime is None):
-            continue
+            raise Exception(m)
 
         dateTime = convertToEST(dateTime)
 

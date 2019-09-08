@@ -37,15 +37,6 @@ clientStockTweets = constants['stocktweets_client']
 
 
 # ------------------------------------------------------------------------
-# -------------------------- Global Variables ----------------------------
-# ------------------------------------------------------------------------
-
-client = pymongo.MongoClient("mongodb+srv://lijeffrey39:test@cluster0-qthez."
-                             "mongodb.net/test?retryWrites=true&w=majority",
-                             ssl_cert_reqs=ssl.CERT_NONE)
-
-
-# ------------------------------------------------------------------------
 # ----------------------- Analyze Specific Stock -------------------------
 # ------------------------------------------------------------------------
 
@@ -150,14 +141,25 @@ def analyzeStocks(date):
 
         (soup, errorMsg, timeElapsed) = findPageStock(symbol, date, hours)
         if (soup is ''):
-            stockError = {'date': dateString,
-                          'symbol': symbol,
-                          'error': errorMsg,
-                          'timeElapsed': timeElapsed}
+            stockError = {'date': dateString, 'symbol': symbol,
+                          'error': errorMsg, 'timeElapsed': timeElapsed}
+            db.stock_tweets_errors.insert_one(stockError)
+            continue
+        
+        try:
+            result = parseStockData(symbol, soup)
+        except Exception as e:
+            stockError = {'date': dateString, 'symbol': symbol,
+                          'error': str(e), 'timeElapsed': -1}
             db.stock_tweets_errors.insert_one(stockError)
             continue
 
-        result = parseStockData(symbol, soup)
+        if (len(result) == 0):
+            stockError = {'date': dateString, 'symbol': symbol,
+                          'error': 'Result length is 0??', 'timeElapsed': -1}
+            db.stock_tweets_errors.insert_one(stockError)
+            continue
+
         updateLastParsedTime(db, symbol)
         result = updateLastMessageTime(db, symbol, result)
         db.stock_tweets.insert_many(result)
@@ -262,11 +264,9 @@ def addOptions(parser):
 def main():
     opt_parser = optparse.OptionParser()
     addOptions(opt_parser)
-
     options, args = opt_parser.parse_args()
     dateNow = datetime.datetime.now()
 
-    # updateAllStocks()
     if (options.users):
         analyzeUsers()
     elif (options.stocks):
@@ -277,8 +277,7 @@ def main():
         # date = datetime.datetime(dateNow.year, 1, 14)
         # dateUpTo = datetime.datetime(dateNow.year, 3, 1)
 
-        db = client.get_database('stocktwits_db')
-        allUsers = db.all_stocks
+        updateUserNotAnalyzed()
         return
 
         date = datetime.datetime(dateNow.year, 5, 18)

@@ -234,5 +234,20 @@ def parseUserData(username, soup):
         cur_res['commentCount'] = commentCnt
         cur_res['messageText'] = textFound
         res.append(cur_res)
-
     return res
+
+
+def updateUserNotAnalyzed():
+    allUsers = constants['db_client'].get_database('stocktwits_db').users_not_analyzed
+    cursor = allUsers.find()
+    users = set(list(map(lambda document: document['_id'], cursor)))
+
+    userSet = set([])
+    tweets = constants['stocktweets_client'].get_database('stocks_data_db').stock_tweets.find()
+    for doc in tweets:
+        currUserName = doc['user']
+        if (currUserName not in users):
+            userSet.add(currUserName)
+
+    listNewUsers = list(userSet)
+    print(len(listNewUsers))
