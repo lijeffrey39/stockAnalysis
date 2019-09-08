@@ -37,6 +37,7 @@ def findPageStock(symbol, date, hoursBack):
                                   desired_capabilities=constants['caps'])
         driver.set_page_load_timeout(90)
     except Exception as e:
+        print(e)
         return ('', str(e), 0)
 
     error_message = ''
@@ -49,6 +50,7 @@ def findPageStock(symbol, date, hoursBack):
     except Exception as e:
         end = time.time()
         driver.quit()
+        print(e)
         return ('', str(e), end - start)
 
     try:
@@ -56,6 +58,7 @@ def findPageStock(symbol, date, hoursBack):
     except Exception as e:
         driver.quit()
         end = time.time()
+        print(e)
         return ('', str(e), end - start)
 
     html = driver.page_source

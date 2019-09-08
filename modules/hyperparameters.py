@@ -34,7 +34,7 @@ if (timeZoneName == 'Coordinated Universal Time'):
 
 constants = {
     'min_idea_threshold': 200,
-    'max_tweets': 900,
+    'max_tweets': 1500,
     'hoursBackToAnalyze': 12,
     'project_root': project_root,
     'driver_bin': driver_bin,

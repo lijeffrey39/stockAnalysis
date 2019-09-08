@@ -62,8 +62,7 @@ def getAllStocks():
 
 # Returns whether the stock should be parsed or not
 # Will be parsed if it has been more than 12 hours since the last time it was
-def shouldParseStock(symbol, dateString):
-    db = clientStockTweets.get_database('stocks_data_db')
+def shouldParseStock(symbol, dateString, db):
     tweetsErrorCollection = db.stock_tweets_errors
     if (tweetsErrorCollection.
             count_documents({'symbol': symbol,
@@ -77,7 +76,6 @@ def shouldParseStock(symbol, dateString):
     dateNow = currTime.replace(tzinfo=None)
 
     if (len(tweetsMapped) == 0):
-        lastParsed.insert_one({'_id': symbol, 'time': dateNow})
         datePrev = parse(dateString)
         hoursBack = ((dateNow - datePrev).total_seconds() / 3600.0) + 1
         print(dateNow, datePrev, hoursBack)
@@ -88,14 +86,55 @@ def shouldParseStock(symbol, dateString):
     print(lastTime, dateNow, totalHoursBack)
 
     # need to continue to parse if data is more than 3 hours old
-    if (totalHoursBack > constants['hoursBackToAnalyze']):
-        # update last parsed time as current time
-        query = {'_id': symbol}
-        newVal = {'$set': {'time': dateNow}}
-        lastParsed.update_one(query, newVal)
+    if (totalHoursBack > 24):
         return (True, totalHoursBack)
     else:
         return (False, 0)
+
+
+# Updates the time this symbol was last parsed
+def updateLastParsedTime(db, symbol):
+    lastParsedDB = db.last_parsed
+    lastTime = lastParsedDB.find({'_id': symbol})
+    tweetsMapped = list(map(lambda document: document, lastTime))
+    currTime = convertToEST(datetime.datetime.now())
+    dateNow = currTime.replace(tzinfo=None)
+
+    # If no last parsed time has been set yet
+    if (len(tweetsMapped) == 0):
+        lastParsedDB.insert_one({'_id': symbol, 'time': dateNow})
+    else:
+        # update last parsed time as current time
+        query = {'_id': symbol}
+        newVal = {'$set': {'time': dateNow}}
+        lastParsedDB.update_one(query, newVal)
+
+
+# Updates the time stamp for the last message for
+# this symbol to find avoid overlap
+def updateLastMessageTime(db, symbol, result):
+    currLastTime = parse(result[0]['time'])
+    lastMessageTimeCollection = db.last_message
+
+    lastTime = lastMessageTimeCollection.find({'_id': symbol})
+    timesMapped = list(map(lambda document: document, lastTime))
+
+    # if no last message has been set yet
+    if (len(timesMapped) == 0):
+        newLastMessage = {'_id': symbol, 'time': currLastTime}
+        lastMessageTimeCollection.insert_one(newLastMessage)
+        return result
+
+    lastTime = timesMapped[0]['time']
+    newResult = []
+    for tweet in result:
+        if (parse(tweet['time']) > lastTime):
+            newResult.append(tweet)
+
+    query = {'_id': symbol}
+    newVal = {'$set': {'time': currLastTime}}
+    lastMessageTimeCollection.update_one(query, newVal)
+    return newResult
 
 
 def analyzeStocks(date):
@@ -104,45 +143,24 @@ def analyzeStocks(date):
 
     for symbol in stocks:
         print(symbol)
-        (shouldParse, hours) = shouldParseStock(symbol, dateString)
+        db = clientStockTweets.get_database('stocks_data_db')
+        (shouldParse, hours) = shouldParseStock(symbol, dateString, db)
         if (shouldParse is False):
             continue
 
         (soup, errorMsg, timeElapsed) = findPageStock(symbol, date, hours)
-        db = clientStockTweets.get_database('stocks_data_db')
         if (soup is ''):
-            tweetsErrorCollection = db.stock_tweets_errors
             stockError = {'date': dateString,
                           'symbol': symbol,
                           'error': errorMsg,
                           'timeElapsed': timeElapsed}
-            tweetsErrorCollection.insert_one(stockError)
+            db.stock_tweets_errors.insert_one(stockError)
             continue
 
         result = parseStockData(symbol, soup)
-
-        stockDataCollection = db.stock_tweets
-        lastMessageTimeCollection = db.last_message
-        lastTime = lastMessageTimeCollection.find({'_id': symbol})
-        timesMapped = list(map(lambda document: document, lastTime))
-        currLastTime = parse(result[0]['time'])
-
-        if (len(timesMapped) == 0):
-            stockDataCollection.insert_many(result)
-            newLastMessage = {'_id': symbol, 'time': currLastTime}
-            lastMessageTimeCollection.insert_one(newLastMessage)
-            continue
-
-        lastTime = timesMapped[0]['time']
-        newResult = []
-        for tweet in result:
-            if (parse(tweet['time']) > lastTime):
-                newResult.append(tweet)
-
-        query = {'_id': symbol}
-        newVal = {'$set': {'time': currLastTime}}
-        lastMessageTimeCollection.update_one(query, newVal)
-        stockDataCollection.insert_many(newResult)
+        updateLastParsedTime(db, symbol)
+        result = updateLastMessageTime(db, symbol, result)
+        db.stock_tweets.insert_many(result)
 
 
 # ------------------------------------------------------------------------
@@ -253,7 +271,7 @@ def main():
         analyzeUsers()
     elif (options.stocks):
         now = convertToEST(datetime.datetime.now())
-        date = datetime.datetime(now.year, now.month, 30)
+        date = datetime.datetime(now.year, now.month, 1)
         analyzeStocks(date)
     else:
         # date = datetime.datetime(dateNow.year, 1, 14)
@@ -262,7 +280,7 @@ def main():
         db = client.get_database('stocktwits_db')
         allUsers = db.all_stocks
         return
-        
+
         date = datetime.datetime(dateNow.year, 5, 18)
         dateUpTo = datetime.datetime(dateNow.year, 6, 4)
 

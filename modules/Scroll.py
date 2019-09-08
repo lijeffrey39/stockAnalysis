@@ -24,12 +24,18 @@ from .messageExtract import findDateTime
 def findLastTime(messages):
     lastMessage = messages[len(messages) - 1].text
     t = lastMessage.split('\n')
+    dateTime = None
     if (t[0] == "Bearish" or t[0] == "Bullish"):
-        dateTime = findDateTime(t[2])
-        return dateTime
+        if (t[2] == 'Plus'):
+            dateTime = findDateTime(t[3])
+        else:
+            dateTime = findDateTime(t[2])
     else:
-        dateTime = findDateTime(t[1])
-        return dateTime
+        if (t[1] == 'Plus'):
+            dateTime = findDateTime(t[2])
+        else:
+            dateTime = findDateTime(t[1])
+    return dateTime
 
 
 # Scroll for # days
@@ -52,7 +58,11 @@ def scrollFor(driver, hoursBack):
         if (len(messages) == 0):
             raise Exception('Len of messages was 0 ???')
 
-        currTime = findLastTime(messages)
+        try:
+            currTime = findLastTime(messages)
+        except Exception as e:
+            raise e
+
         if (currTime is None):
             raise Exception('How did this happen')
 

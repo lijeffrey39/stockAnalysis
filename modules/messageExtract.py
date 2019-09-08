@@ -124,7 +124,6 @@ def commentCount(message):
 
 # True if bull
 def isBullMessage(message):
-
     bullBearText = message.find('span', attrs={'class': bullBearAttr})
     if bullBearText is None:
         return None
