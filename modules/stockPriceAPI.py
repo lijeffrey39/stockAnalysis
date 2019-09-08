@@ -4,7 +4,7 @@ from multiprocessing import current_process
 #from iexfinance.stocks import get_historical_intraday
 
 #from .fileIO import *
-from hyperparameters import constants 
+from .hyperparameters import constants
 
 # ------------------------------------------------------------------------
 # ----------------------------- Variables --------------------------------
