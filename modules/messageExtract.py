@@ -59,10 +59,7 @@ def findDateTime(message):
     if (message is None):
         return None
     else:
-        try:
-            dateTime = parse(message)
-        except:
-            return None
+        dateTime = parse(message)
         currDay = datetime.datetime.now()
         nextDay = currDay + datetime.timedelta(1)
         if (dateTime > nextDay):

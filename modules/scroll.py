@@ -26,12 +26,12 @@ def findLastTime(messages):
     t = lastMessage.split('\n')
     dateTime = None
     if (t[0] == "Bearish" or t[0] == "Bullish"):
-        if (t[2] == 'Plus'):
+        if (t[2] == 'Plus' or t[1] == 'Lifetime'):
             dateTime = findDateTime(t[3])
         else:
             dateTime = findDateTime(t[2])
     else:
-        if (t[1] == 'Plus'):
+        if (t[1] == 'Plus' or t[1] == 'Lifetime'):
             dateTime = findDateTime(t[2])
         else:
             dateTime = findDateTime(t[1])
@@ -58,11 +58,7 @@ def scrollFor(driver, hoursBack):
         if (len(messages) == 0):
             raise Exception('Len of messages was 0 ???')
 
-        try:
-            currTime = findLastTime(messages)
-        except Exception as e:
-            raise e
-
+        currTime = findLastTime(messages)
         if (currTime is None):
             raise Exception('How did this happen')
 
