@@ -11,6 +11,7 @@ import ssl
 import sys
 import time
 from multiprocessing import Pool, Process
+from random import shuffle
 
 import pymongo
 from dateutil.parser import parse
@@ -123,6 +124,7 @@ def analyzeUsers():
     allUsers = db.users_not_analyzed
     cursor = allUsers.find()
     users = list(map(lambda document: document['_id'], cursor))
+    shuffle(users)
 
     for username in users:
         print(username)

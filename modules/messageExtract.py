@@ -58,7 +58,7 @@ def findDateFromMessage(message):
     t = text.split('\n')
     dateTime = None
     if (t[0] == "Bearish" or t[0] == "Bullish"):
-        if (t[2] == 'Plus' or t[1] == 'Lifetime'):
+        if (t[2] == 'Plus' or t[2] == 'Lifetime'):
             dateTime = findDateTime(t[3])
         else:
             dateTime = findDateTime(t[2])

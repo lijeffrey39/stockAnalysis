@@ -218,11 +218,23 @@ def parseUserData(username, soup):
         isBull = isBullMessage(m)
         likeCnt = likeCount(m)
         commentCnt = commentCount(m)
+        dateTime = None
 
-        # need to convert to EDT time zone
-        dateTime = findDateTime(t[1].text)
+        # Handle edge cases
+        if (textFound == 'Lifetime' or textFound == 'Plus'):
+            if (t[1].text == ''):
+                textFound = allText[4].find('div').text
+                dateTime = findDateTime(t[2].text)
+            else:
+                dateTime = findDateTime(t[1].text)
+        else:
+            if (t[1].text == ''):
+                dateTime = findDateTime(t[2].text)
+            else:
+                dateTime = findDateTime(t[1].text)
+
         if (dateTime is None):
-            continue
+            raise Exception("How was datetime None")
 
         dateTime = convertToEST(dateTime)
 
