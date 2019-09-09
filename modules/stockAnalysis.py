@@ -28,6 +28,17 @@ messageTextAttr = 'st_29E11sZ'
 # ------------------------------------------------------------------------
 
 
+# Returns list of all stocks
+def getAllStocks():
+    allStocks = constants['db_client'].get_database('stocktwits_db').all_stocks
+    cursor = allStocks.find()
+    stocks = list(map(lambda document: document['_id'], cursor))
+    stocks.sort()
+    stocks.remove('SPY')
+    stocks.remove('OBLN')
+    return stocks
+
+
 # Return soup object page of that stock
 def findPageStock(symbol, date, hoursBack):
     driver = None
@@ -68,6 +79,83 @@ def findPageStock(symbol, date, hoursBack):
     return (soup, '', (end - start))
 
 
+# Returns whether the stock should be parsed or not
+# Will be parsed if it has been more than 12 hours since the last time it was
+def shouldParseStock(symbol, dateString, db):
+    tweetsErrorCollection = db.stock_tweets_errors
+    if (tweetsErrorCollection.
+            count_documents({'symbol': symbol,
+                             'date': dateString}) != 0):
+        return (False, 0)
+
+    lastParsed = db.last_parsed
+    lastTime = lastParsed.find({'_id': symbol})
+    tweetsMapped = list(map(lambda document: document, lastTime))
+    currTime = convertToEST(datetime.datetime.now())
+    dateNow = currTime.replace(tzinfo=None)
+
+    if (len(tweetsMapped) == 0):
+        datePrev = parse(dateString)
+        hoursBack = ((dateNow - datePrev).total_seconds() / 3600.0) + 1
+        print(dateNow, datePrev, hoursBack)
+        return (True, hoursBack)
+
+    lastTime = tweetsMapped[0]['time']
+    totalHoursBack = (dateNow - lastTime).total_seconds() / 3600.0
+    print(lastTime, dateNow, totalHoursBack)
+
+    # need to continue to parse if data is more than 3 hours old
+    if (totalHoursBack > 8):
+        return (True, totalHoursBack)
+    else:
+        return (False, 0)
+
+
+# Updates the time this symbol was last parsed
+def updateLastParsedTime(db, symbol):
+    lastParsedDB = db.last_parsed
+    lastTime = lastParsedDB.find({'_id': symbol})
+    tweetsMapped = list(map(lambda document: document, lastTime))
+    currTime = convertToEST(datetime.datetime.now())
+    dateNow = currTime.replace(tzinfo=None)
+
+    # If no last parsed time has been set yet
+    if (len(tweetsMapped) == 0):
+        lastParsedDB.insert_one({'_id': symbol, 'time': dateNow})
+    else:
+        # update last parsed time as current time
+        query = {'_id': symbol}
+        newVal = {'$set': {'time': dateNow}}
+        lastParsedDB.update_one(query, newVal)
+
+
+# Updates the time stamp for the last message for
+# this symbol to find avoid overlap
+def updateLastMessageTime(db, symbol, result):
+    currLastTime = parse(result[0]['time'])
+    lastMessageTimeCollection = db.last_message
+
+    lastTime = lastMessageTimeCollection.find({'_id': symbol})
+    timesMapped = list(map(lambda document: document, lastTime))
+
+    # if no last message has been set yet
+    if (len(timesMapped) == 0):
+        newLastMessage = {'_id': symbol, 'time': currLastTime}
+        lastMessageTimeCollection.insert_one(newLastMessage)
+        return result
+
+    lastTime = timesMapped[0]['time']
+    newResult = []
+    for tweet in result:
+        if (parse(tweet['time']) > lastTime):
+            newResult.append(tweet)
+
+    query = {'_id': symbol}
+    newVal = {'$set': {'time': currLastTime}}
+    lastMessageTimeCollection.update_one(query, newVal)
+    return newResult
+
+
 def parseStockData(symbol, soup):
     res = []
     messages = soup.find_all('div', 
@@ -97,7 +185,10 @@ def parseStockData(symbol, soup):
             else:
                 dateTime = findDateTime(t[1].text)
         else:
-            dateTime = findDateTime(t[1].text)
+            if (t[1].text == ''):
+                dateTime = findDateTime(t[2].text)
+            else:
+                dateTime = findDateTime(t[1].text)
 
         if (username is None or dateTime is None):
             raise Exception("How was datetime None")
@@ -122,3 +213,16 @@ def parseStockData(symbol, soup):
 # Remove duplicate tweets from db given a symbol
 def removeDuplicatesDB(symbol):
     return symbol
+
+
+# Analyze errored stocks
+def analyzeErrors(date):
+    dateString = date.strftime("%Y-%m-%d")
+
+    clientStockTweets = constants['stocktweets_client']
+    db = clientStockTweets.get_database('stocks_data_db')
+    tweetsErrorCollection = db.stock_tweets_errors
+    errorsWithDate = tweetsErrorCollection.find({'date': dateString})
+    errorsMapped = list(map(lambda document: document, errorsWithDate))
+    print(errorsMapped[0]['_id'], errorsMapped[0]['symbol'])
+    return
