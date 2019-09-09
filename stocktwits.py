@@ -160,9 +160,12 @@ def analyzeStocks(date):
             db.stock_tweets_errors.insert_one(stockError)
             continue
 
-        updateLastParsedTime(db, symbol)
         result = updateLastMessageTime(db, symbol, result)
-        db.stock_tweets.insert_many(result)
+
+        # No new messages
+        if (len(result) != 0):
+            db.stock_tweets.insert_many(result)
+        updateLastParsedTime(db, symbol)
 
 
 # ------------------------------------------------------------------------
