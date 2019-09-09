@@ -145,7 +145,7 @@ def analyzeStocks(date):
                           'error': errorMsg, 'timeElapsed': timeElapsed}
             db.stock_tweets_errors.insert_one(stockError)
             continue
-        
+
         try:
             result = parseStockData(symbol, soup)
         except Exception as e:

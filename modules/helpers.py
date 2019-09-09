@@ -74,7 +74,6 @@ def findTradingDays(date, upToDate):
         # See if it's a valid trading day
         if (isTradingDay(date)):
             dates.append(date)
-
         date += delta
 
     return dates

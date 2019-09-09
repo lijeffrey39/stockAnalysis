@@ -13,7 +13,7 @@ from bs4 import BeautifulSoup
 from .fileIO import *
 from .helpers import convertToEST
 from .hyperparameters import constants
-from .messageExtract import findDateTime
+from .messageExtract import findDateTime, findDateFromMessage
 
 
 # ------------------------------------------------------------------------
@@ -22,20 +22,8 @@ from .messageExtract import findDateTime
 
 
 def findLastTime(messages):
-    lastMessage = messages[len(messages) - 1].text
-    t = lastMessage.split('\n')
-    dateTime = None
-    if (t[0] == "Bearish" or t[0] == "Bullish"):
-        if (t[2] == 'Plus' or t[1] == 'Lifetime'):
-            dateTime = findDateTime(t[3])
-        else:
-            dateTime = findDateTime(t[2])
-    else:
-        if (t[1] == 'Plus' or t[1] == 'Lifetime'):
-            dateTime = findDateTime(t[2])
-        else:
-            dateTime = findDateTime(t[1])
-    return dateTime
+    lastMessage = messages[len(messages) - 1]
+    return findDateFromMessage(lastMessage)
 
 
 # Scroll for # days

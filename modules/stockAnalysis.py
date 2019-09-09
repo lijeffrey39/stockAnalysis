@@ -40,7 +40,6 @@ def findPageStock(symbol, date, hoursBack):
         print(e)
         return ('', str(e), 0)
 
-    error_message = ''
     start = time.time()
     url = "https://stocktwits.com/symbol/%s" % symbol
 
@@ -66,7 +65,7 @@ def findPageStock(symbol, date, hoursBack):
     end = time.time()
     print('Parsing user took %d seconds' % (end - start))
     driver.quit()
-    return (soup, error_message, (end - start))
+    return (soup, '', (end - start))
 
 
 def parseStockData(symbol, soup):
@@ -88,12 +87,22 @@ def parseStockData(symbol, soup):
         isBull = isBullMessage(m)
         likeCnt = likeCount(m)
         commentCnt = commentCount(m)
+        dateTime = None
+
+        # Handle edge cases
+        if (textFound == 'Lifetime' or textFound == 'Plus'):
+            if (t[1].text == ''):
+                textFound = allText[4].find('div').text
+                dateTime = findDateTime(t[2].text)
+            else:
+                dateTime = findDateTime(t[1].text)
+        else:
+            dateTime = findDateTime(t[1].text)
+
+        if (username is None or dateTime is None):
+            raise Exception("How was datetime None")
 
         # need to convert to EDT time zone
-        dateTime = findDateTime(t[1].text)
-        if (username is None or dateTime is None):
-            raise Exception(m)
-
         dateTime = convertToEST(dateTime)
 
         cur_res = {}
@@ -108,3 +117,8 @@ def parseStockData(symbol, soup):
 
         res.append(cur_res)
     return res
+
+
+# Remove duplicate tweets from db given a symbol
+def removeDuplicatesDB(symbol):
+    return symbol
