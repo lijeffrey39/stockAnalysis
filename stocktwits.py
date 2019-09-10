@@ -195,7 +195,7 @@ def main():
         # date = datetime.datetime(dateNow.year, 1, 14)
         # dateUpTo = datetime.datetime(dateNow.year, 3, 1)
         now = convertToEST(datetime.datetime.now())
-        date = datetime.datetime(now.year, now.month, 1)
+        date = datetime.datetime(now.year, now.month, 9)
         analyzeErrors(date)
         # updateUserNotAnalyzed()
         return

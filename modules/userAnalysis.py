@@ -33,6 +33,7 @@ ideaAttr = 'st__tZJhLh'
 # ----------------------------- Functions --------------------------------
 # ------------------------------------------------------------------------
 
+
 def endDriver(driver):
     driver.close()
     driver.quit()
@@ -249,6 +250,7 @@ def parseUserData(username, soup):
     return res
 
 
+# Loop through all stock tweets and finds users that are not already in db
 def updateUserNotAnalyzed():
     allUsers = constants['db_client'].get_database('stocktwits_db').users_not_analyzed
     cursor = allUsers.find()

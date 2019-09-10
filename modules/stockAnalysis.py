@@ -28,6 +28,11 @@ messageTextAttr = 'st_29E11sZ'
 # ------------------------------------------------------------------------
 
 
+def endDriver(driver):
+    driver.close()
+    driver.quit()
+
+
 # Returns list of all stocks
 def getAllStocks():
     allStocks = constants['db_client'].get_database('stocktwits_db').all_stocks
@@ -48,7 +53,6 @@ def findPageStock(symbol, date, hoursBack):
                                   desired_capabilities=constants['caps'])
         driver.set_page_load_timeout(90)
     except Exception as e:
-        print(e)
         return ('', str(e), 0)
 
     start = time.time()
@@ -59,23 +63,21 @@ def findPageStock(symbol, date, hoursBack):
         driver.get(url)
     except Exception as e:
         end = time.time()
-        driver.quit()
-        print(e)
+        endDriver(driver)
         return ('', str(e), end - start)
 
     try:
         scroll.scrollFor(driver, hoursBack)
     except Exception as e:
-        driver.quit()
+        endDriver(driver)
         end = time.time()
-        print(e)
         return ('', str(e), end - start)
 
     html = driver.page_source
     soup = BeautifulSoup(html, 'html.parser')
     end = time.time()
     print('Parsing user took %d seconds' % (end - start))
-    driver.quit()
+    endDriver(driver)
     return (soup, '', (end - start))
 
 
@@ -105,7 +107,7 @@ def shouldParseStock(symbol, dateString, db):
     print(lastTime, dateNow, totalHoursBack)
 
     # need to continue to parse if data is more than 3 hours old
-    if (totalHoursBack > 8):
+    if (totalHoursBack > 13):
         return (True, totalHoursBack)
     else:
         return (False, 0)
@@ -222,7 +224,16 @@ def analyzeErrors(date):
     clientStockTweets = constants['stocktweets_client']
     db = clientStockTweets.get_database('stocks_data_db')
     tweetsErrorCollection = db.stock_tweets_errors
+    allStocks = constants['db_client'].get_database('stocktwits_db').all_stocks
     errorsWithDate = tweetsErrorCollection.find({'date': dateString})
     errorsMapped = list(map(lambda document: document, errorsWithDate))
-    print(errorsMapped[0]['_id'], errorsMapped[0]['symbol'])
+
+    # Remove stocks that are empty
+    # for error in errorsMapped:
+    #     print(error['error'])
+    #     print(error['symbol'])
+    #     if (error['error'] == 'Len of messages was 0 ???'):
+    #         allStocks.delete_one({'_id': error['symbol']})
+    #         tweetsErrorCollection.delete_one({'_id': error['_id']})
+
     return
