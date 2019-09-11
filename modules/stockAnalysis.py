@@ -76,7 +76,7 @@ def findPageStock(symbol, date, hoursBack):
     html = driver.page_source
     soup = BeautifulSoup(html, 'html.parser')
     end = time.time()
-    print('Parsing user took %d seconds' % (end - start))
+    print('Parsing stock took %d seconds' % (end - start))
     endDriver(driver)
     return (soup, '', (end - start))
 
