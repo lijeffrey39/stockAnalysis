@@ -22,7 +22,6 @@ symbolsIgnored = ["PTX", "RGSE", "AMD", "TSLA", "AMZN", "MNGA", "NBEV", "CRMD"]
 # ------------------------------------------------------------------------
 
 
-
 # Creates top users for each stock (Run each time there are new users)
 def writeTempListStocks():
 	stocks1 = readSingleList('stockList.csv')
@@ -30,7 +29,6 @@ def writeTempListStocks():
 	for s in stocks1:
 		res = topUsersStock(s, 0)
 		writeSingleList('templists/' + s + '.csv', res)
-
 
 
 # Returns the top users for that stock
@@ -54,7 +52,6 @@ def topUsersStock(stock, num):
 		return result
 	else:
 		return result[:num]
-
 
 
 # Creates userxxx_info.csv for each user
@@ -89,7 +86,6 @@ def statsUsers():
 		#total = round(reduce(lambda a, b: a + b, list(map(lambda x: x[4], res))), 4)
 
 		writeSingleList('userCalculated/' + user + '_info.csv', res)
-
 
 
 # Find how much stock to buy based on money/ratios

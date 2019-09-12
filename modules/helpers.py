@@ -20,7 +20,8 @@ from .stockPriceAPI import *
 
 def convertToEST(dateTime):
     if (constants['current_timezone'] != 'EDT' and
-        constants['current_timezone'] != 'EST'):
+        constants['current_timezone'] != 'EST' and
+        constants['current_timezone'] != 'Eastern Daylight Time'):
         # localize to current time zone
         currTimeZone = pytz.timezone(constants['current_timezone'])
         dateTime = currTimeZone.localize(dateTime)
