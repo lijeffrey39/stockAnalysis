@@ -93,11 +93,13 @@ def shouldParseUser(username):
         return None
 
     (coreInfo, error) = findUserInfo(username)
+    # coreInfo['ideas'] = -1
+    # username = 'ElliottwaveForecast'
 
     # If API is down/user doesnt exist
     if (not coreInfo):
-        errorMsg = "User doesn't exist"
-        userInfoError = {'_id': username, 'error': error}
+        errorMsg = "User doesn't exist / API down"
+        userInfoError = {'_id': username, 'error': errorMsg}
         analyzedUsers.insert_one(userInfoError)
         return None
 
@@ -116,8 +118,33 @@ def shouldParseUser(username):
         analyzedUsers.insert_one(coreInfo)
         return None
 
+    coreInfo['last_updated'] = convertToEST(datetime.datetime.now())
+
     return coreInfo
 
+def refreshUserStatus():
+    analyzedUsers = clientUser.get_database('user_data_db').users
+    query = {"error": ""}
+    goodUsers = analyzedUsers.find(query)
+
+    curTime = convertToEST(datetime.datetime.now())
+    for users in goodUsers:
+        # only update if data is over 7 days old
+        if 'last_updated' in users:
+            lastTime = users['last_updated']
+            lastTime = convertToEST(lastTime)
+            hoursPast = (curTime - lastTime).total_seconds() / 3600.0
+            if (hoursPast < 168):
+                continue
+
+        username = users['_id']
+        print(username)
+        (result, error) = findUserInfoDriver(username)
+        users.update(result)
+        users['last_updated'] = convertToEST(datetime.datetime.now())
+        updateQuery = {'_id': username}
+        newValues = {'$set': users}
+        analyzedUsers.update_one(updateQuery, newValues)
 
 def analyzeUsers():
     db = client.get_database('stocktwits_db')
@@ -186,7 +213,8 @@ def main():
     dateNow = datetime.datetime.now()
 
     if (options.users):
-        analyzeUsers()
+        refreshUserStatus()
+        # analyzeUsers()
     elif (options.stocks):
         now = convertToEST(datetime.datetime.now())
         date = datetime.datetime(now.year, now.month, 13)

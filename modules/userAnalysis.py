@@ -154,11 +154,24 @@ def findUserInfoDriver(username):
     html = driver.page_source
     soup = BeautifulSoup(html, 'html.parser')
     ideas = soup.find_all('h2', attrs={'class': ideaAttr})
-    memberTextArray = soup.find_all('span', attrs={'class': 'st_21r0FbC st_2fTou_q'})
+    memberTextArray = soup.find_all('span', attrs={'class': constants['html_class_user_info']})
 
     if (len(ideas) == 0):
         endDriver(driver)
         return (None, "User doesn't exist")
+
+    # find user type, will be stored in bitwise fashion
+    # plus is bit 3, lifetime is bit 2, official is bit 1, premium bit 0
+
+    plus = soup.find('div', attrs={'class': constants['html_class_plus']})
+    official = soup.find('span', attrs={'class': constants['html_class_official']})
+    premium = soup.find('a', attrs={'class': constants['html_class_premium_room']})
+
+    status = 0
+    if plus:
+        status += 8 if plus.text == 'Lifetime' else 4
+    status += 2 if official else 0
+    status += 1 if premium else 0
 
     if (len(memberTextArray) >= 1):
         try:
@@ -174,12 +187,13 @@ def findUserInfoDriver(username):
     user_info_dict['following'] = parseKOrInt(ideas[1].text)
     user_info_dict['followers'] = parseKOrInt(ideas[2].text)
     user_info_dict['like_count'] = parseKOrInt(ideas[3].text)
+    user_info_dict['user_status'] = status
 
     endDriver(driver)
     return (user_info_dict, '')
 
 
-# Gets initial information for user
+# Gets initial information for user from API
 def findUserInfo(username):
     response = requests.get(url='https://api.stocktwits.com/api/2/streams/user/%s.json' % username)
 
@@ -220,6 +234,7 @@ def parseUserData(username, soup):
         likeCnt = likeCount(m)
         commentCnt = commentCount(m)
         dateTime = None
+        userStatus = ''
 
         # Handle edge cases
         if (textFound == 'Lifetime' or textFound == 'Plus'):
@@ -244,6 +259,12 @@ def parseUserData(username, soup):
         cur_res['messageText'] = textFound
         res.append(cur_res)
     return res
+
+
+# extract status information from bits
+def getUserStatus(status):
+    return {'lifetime': bool(status & 8), 'plus': bool(status & 4),
+            'official': bool(status & 2), 'premium': bool(status & 1)}
 
 
 # Loop through all stock tweets and finds users that are not already in db
