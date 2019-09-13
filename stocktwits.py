@@ -134,7 +134,7 @@ def refreshUserStatus():
             lastTime = users['last_updated']
             lastTime = convertToEST(lastTime)
             hoursPast = (curTime - lastTime).total_seconds() / 3600.0
-            if (hoursPast > 168):
+            if (hoursPast < 168):
                 continue
 
         username = users['_id']
