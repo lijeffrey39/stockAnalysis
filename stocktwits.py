@@ -118,6 +118,8 @@ def shouldParseUser(username):
         analyzedUsers.insert_one(coreInfo)
         return None
 
+    coreInfo['last_updated'] = convertToEST(datetime.datetime.now())
+
     return coreInfo
 
 def refreshUserStatus():
@@ -130,6 +132,7 @@ def refreshUserStatus():
         # only update if data is over 7 days old
         if 'last_updated' in users:
             lastTime = users['last_updated']
+            lastTime = convertToEST(lastTime)
             hoursPast = (curTime - lastTime).total_seconds() / 3600.0
             if (hoursPast > 168):
                 continue
