@@ -94,7 +94,6 @@ def shouldParseStock(symbol, dateString, db):
     lastTime = lastParsed.find({'_id': symbol})
     tweetsMapped = list(map(lambda document: document, lastTime))
     currTime = convertToEST(datetime.datetime.now())
-    dateNow = currTime.replace(tzinfo=None)
 
     if (len(tweetsMapped) == 0):
         datePrev = parse(dateString)
@@ -119,7 +118,6 @@ def updateLastParsedTime(db, symbol):
     lastTime = lastParsedDB.find({'_id': symbol})
     tweetsMapped = list(map(lambda document: document, lastTime))
     currTime = convertToEST(datetime.datetime.now())
-    dateNow = currTime.replace(tzinfo=None)
 
     # If no last parsed time has been set yet
     if (len(tweetsMapped) == 0):

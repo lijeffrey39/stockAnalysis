@@ -122,6 +122,7 @@ def shouldParseUser(username):
 
     return coreInfo
 
+
 def refreshUserStatus():
     analyzedUsers = clientUser.get_database('user_data_db').users
     query = {"error": ""}
@@ -145,6 +146,7 @@ def refreshUserStatus():
         updateQuery = {'_id': username}
         newValues = {'$set': users}
         analyzedUsers.update_one(updateQuery, newValues)
+
 
 def analyzeUsers():
     db = client.get_database('stocktwits_db')
@@ -213,15 +215,12 @@ def main():
     dateNow = datetime.datetime.now()
 
     if (options.users):
-        refreshUserStatus()
-        # analyzeUsers()
+        analyzeUsers()
     elif (options.stocks):
         now = convertToEST(datetime.datetime.now())
         date = datetime.datetime(now.year, now.month, 13)
         analyzeStocks(date)
     else:
-        # date = datetime.datetime(dateNow.year, 1, 14)
-        # dateUpTo = datetime.datetime(dateNow.year, 3, 1)
         now = convertToEST(datetime.datetime.now())
         date = datetime.datetime(now.year, now.month, 10)
         analyzeErrors(date)
