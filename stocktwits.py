@@ -140,6 +140,7 @@ def refreshUserStatus():
                 continue
 
         username = users['_id']
+        username = "BasketTrader"
         print(username)
         (result, error) = findUserInfoDriver(username)
         users.update(result)
@@ -216,7 +217,8 @@ def main():
     dateNow = datetime.datetime.now()
 
     if (options.users):
-        analyzeUsers()
+        refreshUserStatus()
+        # analyzeUsers()
     elif (options.stocks):
         now = convertToEST(datetime.datetime.now())
         date = datetime.datetime(now.year, now.month, 13)

@@ -162,10 +162,11 @@ def findUserInfoDriver(username):
 
     # find user type, will be stored in bitwise fashion
     # plus is bit 3, lifetime is bit 2, official is bit 1, premium bit 0
+    user_block = soup.find('div', attrs={'class': constants['html_class_user_div']})
 
-    plus = soup.find('div', attrs={'class': constants['html_class_plus']})
-    official = soup.find('span', attrs={'class': constants['html_class_official']})
-    premium = soup.find('a', attrs={'class': constants['html_class_premium_room']})
+    plus = user_block.find('div', attrs={'class': constants['html_class_plus']})
+    official = user_block.find('span', attrs={'class': constants['html_class_official']})
+    premium = user_block.find('a', attrs={'class': constants['html_class_premium_room']})
 
     status = 0
     if plus:
@@ -214,6 +215,19 @@ def findUserInfo(username):
     fields = {'join_date', 'followers', 'following', 'ideas', 'like_count'}
     for f in fields:
         user_info_dict[f] = info[f]
+
+    status = 0
+    if info["plus_tier"] == 'life':
+        status += 8
+    if info["plus_tier"] == 'month':
+        status += 4
+    if info["official"]:
+        status += 2
+    if info["premium_room"] != "":
+        status += 1
+
+    user_info_dict['user_status'] = status
+
     return (user_info_dict, '')
 
 
