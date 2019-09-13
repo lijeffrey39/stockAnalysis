@@ -123,33 +123,6 @@ def shouldParseUser(username):
     return coreInfo
 
 
-def refreshUserStatus():
-    analyzedUsers = clientUser.get_database('user_data_db').users
-    query = {"error": ""}
-    goodUsers = analyzedUsers.find(query)
-    goodUsers = list(map(lambda document: document, goodUsers))
-
-    curTime = convertToEST(datetime.datetime.now())
-    for users in goodUsers:
-        # only update if data is over 7 days old
-        if 'last_updated' in users:
-            lastTime = users['last_updated']
-            lastTime = convertToEST(lastTime)
-            hoursPast = (curTime - lastTime).total_seconds() / 3600.0
-            if (hoursPast < 168):
-                continue
-
-        username = users['_id']
-        username = "BasketTrader"
-        print(username)
-        (result, error) = findUserInfoDriver(username)
-        users.update(result)
-        users['last_updated'] = convertToEST(datetime.datetime.now())
-        updateQuery = {'_id': username}
-        newValues = {'$set': users}
-        analyzedUsers.update_one(updateQuery, newValues)
-
-
 def analyzeUsers():
     db = client.get_database('stocktwits_db')
     allUsers = db.users_not_analyzed

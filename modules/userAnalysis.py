@@ -275,6 +275,37 @@ def parseUserData(username, soup):
     return res
 
 
+# Only should need to be called once. Adds two new fields to each user
+def refreshUserStatus():
+    analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
+    query = {"error": ""}
+    goodUsers = analyzedUsers.find(query)
+    goodUsers = list(map(lambda document: document, goodUsers))
+    currTime = convertToEST(datetime.datetime.now())
+
+    for users in goodUsers:
+        # only update if data is over 7 days old
+        if 'last_updated' in users:
+            lastTime = users['last_updated']
+            lastTime = convertToEST(lastTime)
+            hoursPast = (currTime - lastTime).total_seconds() / 3600.0
+            if (hoursPast < 168):
+                continue
+
+        username = users['_id']
+        print(username)
+        (result, error) = findUserInfoDriver(username)
+        # If the user doesn't exist anymore (Should update in DB to reflect)
+        if (result is None):
+            continue
+
+        users.update(result)
+        users['last_updated'] = convertToEST(datetime.datetime.now())
+        updateQuery = {'_id': username}
+        newValues = {'$set': users}
+        analyzedUsers.update_one(updateQuery, newValues)
+
+
 # extract status information from bits
 def getUserStatus(status):
     return {'lifetime': bool(status & 8), 'plus': bool(status & 4),
