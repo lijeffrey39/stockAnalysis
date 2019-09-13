@@ -97,13 +97,13 @@ def shouldParseStock(symbol, dateString, db):
 
     if (len(tweetsMapped) == 0):
         datePrev = parse(dateString)
-        hoursBack = ((dateNow - datePrev).total_seconds() / 3600.0) + 1
-        print(dateNow, datePrev, hoursBack)
+        hoursBack = ((currTime - datePrev).total_seconds() / 3600.0) + 1
+        print(currTime, datePrev, hoursBack)
         return (True, hoursBack)
 
     lastTime = tweetsMapped[0]['time']
-    totalHoursBack = (dateNow - lastTime).total_seconds() / 3600.0
-    print(lastTime, dateNow, totalHoursBack)
+    totalHoursBack = (currTime - lastTime).total_seconds() / 3600.0
+    print(lastTime, currTime, totalHoursBack)
 
     # need to continue to parse if data is more than 3 hours old
     if (totalHoursBack > 6):
@@ -121,11 +121,11 @@ def updateLastParsedTime(db, symbol):
 
     # If no last parsed time has been set yet
     if (len(tweetsMapped) == 0):
-        lastParsedDB.insert_one({'_id': symbol, 'time': dateNow})
+        lastParsedDB.insert_one({'_id': symbol, 'time': currTime})
     else:
         # update last parsed time as current time
         query = {'_id': symbol}
-        newVal = {'$set': {'time': dateNow}}
+        newVal = {'$set': {'time': currTime}}
         lastParsedDB.update_one(query, newVal)
 
 

@@ -127,6 +127,7 @@ def refreshUserStatus():
     analyzedUsers = clientUser.get_database('user_data_db').users
     query = {"error": ""}
     goodUsers = analyzedUsers.find(query)
+    goodUsers = list(map(lambda document: document, goodUsers))
 
     curTime = convertToEST(datetime.datetime.now())
     for users in goodUsers:
