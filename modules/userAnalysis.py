@@ -223,16 +223,12 @@ def parseUserData(username, soup):
 
         # Handle edge cases
         if (textFound == 'Lifetime' or textFound == 'Plus'):
-            if (t[1].text == ''):
-                textFound = allText[4].find('div').text
-                dateTime = findDateTime(t[2].text)
-            else:
-                dateTime = findDateTime(t[1].text)
+            textFound = allText[4].find('div').text
+
+        if (t[1].text == ''):
+            dateTime = findDateTime(t[2].text)
         else:
-            if (t[1].text == ''):
-                dateTime = findDateTime(t[2].text)
-            else:
-                dateTime = findDateTime(t[1].text)
+            dateTime = findDateTime(t[1].text)
 
         if (dateTime is None):
             raise Exception("How was datetime None")

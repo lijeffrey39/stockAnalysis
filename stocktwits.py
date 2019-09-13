@@ -189,7 +189,7 @@ def main():
         analyzeUsers()
     elif (options.stocks):
         now = convertToEST(datetime.datetime.now())
-        date = datetime.datetime(now.year, now.month, 10)
+        date = datetime.datetime(now.year, now.month, 13)
         analyzeStocks(date)
     else:
         # date = datetime.datetime(dateNow.year, 1, 14)
