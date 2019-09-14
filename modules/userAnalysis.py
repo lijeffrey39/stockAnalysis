@@ -33,6 +33,7 @@ ideaAttr = 'st__tZJhLh'
 # ----------------------------- Functions --------------------------------
 # ------------------------------------------------------------------------
 
+
 def endDriver(driver):
     driver.close()
     driver.quit()
@@ -153,11 +154,25 @@ def findUserInfoDriver(username):
     html = driver.page_source
     soup = BeautifulSoup(html, 'html.parser')
     ideas = soup.find_all('h2', attrs={'class': ideaAttr})
-    memberTextArray = soup.find_all('span', attrs={'class': 'st_21r0FbC st_2fTou_q'})
+    memberTextArray = soup.find_all('span', attrs={'class': constants['html_class_user_info']})
 
     if (len(ideas) == 0):
         endDriver(driver)
         return (None, "User doesn't exist")
+
+    # find user type, will be stored in bitwise fashion
+    # plus is bit 3, lifetime is bit 2, official is bit 1, premium bit 0
+    user_block = soup.find('div', attrs={'class': constants['html_class_user_div']})
+
+    plus = user_block.find('div', attrs={'class': constants['html_class_plus']})
+    official = user_block.find('span', attrs={'class': constants['html_class_official']})
+    premium = user_block.find('a', attrs={'class': constants['html_class_premium_room']})
+
+    status = 0
+    if plus:
+        status += 8 if plus.text == 'Lifetime' else 4
+    status += 2 if official else 0
+    status += 1 if premium else 0
 
     if (len(memberTextArray) >= 1):
         try:
@@ -173,12 +188,13 @@ def findUserInfoDriver(username):
     user_info_dict['following'] = parseKOrInt(ideas[1].text)
     user_info_dict['followers'] = parseKOrInt(ideas[2].text)
     user_info_dict['like_count'] = parseKOrInt(ideas[3].text)
+    user_info_dict['user_status'] = status
 
     endDriver(driver)
     return (user_info_dict, '')
 
 
-# Gets initial information for user
+# Gets initial information for user from API
 def findUserInfo(username):
     response = requests.get(url='https://api.stocktwits.com/api/2/streams/user/%s.json' % username)
 
@@ -199,6 +215,19 @@ def findUserInfo(username):
     fields = {'join_date', 'followers', 'following', 'ideas', 'like_count'}
     for f in fields:
         user_info_dict[f] = info[f]
+
+    status = 0
+    if info["plus_tier"] == 'life':
+        status += 8
+    if info["plus_tier"] == 'month':
+        status += 4
+    if info["official"]:
+        status += 2
+    if info["premium_room"] != "":
+        status += 1
+
+    user_info_dict['user_status'] = status
+
     return (user_info_dict, '')
 
 
@@ -218,11 +247,20 @@ def parseUserData(username, soup):
         isBull = isBullMessage(m)
         likeCnt = likeCount(m)
         commentCnt = commentCount(m)
+        dateTime = None
+        userStatus = ''
 
-        # need to convert to EDT time zone
-        dateTime = findDateTime(t[1].text)
+        # Handle edge cases
+        if (textFound == 'Lifetime' or textFound == 'Plus'):
+            textFound = allText[4].find('div').text
+
+        if (t[1].text == ''):
+            dateTime = findDateTime(t[2].text)
+        else:
+            dateTime = findDateTime(t[1].text)
+
         if (dateTime is None):
-            continue
+            raise Exception("How was datetime None")
 
         dateTime = convertToEST(dateTime)
 
@@ -234,5 +272,58 @@ def parseUserData(username, soup):
         cur_res['commentCount'] = commentCnt
         cur_res['messageText'] = textFound
         res.append(cur_res)
-
     return res
+
+
+# Only should need to be called once. Adds two new fields to each user
+def refreshUserStatus():
+    analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
+    query = {"error": ""}
+    goodUsers = analyzedUsers.find(query)
+    goodUsers = list(map(lambda document: document, goodUsers))
+    currTime = convertToEST(datetime.datetime.now())
+
+    for users in goodUsers:
+        # only update if data is over 7 days old
+        if 'last_updated' in users:
+            lastTime = users['last_updated']
+            lastTime = convertToEST(lastTime)
+            hoursPast = (currTime - lastTime).total_seconds() / 3600.0
+            if (hoursPast < 168):
+                continue
+
+        username = users['_id']
+        print(username)
+        (result, error) = findUserInfoDriver(username)
+        # If the user doesn't exist anymore (Should update in DB to reflect)
+        if (result is None):
+            continue
+
+        users.update(result)
+        users['last_updated'] = convertToEST(datetime.datetime.now())
+        updateQuery = {'_id': username}
+        newValues = {'$set': users}
+        analyzedUsers.update_one(updateQuery, newValues)
+
+
+# extract status information from bits
+def getUserStatus(status):
+    return {'lifetime': bool(status & 8), 'plus': bool(status & 4),
+            'official': bool(status & 2), 'premium': bool(status & 1)}
+
+
+# Loop through all stock tweets and finds users that are not already in db
+def updateUserNotAnalyzed():
+    allUsers = constants['db_client'].get_database('stocktwits_db').users_not_analyzed
+    cursor = allUsers.find()
+    users = set(list(map(lambda document: document['_id'], cursor)))
+
+    userSet = set([])
+    tweets = constants['stocktweets_client'].get_database('stocks_data_db').stock_tweets.find()
+    for doc in tweets:
+        currUserName = doc['user']
+        if (currUserName not in users):
+            userSet.add(currUserName)
+
+    listNewUsers = list(userSet)
+    print(len(listNewUsers))

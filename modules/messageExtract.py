@@ -53,16 +53,30 @@ def isValidMessage(dateTime, dateNow, isBull, user, symbol, daysInFuture):
     return True
 
 
+def findDateFromMessage(message):
+    text = message.text
+    t = text.split('\n')
+    dateTime = None
+    if (t[0] == "Bearish" or t[0] == "Bullish"):
+        if (t[2] == 'Plus' or t[2] == 'Lifetime'):
+            dateTime = findDateTime(t[3])
+        else:
+            dateTime = findDateTime(t[2])
+    else:
+        if (t[1] == 'Plus' or t[1] == 'Lifetime'):
+            dateTime = findDateTime(t[2])
+        else:
+            dateTime = findDateTime(t[1])
+    return dateTime
+
+
 # Find time of a message
 # If the time is greater than the current time, it is from last year
-def findDateTime(message):
-    if (message is None):
+def findDateTime(dateString):
+    if (dateString is None):
         return None
     else:
-        try:
-            dateTime = parse(message)
-        except:
-            return None
+        dateTime = parse(dateString)
         currDay = datetime.datetime.now()
         nextDay = currDay + datetime.timedelta(1)
         if (dateTime > nextDay):
@@ -124,7 +138,6 @@ def commentCount(message):
 
 # True if bull
 def isBullMessage(message):
-
     bullBearText = message.find('span', attrs={'class': bullBearAttr})
     if bullBearText is None:
         return None

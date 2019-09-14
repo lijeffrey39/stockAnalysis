@@ -11,6 +11,7 @@ import ssl
 import sys
 import time
 from multiprocessing import Pool, Process
+from random import shuffle
 
 import pymongo
 from dateutil.parser import parse
@@ -37,65 +38,8 @@ clientStockTweets = constants['stocktweets_client']
 
 
 # ------------------------------------------------------------------------
-# -------------------------- Global Variables ----------------------------
-# ------------------------------------------------------------------------
-
-client = pymongo.MongoClient("mongodb+srv://lijeffrey39:test@cluster0-qthez."
-                             "mongodb.net/test?retryWrites=true&w=majority",
-                             ssl_cert_reqs=ssl.CERT_NONE)
-
-
-# ------------------------------------------------------------------------
 # ----------------------- Analyze Specific Stock -------------------------
 # ------------------------------------------------------------------------
-
-
-def getAllStocks():
-    allStocks = client.get_database('stocktwits_db').all_stocks
-    cursor = allStocks.find()
-    stocks = list(map(lambda document: document['_id'], cursor))
-    stocks.sort()
-    stocks.remove('SPY')
-    stocks.remove('OBLN')
-    return stocks
-
-
-# Returns whether the stock should be parsed or not
-# Will be parsed if it has been more than 12 hours since the last time it was
-def shouldParseStock(symbol, dateString):
-    db = clientStockTweets.get_database('stocks_data_db')
-    tweetsErrorCollection = db.stock_tweets_errors
-    if (tweetsErrorCollection.
-            count_documents({'symbol': symbol,
-                             'date': dateString}) != 0):
-        return (False, 0)
-
-    lastParsed = db.last_parsed
-    lastTime = lastParsed.find({'_id': symbol})
-    tweetsMapped = list(map(lambda document: document, lastTime))
-    currTime = convertToEST(datetime.datetime.now())
-    dateNow = currTime.replace(tzinfo=None)
-
-    if (len(tweetsMapped) == 0):
-        lastParsed.insert_one({'_id': symbol, 'time': dateNow})
-        datePrev = parse(dateString)
-        hoursBack = ((dateNow - datePrev).total_seconds() / 3600.0) + 1
-        print(dateNow, datePrev, hoursBack)
-        return (True, hoursBack)
-
-    lastTime = tweetsMapped[0]['time']
-    totalHoursBack = (dateNow - lastTime).total_seconds() / 3600.0
-    print(lastTime, dateNow, totalHoursBack)
-
-    # need to continue to parse if data is more than 3 hours old
-    if (totalHoursBack > constants['hoursBackToAnalyze']):
-        # update last parsed time as current time
-        query = {'_id': symbol}
-        newVal = {'$set': {'time': dateNow}}
-        lastParsed.update_one(query, newVal)
-        return (True, totalHoursBack)
-    else:
-        return (False, 0)
 
 
 def analyzeStocks(date):
@@ -104,45 +48,38 @@ def analyzeStocks(date):
 
     for symbol in stocks:
         print(symbol)
-        (shouldParse, hours) = shouldParseStock(symbol, dateString)
+        db = clientStockTweets.get_database('stocks_data_db')
+        (shouldParse, hours) = shouldParseStock(symbol, dateString, db)
         if (shouldParse is False):
             continue
 
         (soup, errorMsg, timeElapsed) = findPageStock(symbol, date, hours)
-        db = clientStockTweets.get_database('stocks_data_db')
         if (soup is ''):
-            tweetsErrorCollection = db.stock_tweets_errors
-            stockError = {'date': dateString,
-                          'symbol': symbol,
-                          'error': errorMsg,
-                          'timeElapsed': timeElapsed}
-            tweetsErrorCollection.insert_one(stockError)
+            stockError = {'date': dateString, 'symbol': symbol,
+                          'error': errorMsg, 'timeElapsed': timeElapsed}
+            db.stock_tweets_errors.insert_one(stockError)
             continue
 
-        result = parseStockData(symbol, soup)
-
-        stockDataCollection = db.stock_tweets
-        lastMessageTimeCollection = db.last_message
-        lastTime = lastMessageTimeCollection.find({'_id': symbol})
-        timesMapped = list(map(lambda document: document, lastTime))
-        currLastTime = parse(result[0]['time'])
-
-        if (len(timesMapped) == 0):
-            stockDataCollection.insert_many(result)
-            newLastMessage = {'_id': symbol, 'time': currLastTime}
-            lastMessageTimeCollection.insert_one(newLastMessage)
+        try:
+            result = parseStockData(symbol, soup)
+        except Exception as e:
+            stockError = {'date': dateString, 'symbol': symbol,
+                          'error': str(e), 'timeElapsed': -1}
+            db.stock_tweets_errors.insert_one(stockError)
             continue
 
-        lastTime = timesMapped[0]['time']
-        newResult = []
-        for tweet in result:
-            if (parse(tweet['time']) > lastTime):
-                newResult.append(tweet)
+        if (len(result) == 0):
+            stockError = {'date': dateString, 'symbol': symbol,
+                          'error': 'Result length is 0??', 'timeElapsed': -1}
+            db.stock_tweets_errors.insert_one(stockError)
+            continue
 
-        query = {'_id': symbol}
-        newVal = {'$set': {'time': currLastTime}}
-        lastMessageTimeCollection.update_one(query, newVal)
-        stockDataCollection.insert_many(newResult)
+        result = updateLastMessageTime(db, symbol, result)
+
+        # No new messages
+        if (len(result) != 0):
+            db.stock_tweets.insert_many(result)
+        updateLastParsedTime(db, symbol)
 
 
 # ------------------------------------------------------------------------
@@ -156,11 +93,13 @@ def shouldParseUser(username):
         return None
 
     (coreInfo, error) = findUserInfo(username)
+    # coreInfo['ideas'] = -1
+    # username = 'ElliottwaveForecast'
 
     # If API is down/user doesnt exist
     if (not coreInfo):
-        errorMsg = "User doesn't exist"
-        userInfoError = {'_id': username, 'error': error}
+        errorMsg = "User doesn't exist / API down"
+        userInfoError = {'_id': username, 'error': errorMsg}
         analyzedUsers.insert_one(userInfoError)
         return None
 
@@ -179,6 +118,8 @@ def shouldParseUser(username):
         analyzedUsers.insert_one(coreInfo)
         return None
 
+    coreInfo['last_updated'] = convertToEST(datetime.datetime.now())
+
     return coreInfo
 
 
@@ -187,6 +128,7 @@ def analyzeUsers():
     allUsers = db.users_not_analyzed
     cursor = allUsers.find()
     users = list(map(lambda document: document['_id'], cursor))
+    shuffle(users)
 
     for username in users:
         print(username)
@@ -244,25 +186,23 @@ def addOptions(parser):
 def main():
     opt_parser = optparse.OptionParser()
     addOptions(opt_parser)
-
     options, args = opt_parser.parse_args()
     dateNow = datetime.datetime.now()
 
-    # updateAllStocks()
     if (options.users):
-        analyzeUsers()
+        refreshUserStatus()
+        # analyzeUsers()
     elif (options.stocks):
         now = convertToEST(datetime.datetime.now())
-        date = datetime.datetime(now.year, now.month, 30)
+        date = datetime.datetime(now.year, now.month, 13)
         analyzeStocks(date)
     else:
-        # date = datetime.datetime(dateNow.year, 1, 14)
-        # dateUpTo = datetime.datetime(dateNow.year, 3, 1)
-
-        db = client.get_database('stocktwits_db')
-        allUsers = db.all_stocks
+        now = convertToEST(datetime.datetime.now())
+        date = datetime.datetime(now.year, now.month, 10)
+        analyzeErrors(date)
+        # updateUserNotAnalyzed()
         return
-        
+
         date = datetime.datetime(dateNow.year, 5, 18)
         dateUpTo = datetime.datetime(dateNow.year, 6, 4)
 

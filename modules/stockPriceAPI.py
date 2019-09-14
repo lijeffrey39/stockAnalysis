@@ -1,10 +1,7 @@
 import datetime
 from multiprocessing import current_process
 
-#from iexfinance.stocks import get_historical_intraday
-
-#from .fileIO import *
-from hyperparameters import constants 
+from .hyperparameters import constants
 
 # ------------------------------------------------------------------------
 # ----------------------------- Variables --------------------------------
@@ -37,7 +34,7 @@ def closeToOpen(ticker, time, days=1):
 
 
 def getPrice(ticker, time):
-    #time should be in datetime.datetime format
+    # time should be in datetime.datetime format
     market_open = datetime.datetime(time.year, time.month, time.day, 9, 35)
     market_close = datetime.datetime(time.year, time.month, time.day, 16, 0)
     if time >= market_open and time <= market_close:
@@ -57,7 +54,7 @@ def getPrice(ticker, time):
 
     query_id = ticker+query_time_s
     stock_price_db = constants['db_client'].get_database('stocks_data_db').stock_data 
-    price_data = stock_price_db.find_one({'_id':query_id})
+    price_data = stock_price_db.find_one({'_id': query_id})
     if price_data == None:
         print('Date out of range or stock not tracked')
         return None 
@@ -80,7 +77,7 @@ def historicalFromDict(symbol, dateTime):
     historial = []
     dateTimeStr = dateTime.strftime("%Y-%m-%d")
 
-    if (symbol == None):
+    if (symbol is None):
         return []
 
     if (symbol != currSymbol or dateTimeStr != currDateTimeStr):
@@ -144,14 +141,14 @@ def priceAtTime(dateTime, historical):
                     continue
 
     # Go from end to front
-    if (found == False):
+    if (found is False):
         lastPos = len(historical) - 1
         foundAvg = None
-        while (foundAvg == None and lastPos > 0):
+        while (foundAvg is None and lastPos > 0):
             last = historical[lastPos]
             foundAvg = last.get('average')
             foundAvg1 = last.get('marketAverage')
-            if (foundAvg1 != None):
+            if (foundAvg1 is not None):
                 foundAvg = foundAvg1
                 break
             lastPos = lastPos - 1

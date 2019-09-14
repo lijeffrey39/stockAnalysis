@@ -34,7 +34,7 @@ if (timeZoneName == 'Coordinated Universal Time'):
 
 constants = {
     'min_idea_threshold': 200,
-    'max_tweets': 900,
+    'max_tweets': 1500,
     'hoursBackToAnalyze': 12,
     'project_root': project_root,
     'driver_bin': driver_bin,
@@ -57,5 +57,11 @@ constants = {
                                               ssl_cert_reqs=ssl.CERT_NONE),
     'messageStreamAttr': 'st_2o0zabc',
     'current_timezone': timeZoneName,
-    'eastern_timezone': pytz.timezone('US/Eastern')
+    'eastern_timezone': pytz.timezone('US/Eastern'),
+
+    'html_class_user_div': 'st_CFwNYeI st_jGV698i st_PLa30pM',
+    'html_class_user_info': 'st_21r0FbC st_2fTou_q',
+    'html_class_plus': 'st_2ceteac st_8u0ePN3',
+    'html_class_official': 'st_15f6hU9 st_2Y5n_y3',
+    'html_class_premium_room': 'st_3ZUModE st_2fTou_q'
 }
