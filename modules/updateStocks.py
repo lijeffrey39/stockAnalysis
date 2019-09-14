@@ -10,14 +10,22 @@ import pytz
 
 def updateStock(ticker, hours_back, interval=5, insert=False):
     api_call = 'https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=%s&interval=%dmin&outputsize=full&apikey=%s' % (ticker, interval, constants['alpha_vantage_api_key'])
-    response = requests.get(url=api_call)
+    try:
+        response = requests.get(url=api_call)
+    except:
+        try:
+            time.sleep(60)
+            response = requests.get(url=api_call)
+        except:
+            print('Error for %s' % (ticker))
+            return
     price_data = None
     if insert:
         price_data_list = []
     try:
         price_data = response.json()['Time Series (%dmin)' % (interval)]
-    except KeyError:
-        time.sleep(60)
+    except:
+        #time.sleep(60)
         response = requests.get(url=api_call)
         try:
             price_data = response.json()['Time Series (%dmin)' % (interval)]
@@ -64,7 +72,7 @@ def insertStock(ticker, hours_back, interval=5):
     stock_db.insert({'_id': ticker})
     return 1
 
-def updateAllStocks(hours_back=24*8, interval=5):
+def updateAllStocks(hours_back=24*10, interval=5):
     all_tickers = constants['db_client'].get_database('stocktwits_db').all_stocks.find({}, no_cursor_timeout=True)
     for t in all_tickers:
         print('Updating stock data for ticker %s' % (t['_id']))

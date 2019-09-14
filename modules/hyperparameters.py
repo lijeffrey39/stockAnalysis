@@ -41,7 +41,7 @@ constants = {
     'chrome_options': chrome_options,
     'caps': caps,
     'scroll_pause_time': 2,
-    'alpha_vantage_api_key': 'K8CFYSOMVFPGSXTM',
+    'alpha_vantage_api_key':'URK33PG7JX4SFFXH' ,
     'db_client': pymongo.MongoClient("mongodb+srv://lijeffrey39:test@cluster0"
                                      "-qthez.mongodb.net/test?retryWrites=true"
                                      "&w=majority",

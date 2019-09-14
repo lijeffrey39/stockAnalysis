@@ -22,11 +22,25 @@ currDateTimeStr = ""
 # ----------------------------- Functions --------------------------------
 # ------------------------------------------------------------------------
 
+def closeToOpen(ticker, time, days=1):
+    days_in_future = datetime.timedelta(days=days) 
+    future_date = time+days_in_future
+    if future_date.weekday() > 4:
+        next_weekday = datetime.timedelta(days=7-future_date.weekday())
+        future_date += next_weekday
+    start = getPriceAtEndOfDay(ticker, time)
+    end = getPriceAtBeginningOfDay(ticker, future_date)
+    if (end is None) or (start is None):
+        return None
+    else:
+        return (start, end, (end-start)/start)
+
+
 def getPrice(ticker, time):
     #time should be in datetime.datetime format
     market_open = datetime.datetime(time.year, time.month, time.day, 9, 35)
     market_close = datetime.datetime(time.year, time.month, time.day, 16, 0)
-    if time > market_open and time < market_close:
+    if time >= market_open and time <= market_close:
         rounded_minute = 5 * round((float(time.minute) + float(time.second)/60)/5)
         minute_adjustment = datetime.timedelta(minutes=rounded_minute-time.minute)
         adj_time = time + minute_adjustment
@@ -44,10 +58,18 @@ def getPrice(ticker, time):
     query_id = ticker+query_time_s
     stock_price_db = constants['db_client'].get_database('stocks_data_db').stock_data 
     price_data = stock_price_db.find_one({'_id':query_id})
+    if price_data == None:
+        print('Date out of range or stock not tracked')
+        return None 
     return price_data['price']
 
+def getPriceAtEndOfDay(ticker, time):
+    market_close = datetime.datetime(time.year, time.month, time.day, 16, 0)
+    return getPrice(ticker, market_close)
 
-
+def getPriceAtBeginningOfDay(ticker, time):
+    market_open = datetime.datetime(time.year, time.month, time.day, 9, 35)
+    return getPrice(ticker, market_open)
 
 
 def historicalFromDict(symbol, dateTime):
