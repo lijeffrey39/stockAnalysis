@@ -12,7 +12,7 @@ from bs4 import BeautifulSoup
 
 from . import scroll
 from .fileIO import *
-from .helpers import convertToEST
+from .helpers import convertToEST, endDriver
 from .hyperparameters import constants
 from .messageExtract import *
 from .stockPriceAPI import *
@@ -24,7 +24,6 @@ import time
 
 
 # TODO: Invalid symbols so they aren't check again
-timeAttr = 'st_2q3fdlM'
 messageTextAttr = 'st_29E11sZ'
 ideaAttr = 'st__tZJhLh'
 
@@ -34,9 +33,81 @@ ideaAttr = 'st__tZJhLh'
 # ------------------------------------------------------------------------
 
 
-def endDriver(driver):
-    driver.close()
-    driver.quit()
+# Handles inserting coreInfo into mongodb
+# if reanlyze, assumes user is already in db so need to update coreinfo
+def insertUpdateError(coreInfo, reAnalyze):
+    analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
+    if (reAnalyze is False):
+        analyzedUsers.insert_one(userInfoError)
+    else:
+        updateQuery = {'_id': coreInfo['_id']}
+        newCoreInfo = {'$set': coreInfo}
+        analyzedUsers.update_one(updateQuery, newCoreInfo)
+
+
+# Checks whether to parse user
+# Can parse/analyze users if it is set to true
+def shouldParseUser(username, reAnalyze):
+    analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
+    if (reAnalyze is False and
+       analyzedUsers.count_documents({'_id': username}) != 0):
+        return None
+
+    (coreInfo, error) = findUserInfo(username)
+    currTime = convertToEST(datetime.datetime.now())
+
+    # If API is down/user doesnt exist
+    if (not coreInfo):
+        errorMsg = "User doesn't exist / API down"
+        userInfoError = {'_id': username,
+                         'error': errorMsg,
+                         'last_updated': currTime}
+        insertUpdateError(userInfoError, reAnalyze)
+        return None
+
+    # If exceed the 200 limited API calls
+    if (coreInfo['ideas'] == -1):
+        (coreInfo, errorMsg) = findUserInfoDriver(username)
+        if (not coreInfo):
+            userInfoError = {'_id': username,
+                             'error': errorMsg,
+                             'last_updated': currTime}
+            insertUpdateError(userInfoError, reAnalyze)
+            return None
+
+    coreInfo['last_updated'] = currTime
+    coreInfo['_id'] = username
+
+    # If number of ideas are < the curren min threshold
+    if (coreInfo['ideas'] < constants['min_idea_threshold']):
+        coreInfo['error'] = 'Not enough ideas'
+        insertUpdateError(coreInfo, reAnalyze)
+        return None
+
+    coreInfo['error'] = ""
+    return coreInfo
+
+
+# Returns list of all users to analyze
+def findUsers(reAnalyze):
+    if (reAnalyze):
+        analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
+        query = {"$and": [{'error': {'$ne': ''}}, 
+                          {'error': {'$ne': 'Not enough ideas'}},
+                          {'error': {'$ne': "'user'"}},
+                          {'error': {'$ne': "User doesn't exist"}},
+                          {'error': {'$ne': "User has no tweets"}},
+                          {'error': {'$ne': "Scroll for too long"}},
+                          {'error': {'$ne': "User doesn't exist / API down"}}]}
+        cursor = analyzedUsers.find(query)
+        users = list(map(lambda document: document['_id'], cursor))
+        return users
+    else:
+        allUsers = constants['db_client'].get_database('stocktwits_db').users_not_analyzed
+        cursor = allUsers.find()
+        users = list(map(lambda document: document['_id'], cursor))
+        shuffle(users)
+        return users
 
 
 # Return soup object page of that user
@@ -119,17 +190,6 @@ def saveUserToCSV(username, result, otherInfo):
     currNewUserInfo.append(resNewUserInfo)
     currNewUserInfo.sort(key = lambda x: float(x[3]), reverse = True)
     writeSingleList('newUserInfo.csv', currNewUserInfo)
-
-
-def parseKOrInt(s):
-    if ('k' in s):
-        num = float(s[:-1])
-        return int(num * 1000)
-    elif ('m' in s):
-        num = float(s[:-1])
-        return int(num * 1000000)
-    else:
-        return int(s)
 
 
 # Gets initial information for user from selenium
@@ -236,7 +296,7 @@ def parseUserData(username, soup):
     messages = soup.find_all('div',
                              attrs={'class': constants['messageStreamAttr']})
     for m in messages:
-        t = m.find('div', {'class': timeAttr}).find_all('a')
+        t = m.find('div', {'class': constants['timeAttr']}).find_all('a')
         # t must be length of 2, first is user, second is date
         if (t is None):
             continue
@@ -248,7 +308,6 @@ def parseUserData(username, soup):
         likeCnt = likeCount(m)
         commentCnt = commentCount(m)
         dateTime = None
-        userStatus = ''
 
         # Handle edge cases
         if (textFound == 'Lifetime' or textFound == 'Plus'):
@@ -326,4 +385,8 @@ def updateUserNotAnalyzed():
             userSet.add(currUserName)
 
     listNewUsers = list(userSet)
+    listNewUsers.sort()
+    print(listNewUsers)
+    for user in listNewUsers:
+        allUsers.insert_one({'_id': user})
     print(len(listNewUsers))

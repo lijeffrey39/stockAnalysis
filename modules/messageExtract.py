@@ -147,3 +147,15 @@ def isBullMessage(message):
         return False
     else:
         return True
+
+
+# Converts string to int
+def parseKOrInt(s):
+    if ('k' in s):
+        num = float(s[:-1])
+        return int(num * 1000)
+    elif ('m' in s):
+        num = float(s[:-1])
+        return int(num * 1000000)
+    else:
+        return int(s)

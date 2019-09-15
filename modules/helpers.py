@@ -18,6 +18,12 @@ from .stockPriceAPI import *
 # ------------------------------------------------------------------------
 
 
+# Close and quit driver
+def endDriver(driver):
+    driver.close()
+    driver.quit()
+
+
 def convertToEST(dateTime):
     # import pdb; pdb.set_trace()
     if (constants['current_timezone'] != 'EDT' and
