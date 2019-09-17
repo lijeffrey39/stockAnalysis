@@ -19,6 +19,17 @@ currDateTimeStr = ""
 # ----------------------------- Functions --------------------------------
 # ------------------------------------------------------------------------
 
+
+def inTradingDay(date):
+    market_open = datetime.datetime(date.year, date.month, date.day, 9, 35)
+    market_close = datetime.datetime(date.year, date.month, date.day, 16, 0)
+    day = date.weekday()
+
+    if ((date < market_open and date >= market_close) or day == 5 or day == 6):
+        return False
+    return True
+
+
 def closeToOpen(ticker, time, days=1):
     days_in_future = datetime.timedelta(days=days) 
     future_date = time+days_in_future
@@ -27,7 +38,7 @@ def closeToOpen(ticker, time, days=1):
         future_date += next_weekday
     start = getPriceAtEndOfDay(ticker, time)
     end = getPriceAtBeginningOfDay(ticker, future_date)
-    if (end is None) or (start is None):
+    if (end is None) or (start is None) or start == 0 or end == 0:
         return None
     else:
         return (start, end, (end-start)/start)
@@ -55,14 +66,16 @@ def getPrice(ticker, time):
     query_id = ticker+query_time_s
     stock_price_db = constants['db_client'].get_database('stocks_data_db').stock_data 
     price_data = stock_price_db.find_one({'_id': query_id})
-    if price_data == None:
-        print('Date out of range or stock not tracked')
-        return None 
+    if price_data is None:
+        # print('Date out of range or stock not tracked')
+        return None
     return price_data['price']
+
 
 def getPriceAtEndOfDay(ticker, time):
     market_close = datetime.datetime(time.year, time.month, time.day, 16, 0)
     return getPrice(ticker, market_close)
+
 
 def getPriceAtBeginningOfDay(ticker, time):
     market_open = datetime.datetime(time.year, time.month, time.day, 9, 35)

@@ -11,7 +11,6 @@ import ssl
 import sys
 import time
 from multiprocessing import Pool, Process
-from random import shuffle
 
 import pymongo
 from dateutil.parser import parse
@@ -89,6 +88,7 @@ def analyzeStocks(date):
 
 def analyzeUsers(reAnalyze):
     users = findUsers(reAnalyze)
+    users = ['Beachswingtrader']
     for username in users:
         print(username)
         coreInfo = shouldParseUser(username, reAnalyze)
@@ -147,26 +147,26 @@ def main():
 
     if (options.users):
         # refreshUserStatus()
-        analyzeUsers(True)
+        analyzeUsers(False)
     elif (options.stocks):
         now = convertToEST(datetime.datetime.now())
-        date = datetime.datetime(now.year, now.month, 13)
+        date = datetime.datetime(now.year, now.month, 16)
         analyzeStocks(date)
     else:
         # now = convertToEST(datetime.datetime.now())
         # date = datetime.datetime(now.year, now.month, 10)
         # analyzeErrors(date)
-        updateUserNotAnalyzed()
-        return
+        # updateUserNotAnalyzed()
+        # return
 
-        date = datetime.datetime(dateNow.year, 5, 18)
-        dateUpTo = datetime.datetime(dateNow.year, 6, 4)
+        symbol = 'ROKU'
 
-        currDate = datetime.datetime.now()
+        date = datetime.datetime(dateNow.year, 8, 30, 10)
+        dateUpTo = datetime.datetime(dateNow.year, 9, 16)
         dates = findTradingDays(date, dateUpTo)
-        # dates = dates[0: len(dates)]
-
-        print(dates)
+        calculateAccuracy(symbol)
+        basicPrediction(symbol, dates)
+        return
         # dates = [datetime.datetime(dateNow.year, 5, 21)]
 
         money = 2000

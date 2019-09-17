@@ -10,6 +10,7 @@ from selenium.webdriver.common.keys import Keys
 
 from bs4 import BeautifulSoup
 
+from random import shuffle
 from . import scroll
 from .fileIO import *
 from .helpers import convertToEST, endDriver
@@ -38,7 +39,7 @@ ideaAttr = 'st__tZJhLh'
 def insertUpdateError(coreInfo, reAnalyze):
     analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
     if (reAnalyze is False):
-        analyzedUsers.insert_one(userInfoError)
+        analyzedUsers.insert_one(coreInfo)
     else:
         updateQuery = {'_id': coreInfo['_id']}
         newCoreInfo = {'$set': coreInfo}
@@ -313,9 +314,11 @@ def parseUserData(username, soup):
         if (textFound == 'Lifetime' or textFound == 'Plus'):
             textFound = allText[4].find('div').text
 
+        print(textFound)
         if (t[1].text == ''):
             dateTime = findDateTime(t[2].text)
         else:
+            print(t[1].text)
             dateTime = findDateTime(t[1].text)
 
         if (dateTime is None):

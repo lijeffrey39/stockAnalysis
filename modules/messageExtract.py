@@ -4,8 +4,6 @@ from dateutil.parser import parse
 
 from bs4 import BeautifulSoup
 
-from .helpers import *
-
 # ------------------------------------------------------------------------
 # ----------------------------- Variables --------------------------------
 # ------------------------------------------------------------------------
@@ -26,6 +24,26 @@ bullBearAttr = 'st_11GoBZI'
 # ------------------------------------------------------------------------
 # ----------------------------- Functions --------------------------------
 # ------------------------------------------------------------------------
+
+
+def findSymbol(text):
+    textArray = text.split(' ')
+    symbol = ''
+    moreThanOne = False
+    for w in textArray:
+        if ('$' in w):
+            # if number in string, continue
+            if (any(char.isdigit() for char in w)):
+                continue
+            if (symbol != ''):
+                moreThanOne = True
+            else:
+                symbol = w
+
+    if (moreThanOne):
+        return ''
+    else:
+        return symbol
 
 
 def isValidMessage(dateTime, dateNow, isBull, user, symbol, daysInFuture):
@@ -84,31 +102,6 @@ def findDateTime(dateString):
                                      dateTime.day, dateTime.hour, 
                                      dateTime.minute)
         return dateTime
-
-
-def findSymbol(message):
-    textM = message.find('div')
-    spans = textM.find_all('span')
-
-    tickers = []
-    foundTicker = False
-    for s in spans:
-        foundA = s.find('a')
-        ticker = foundA.text
-
-        if ('@' in ticker or '#' in ticker or '.X' in ticker):
-            continue
-
-        tickers.append(ticker[1:])
-
-        if ("$" in ticker):
-            foundTicker = True
-
-    # Never found a ticker or more than 1 ticker
-    if (foundTicker is False or len(tickers) > 1):
-        return []
-    else:
-        return tickers
 
 
 # Find username of a message
