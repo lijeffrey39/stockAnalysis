@@ -56,6 +56,7 @@ def getUserAccuracy(username):
         if (closeOpen is None):
             continue
 
+        # print(symbol, isBull, closeOpen, time)
         percentReturn = closeOpen[2]
         if (isBull):
             if (percentReturn >= 0):
@@ -109,6 +110,8 @@ def basicPrediction(symbol, dates):
         sumToday = 0
         for msg in messages:
             uAcc = analyzedUsers.find({'_id': msg['user']})[0]['accuracy']
+            if (uAcc > 10):
+                continue
             if (uAcc > 0):
                 if (msg['isBull']):
                     sumToday += uAcc

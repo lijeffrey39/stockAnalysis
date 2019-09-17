@@ -88,7 +88,7 @@ def analyzeStocks(date):
 
 def analyzeUsers(reAnalyze):
     users = findUsers(reAnalyze)
-    users = ['Beachswingtrader']
+    # users = ['Beachswingtrader']
     for username in users:
         print(username)
         coreInfo = shouldParseUser(username, reAnalyze)
@@ -158,8 +158,10 @@ def main():
         # analyzeErrors(date)
         # updateUserNotAnalyzed()
         # return
-
-        symbol = 'ROKU'
+        # getUserAccuracy('torchie')
+        # return
+        stocks = ['HSGX', 'AAPL', 'BIDU', 'TVIX', 'JNUG', 'ROKU', 'TSLA', 'UGAZ', 'CHK', 'DGAZ', 'QQQ', 'NIO']
+        symbol = 'AMD'
 
         date = datetime.datetime(dateNow.year, 8, 30, 10)
         dateUpTo = datetime.datetime(dateNow.year, 9, 16)

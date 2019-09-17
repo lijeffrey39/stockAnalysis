@@ -4,6 +4,8 @@ from dateutil.parser import parse
 
 from bs4 import BeautifulSoup
 
+from .helpers import convertToEST
+
 # ------------------------------------------------------------------------
 # ----------------------------- Variables --------------------------------
 # ------------------------------------------------------------------------
@@ -74,34 +76,35 @@ def isValidMessage(dateTime, dateNow, isBull, user, symbol, daysInFuture):
 def findDateFromMessage(message):
     text = message.text
     t = text.split('\n')
-    dateTime = None
+    dateString = ''
     if (t[0] == "Bearish" or t[0] == "Bullish"):
         if (t[2] == 'Plus' or t[2] == 'Lifetime'):
-            dateTime = findDateTime(t[3])
+            dateString = t[3]
         else:
-            dateTime = findDateTime(t[2])
+            dateString = t[2]
     else:
         if (t[1] == 'Plus' or t[1] == 'Lifetime'):
-            dateTime = findDateTime(t[2])
+            dateString = t[2]
         else:
-            dateTime = findDateTime(t[1])
-    return dateTime
+            dateString = t[1]
+    return findDateTime(dateString)
 
 
 # Find time of a message
 # If the time is greater than the current time, it is from last year
 def findDateTime(dateString):
-    if (dateString is None):
-        return None
-    else:
+    try:
         dateTime = parse(dateString)
-        currDay = datetime.datetime.now()
-        nextDay = currDay + datetime.timedelta(1)
-        if (dateTime > nextDay):
-            return datetime.datetime(2018, dateTime.month,
-                                     dateTime.day, dateTime.hour, 
-                                     dateTime.minute)
-        return dateTime
+        dateTime = convertToEST(dateTime)
+    except Exception as e:
+        return (None, str(e))
+    currDay = datetime.datetime.now()
+    nextDay = currDay + datetime.timedelta(1)
+    if (dateTime > nextDay):
+        return (datetime.datetime(2018, dateTime.month,
+                                  dateTime.day, dateTime.hour,
+                                  dateTime.minute), '')
+    return (dateTime, '')
 
 
 # Find username of a message

@@ -9,7 +9,7 @@ import pytz
 
 from .fileIO import *
 from .hyperparameters import constants
-from .prediction import *
+# from .prediction import *
 from .stockPriceAPI import *
 
 
@@ -25,7 +25,6 @@ def endDriver(driver):
 
 
 def convertToEST(dateTime):
-    # import pdb; pdb.set_trace()
     if (constants['current_timezone'] != 'EDT' and
         constants['current_timezone'] != 'EST' and
         constants['current_timezone'] != 'Eastern Daylight Time'):

@@ -21,15 +21,9 @@ from .messageExtract import findDateTime, findDateFromMessage
 # ------------------------------------------------------------------------
 
 
-def findLastTime(messages):
-    lastMessage = messages[len(messages) - 1]
-    return findDateFromMessage(lastMessage)
-
-
 # Scroll for # days
 def scrollFor(driver, hoursBack):
     currTime = convertToEST(datetime.datetime.now())
-    currTime = currTime.replace(tzinfo=None)
     compareTime = currTime - datetime.timedelta(hours=hoursBack)
     last_height = ""
     prevTime = None
@@ -46,9 +40,9 @@ def scrollFor(driver, hoursBack):
         if (len(messages) == 0):
             raise Exception('Len of messages was 0 ???')
 
-        currTime = findLastTime(messages)
-        if (currTime is None):
-            raise Exception('How did this happen')
+        (currTime, errorMsg) = findDateFromMessage(messages[len(messages) - 1])
+        if (errorMsg != ""):
+            raise Exception(errorMsg)
 
         print(currTime, compareTime)
         if (currTime < compareTime):
