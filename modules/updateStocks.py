@@ -47,10 +47,6 @@ def updateStock(ticker, hours_back, interval=5, insert=False):
             id = ticker+timestamp_s
             if insert:
                 price_data_dict['_id'] = id
-            """
-            price_data_dict['ticker'] = ticker
-            price_data_dict['timestamp'] = timestamp_s
-            """
             price_data_dict['date'] = timestamp_s[:10]
             price_data_dict['price'] = 0.5 * round((float(price_data[timestamp_s]['2. high'])+float(price_data[timestamp_s]['3. low'])), 2)
             if insert:
