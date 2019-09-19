@@ -122,7 +122,10 @@ def basicPrediction(symbol, dates):
                     sumToday -= uAcc
                 else:
                     sumToday += uAcc
-        print(sumToday, closeToOpen(symbol, date), date)
+        if (closeToOpen(symbol, date) is not None):
+            print(sumToday, closeToOpen(symbol, date)[2] * 100, date)
+        else:
+            print(sumToday, date)
 
 
 # Creates top users for each stock (Run each time there are new users)

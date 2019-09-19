@@ -44,7 +44,7 @@ clientStockTweets = constants['stocktweets_client']
 def analyzeStocks(date):
     stocks = getAllStocks()
     dateString = date.strftime("%Y-%m-%d")
-
+    # stocks = ['TVIX']
     for symbol in stocks:
         print(symbol)
         db = clientStockTweets.get_database('stocks_data_db')
@@ -158,13 +158,13 @@ def main():
         # analyzeErrors(date)
         # updateUserNotAnalyzed()
         # return
-        # getUserAccuracy('torchie')
+        # getUserAccuracy('stockilluminatus')
         # return
-        stocks = ['HSGX', 'AAPL', 'BIDU', 'TVIX', 'JNUG', 'ROKU', 'TSLA', 'UGAZ', 'CHK', 'DGAZ', 'QQQ', 'NIO']
-        symbol = 'AMD'
+        stocks = ['SQ', 'AMD', 'HSGX', 'AAPL', 'BIDU', 'TVIX', 'JNUG', 'ROKU', 'TSLA', 'UGAZ', 'CHK', 'DGAZ', 'QQQ', 'NIO']
+        symbol = 'TVIX'
 
         date = datetime.datetime(dateNow.year, 8, 30, 10)
-        dateUpTo = datetime.datetime(dateNow.year, 9, 16)
+        dateUpTo = datetime.datetime(dateNow.year, 9, 18)
         dates = findTradingDays(date, dateUpTo)
         calculateAccuracy(symbol)
         basicPrediction(symbol, dates)
