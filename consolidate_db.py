@@ -31,7 +31,7 @@ def transfer_and_delete(origin, destination, extract_ticker=False):
             else:
                 w['symbol'] = tweet['symbol']
             try:
-                w['_id'] = hash(tweet['messageText']+tweet['time']+tweet['user']+tweet['symbol'])
+                w['_id'] = hash(tweet['messageText']+tweet['time']+tweet['user']+)
             except TypeError:
                 continue
             w['user'] = tweet['user']
