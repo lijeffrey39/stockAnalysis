@@ -15,7 +15,7 @@ def get_ticker(message):
     return ' '.join(tickers)
 
 def transfer_and_delete(origin, destination, extract_ticker=False):
-    batch = origin.find({}, no_cursor_timeout=True, limit=10000)
+    batch = origin.find({}, no_cursor_timeout=True, limit=100000)
     count = 1
     while batch.count() > 0:
         to_write = []
@@ -26,16 +26,18 @@ def transfer_and_delete(origin, destination, extract_ticker=False):
                 print('Processed %d tweets' % count)
             to_delete.append(tweet['_id'])
             w = {}
-            w['_id'] = hash(tweet['messageText']+tweet['time']+tweet['user'])
             if extract_ticker:
                 w['symbol'] = get_ticker(tweet['messageText'])
             else:
                 w['symbol'] = tweet['symbol']
+            try:
+                w['_id'] = hash(tweet['messageText']+tweet['time']+tweet['user']+tweet['symbol'])
+            except TypeError:
+                continue
             w['user'] = tweet['user']
             w['time'] = datetime.datetime.strptime(tweet['time'], '%Y-%m-%d %H:%M:%S')
             etz = pytz.timezone('US/Eastern')
             etz.localize(w['time'])
-            w['time'] = tweet['time']
             w['isBull'] = tweet['isBull']
             w['likeCount'] = tweet['likeCount']
             w['commentCount'] = tweet['commentCount']
@@ -46,12 +48,12 @@ def transfer_and_delete(origin, destination, extract_ticker=False):
         except BulkWriteError as bwe:
             print(bwe.details)
         origin.delete_many({'_id': {'$in':to_delete}})
-        batch = origin.find({}, no_cursor_timeout=True, limit=10000)
+        batch = origin.find({}, no_cursor_timeout=True, limit=100000)
 
 user_tweets_db = constants['db_user_client'].get_database('user_data_db').user_info
 stock_tweets_db = constants['stocktweets_client'].get_database('stocks_data_db').stock_tweets
 consolidated_tweets_db = constants['stocktweets_client'].get_database('tweets_db').tweets
+
 transfer_and_delete(stock_tweets_db, consolidated_tweets_db) 
 transfer_and_delete(user_tweets_db, consolidated_tweets_db, True)
-
 
