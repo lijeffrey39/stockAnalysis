@@ -4,7 +4,7 @@ from dateutil.parser import parse
 
 from bs4 import BeautifulSoup
 
-from .helpers import *
+from .helpers import convertToEST
 
 # ------------------------------------------------------------------------
 # ----------------------------- Variables --------------------------------
@@ -26,6 +26,26 @@ bullBearAttr = 'st_11GoBZI'
 # ------------------------------------------------------------------------
 # ----------------------------- Functions --------------------------------
 # ------------------------------------------------------------------------
+
+
+def findSymbol(text):
+    textArray = text.split(' ')
+    symbol = ''
+    moreThanOne = False
+    for w in textArray:
+        if ('$' in w):
+            # if number in string, continue
+            if (any(char.isdigit() for char in w)):
+                continue
+            if (symbol != ''):
+                moreThanOne = True
+            else:
+                symbol = w
+
+    if (moreThanOne):
+        return ''
+    else:
+        return symbol
 
 
 def isValidMessage(dateTime, dateNow, isBull, user, symbol, daysInFuture):
@@ -56,59 +76,35 @@ def isValidMessage(dateTime, dateNow, isBull, user, symbol, daysInFuture):
 def findDateFromMessage(message):
     text = message.text
     t = text.split('\n')
-    dateTime = None
+    dateString = ''
     if (t[0] == "Bearish" or t[0] == "Bullish"):
         if (t[2] == 'Plus' or t[2] == 'Lifetime'):
-            dateTime = findDateTime(t[3])
+            dateString = t[3]
         else:
-            dateTime = findDateTime(t[2])
+            dateString = t[2]
     else:
         if (t[1] == 'Plus' or t[1] == 'Lifetime'):
-            dateTime = findDateTime(t[2])
+            dateString = t[2]
         else:
-            dateTime = findDateTime(t[1])
-    return dateTime
+            dateString = t[1]
+    return findDateTime(dateString)
 
 
 # Find time of a message
 # If the time is greater than the current time, it is from last year
 def findDateTime(dateString):
-    if (dateString is None):
-        return None
-    else:
+    try:
         dateTime = parse(dateString)
-        currDay = datetime.datetime.now()
-        nextDay = currDay + datetime.timedelta(1)
-        if (dateTime > nextDay):
-            return datetime.datetime(2018, dateTime.month,
-                                     dateTime.day, dateTime.hour, 
-                                     dateTime.minute)
-        return dateTime
-
-
-def findSymbol(message):
-    textM = message.find('div')
-    spans = textM.find_all('span')
-
-    tickers = []
-    foundTicker = False
-    for s in spans:
-        foundA = s.find('a')
-        ticker = foundA.text
-
-        if ('@' in ticker or '#' in ticker or '.X' in ticker):
-            continue
-
-        tickers.append(ticker[1:])
-
-        if ("$" in ticker):
-            foundTicker = True
-
-    # Never found a ticker or more than 1 ticker
-    if (foundTicker is False or len(tickers) > 1):
-        return []
-    else:
-        return tickers
+        dateTime = convertToEST(dateTime)
+    except Exception as e:
+        return (None, str(e))
+    currDay = datetime.datetime.now()
+    nextDay = currDay + datetime.timedelta(1)
+    if (dateTime > nextDay):
+        return (datetime.datetime(2018, dateTime.month,
+                                  dateTime.day, dateTime.hour,
+                                  dateTime.minute), '')
+    return (dateTime, '')
 
 
 # Find username of a message
@@ -147,3 +143,15 @@ def isBullMessage(message):
         return False
     else:
         return True
+
+
+# Converts string to int
+def parseKOrInt(s):
+    if ('k' in s):
+        num = float(s[:-1])
+        return int(num * 1000)
+    elif ('m' in s):
+        num = float(s[:-1])
+        return int(num * 1000000)
+    else:
+        return int(s)

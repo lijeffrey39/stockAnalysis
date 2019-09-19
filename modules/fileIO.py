@@ -2,7 +2,7 @@ import os
 import csv
 import threading
 
-from . import helpers
+# from . import helpers
 from functools import reduce
 
 

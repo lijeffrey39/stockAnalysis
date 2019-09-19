@@ -175,22 +175,21 @@ def parseStockData(symbol, soup):
         isBull = isBullMessage(m)
         likeCnt = likeCount(m)
         commentCnt = commentCount(m)
-        dateTime = None
+        dateString = ""
 
         # Handle edge cases
         if (textFound == 'Lifetime' or textFound == 'Plus'):
             textFound = allText[4].find('div').text
 
         if (t[1].text == ''):
-            dateTime = findDateTime(t[2].text)
+            dateString = t[2].text
         else:
-            dateTime = findDateTime(t[1].text)
+            dateString = t[1].text
 
-        if (username is None or dateTime is None):
-            raise Exception("How was datetime None")
-
-        # need to convert to EDT time zone
-        dateTime = convertToEST(dateTime)
+        (dateTime, errorMsg) = findDateTime(dateString)
+        if (errorMsg != ""):
+            print(errorMsg)
+            continue
 
         cur_res = {}
         cur_res['symbol'] = symbol
