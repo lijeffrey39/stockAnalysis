@@ -56,6 +56,7 @@ constants = {
                                               "=true&w=majority",
                                               ssl_cert_reqs=ssl.CERT_NONE),
     'messageStreamAttr': 'st_2o0zabc',
+    'timeAttr': 'st_2q3fdlM',
     'current_timezone': timeZoneName,
     'eastern_timezone': pytz.timezone('US/Eastern'),
 

@@ -11,7 +11,6 @@ import ssl
 import sys
 import time
 from multiprocessing import Pool, Process
-from random import shuffle
 
 import pymongo
 from dateutil.parser import parse
@@ -45,7 +44,7 @@ clientStockTweets = constants['stocktweets_client']
 def analyzeStocks(date):
     stocks = getAllStocks()
     dateString = date.strftime("%Y-%m-%d")
-
+    # stocks = ['TVIX']
     for symbol in stocks:
         print(symbol)
         db = clientStockTweets.get_database('stocks_data_db')
@@ -87,72 +86,29 @@ def analyzeStocks(date):
 # ------------------------------------------------------------------------
 
 
-def shouldParseUser(username):
-    analyzedUsers = clientUser.get_database('user_data_db').users
-    if (analyzedUsers.count_documents({'_id': username}) != 0):
-        return None
-
-    (coreInfo, error) = findUserInfo(username)
-    # coreInfo['ideas'] = -1
-    # username = 'ElliottwaveForecast'
-
-    # If API is down/user doesnt exist
-    if (not coreInfo):
-        errorMsg = "User doesn't exist / API down"
-        userInfoError = {'_id': username, 'error': errorMsg}
-        analyzedUsers.insert_one(userInfoError)
-        return None
-
-    # If exceed the 200 limited API calls
-    if (coreInfo['ideas'] == -1):
-        (coreInfo, errorMsg) = findUserInfoDriver(username)
-        if (not coreInfo):
-            userInfoError = {'_id': username, 'error': errorMsg}
-            analyzedUsers.insert_one(userInfoError)
-            return None
-
-    # If number of ideas are < the curren min threshold
-    if (coreInfo['ideas'] < constants['min_idea_threshold']):
-        coreInfo['error'] = 'Not enough ideas'
-        coreInfo['_id'] = username
-        analyzedUsers.insert_one(coreInfo)
-        return None
-
-    coreInfo['last_updated'] = convertToEST(datetime.datetime.now())
-
-    return coreInfo
-
-
-def analyzeUsers():
-    db = client.get_database('stocktwits_db')
-    allUsers = db.users_not_analyzed
-    cursor = allUsers.find()
-    users = list(map(lambda document: document['_id'], cursor))
-    shuffle(users)
-
+def analyzeUsers(reAnalyze):
+    users = findUsers(reAnalyze)
+    # users = ['Beachswingtrader']
     for username in users:
         print(username)
-        coreInfo = shouldParseUser(username)
+        coreInfo = shouldParseUser(username, reAnalyze)
         if (not coreInfo):
             continue
 
-        analyzedUsers = clientUser.get_database('user_data_db').users
         (soup, errorMsg, timeElapsed) = findPageUser(username)
-        coreInfo['_id'] = username
         coreInfo['timeElapsed'] = timeElapsed
-        if (soup == ''):
+        if (errorMsg != ''):
             coreInfo['error'] = errorMsg
-            analyzedUsers.insert_one(coreInfo)
+            insertUpdateError(coreInfo, reAnalyze)
             continue
 
         result = parseUserData(username, soup)
         if (len(result) == 0):
             coreInfo['error'] = "Empty result list"
-            analyzedUsers.insert_one(coreInfo)
+            insertUpdateError(coreInfo, reAnalyze)
             continue
 
-        coreInfo['error'] = ""
-        analyzedUsers.insert_one(coreInfo)
+        insertUpdateError(coreInfo, reAnalyze)
         userInfoCollection = clientUser.get_database('user_data_db').user_info
         userInfoCollection.insert_many(result)
 
@@ -190,27 +146,29 @@ def main():
     dateNow = datetime.datetime.now()
 
     if (options.users):
-        refreshUserStatus()
-        # analyzeUsers()
+        # refreshUserStatus()
+        analyzeUsers(False)
     elif (options.stocks):
         now = convertToEST(datetime.datetime.now())
-        date = datetime.datetime(now.year, now.month, 13)
+        date = datetime.datetime(now.year, now.month, 16)
         analyzeStocks(date)
     else:
-        now = convertToEST(datetime.datetime.now())
-        date = datetime.datetime(now.year, now.month, 10)
-        analyzeErrors(date)
+        # now = convertToEST(datetime.datetime.now())
+        # date = datetime.datetime(now.year, now.month, 10)
+        # analyzeErrors(date)
         # updateUserNotAnalyzed()
-        return
+        # return
+        # getUserAccuracy('stockilluminatus')
+        # return
+        stocks = ['SQ', 'AMD', 'HSGX', 'AAPL', 'BIDU', 'TVIX', 'JNUG', 'ROKU', 'TSLA', 'UGAZ', 'CHK', 'DGAZ', 'QQQ', 'NIO']
+        symbol = 'TVIX'
 
-        date = datetime.datetime(dateNow.year, 5, 18)
-        dateUpTo = datetime.datetime(dateNow.year, 6, 4)
-
-        currDate = datetime.datetime.now()
+        date = datetime.datetime(dateNow.year, 8, 30, 10)
+        dateUpTo = datetime.datetime(dateNow.year, 9, 18)
         dates = findTradingDays(date, dateUpTo)
-        # dates = dates[0: len(dates)]
-
-        print(dates)
+        calculateAccuracy(symbol)
+        basicPrediction(symbol, dates)
+        return
         # dates = [datetime.datetime(dateNow.year, 5, 21)]
 
         money = 2000

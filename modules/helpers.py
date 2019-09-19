@@ -9,7 +9,7 @@ import pytz
 
 from .fileIO import *
 from .hyperparameters import constants
-from .prediction import *
+# from .prediction import *
 from .stockPriceAPI import *
 
 
@@ -18,8 +18,13 @@ from .stockPriceAPI import *
 # ------------------------------------------------------------------------
 
 
+# Close and quit driver
+def endDriver(driver):
+    driver.close()
+    driver.quit()
+
+
 def convertToEST(dateTime):
-    # import pdb; pdb.set_trace()
     if (constants['current_timezone'] != 'EDT' and
         constants['current_timezone'] != 'EST' and
         constants['current_timezone'] != 'Eastern Daylight Time'):
@@ -73,9 +78,9 @@ def findTradingDays(date, upToDate):
     delta = datetime.timedelta(1)
     dates = []
 
-    while (date < upToDate - delta):
+    while (date < upToDate + delta):
         # See if it's a valid trading day
-        if (isTradingDay(date)):
+        if (inTradingDay(date)):
             dates.append(date)
         date += delta
 
