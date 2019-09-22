@@ -8,11 +8,13 @@ from bs4 import BeautifulSoup
 
 from . import scroll
 from .fileIO import *
-from .helpers import convertToEST
+from .helpers import convertToEST, customHash
 from .hyperparameters import constants
 from .messageExtract import *
 from .stockPriceAPI import *
 import time
+import hashlib
+
 
 # ------------------------------------------------------------------------
 # ----------------------------- Variables --------------------------------
@@ -83,7 +85,8 @@ def findPageStock(symbol, date, hoursBack):
 
 # Returns whether the stock should be parsed or not
 # Will be parsed if it has been more than 12 hours since the last time it was
-def shouldParseStock(symbol, dateString, db):
+def shouldParseStock(symbol, dateString):
+    db = constants['stocktweets_client'].get_database('stocks_data_db')
     tweetsErrorCollection = db.stock_tweets_errors
     if (tweetsErrorCollection.
             count_documents({'symbol': symbol,
@@ -106,7 +109,7 @@ def shouldParseStock(symbol, dateString, db):
     print(lastTime, currTime, totalHoursBack)
 
     # need to continue to parse if data is more than 3 hours old
-    if (totalHoursBack > 6):
+    if (totalHoursBack > constants['hoursBackToAnalyze']):
         return (True, totalHoursBack)
     else:
         return (False, 0)
@@ -132,7 +135,7 @@ def updateLastParsedTime(db, symbol):
 # Updates the time stamp for the last message for
 # this symbol to find avoid overlap
 def updateLastMessageTime(db, symbol, result):
-    currLastTime = parse(result[0]['time'])
+    currLastTime = result[0]['time']
     lastMessageTimeCollection = db.last_message
 
     lastTime = lastMessageTimeCollection.find({'_id': symbol})
@@ -147,7 +150,7 @@ def updateLastMessageTime(db, symbol, result):
     lastTime = timesMapped[0]['time']
     newResult = []
     for tweet in result:
-        if (parse(tweet['time']) > lastTime):
+        if (tweet['time'] > lastTime):
             newResult.append(tweet)
 
     query = {'_id': symbol}
@@ -191,15 +194,19 @@ def parseStockData(symbol, soup):
             print(errorMsg)
             continue
 
+        dateAsString = dateTime.strftime("%Y-%m-%d %H:%M:%S")
+        hashString = textFound + dateAsString + username
+        hashID = customHash(hashString)
+
         cur_res = {}
+        cur_res['_id'] = hashID
         cur_res['symbol'] = symbol
         cur_res['user'] = username
-        cur_res['time'] = dateTime.strftime("%Y-%m-%d %H:%M:%S")
+        cur_res['time'] = dateTime
         cur_res['isBull'] = isBull
         cur_res['likeCount'] = likeCnt
         cur_res['commentCount'] = commentCnt
         cur_res['messageText'] = textFound
-        cur_res['date'] = dateTime.strftime("%Y-%m-%d")
 
         res.append(cur_res)
     return res

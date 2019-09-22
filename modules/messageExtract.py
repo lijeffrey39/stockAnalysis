@@ -5,6 +5,7 @@ from dateutil.parser import parse
 from bs4 import BeautifulSoup
 
 from .helpers import convertToEST
+from .hyperparameters import constants
 
 # ------------------------------------------------------------------------
 # ----------------------------- Variables --------------------------------
@@ -28,6 +29,24 @@ bullBearAttr = 'st_11GoBZI'
 # ------------------------------------------------------------------------
 
 
+def createMessageObj(message, isUser):
+    t = m.find('div', {'class': constants['timeAttr']}).find_all('a')
+    # length of 2, first is user, second is date
+    if (t is None):
+        return None
+    
+    allT = m.find('div', {'class': messageTextAttr})
+    allText = allT.find_all('div')
+    textFound = allText[1].find('div').text  # No post processing
+    isBull = isBullMessage(m)
+    likeCnt = likeCount(m)
+    commentCnt = commentCount(m)
+    dateString = ""
+
+
+    return
+
+
 def findSymbol(text):
     textArray = text.split(' ')
     symbol = ''
@@ -48,31 +67,7 @@ def findSymbol(text):
         return symbol
 
 
-def isValidMessage(dateTime, dateNow, isBull, user, symbol, daysInFuture):
-    if (dateTime is None):
-        return False
-
-    dateCheck = datetime.datetime(dateTime.year, dateTime.month, dateTime.day)
-    dateNow = datetime.datetime(dateNow.year, dateNow.month, dateNow.day)
-
-    delta = datetime.timedelta(daysInFuture)
-    newTime = dateTime + delta
-    # If the next day at 9:30 am is < than the current time, then there is a stock price
-    newTime = datetime.datetime(newTime.year, newTime.month, newTime.day, 9, 30)
-    newTimeDay = newTime.weekday()
-    inside = inTradingHours(dateTime, symbol)
-
-    if (user is None or
-        # isBull == None or
-        symbol is None or
-        inside is False or
-        (daysInFuture == 0 and dateCheck != dateNow) or
-        (daysInFuture > 0 and newTime > dateNow) or
-        (dateCheck > dateNow)):
-            return False
-    return True
-
-
+# Returns datetime object from message
 def findDateFromMessage(message):
     text = message.text
     t = text.split('\n')

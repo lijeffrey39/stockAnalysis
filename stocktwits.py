@@ -31,10 +31,19 @@ from modules.stockPriceAPI import *
 from modules.userAnalysis import *
 from modules.hyperparameters import constants
 
+
 client = constants['db_client']
 clientUser = constants['db_user_client']
 clientStockTweets = constants['stocktweets_client']
 
+
+def insertResults(results):
+    collection = clientStockTweets.get_database('tweets_db').tweets
+    for r in results:
+        try:
+            collection.insert_one(r)
+        except Exception as e:
+            print(str(e))
 
 # ------------------------------------------------------------------------
 # ----------------------- Analyze Specific Stock -------------------------
@@ -44,11 +53,11 @@ clientStockTweets = constants['stocktweets_client']
 def analyzeStocks(date):
     stocks = getAllStocks()
     dateString = date.strftime("%Y-%m-%d")
-    # stocks = ['TVIX']
+    stocks = ['A']
     for symbol in stocks:
         print(symbol)
         db = clientStockTweets.get_database('stocks_data_db')
-        (shouldParse, hours) = shouldParseStock(symbol, dateString, db)
+        (shouldParse, hours) = shouldParseStock(symbol, dateString)
         if (shouldParse is False):
             continue
 
@@ -73,12 +82,12 @@ def analyzeStocks(date):
             db.stock_tweets_errors.insert_one(stockError)
             continue
 
-        result = updateLastMessageTime(db, symbol, result)
+        results = updateLastMessageTime(db, symbol, result)
+        updateLastParsedTime(db, symbol)
 
         # No new messages
-        if (len(result) != 0):
-            db.stock_tweets.insert_many(result)
-        updateLastParsedTime(db, symbol)
+        if (len(results) != 0):
+            insertResults(results)
 
 
 # ------------------------------------------------------------------------
@@ -150,7 +159,7 @@ def main():
         analyzeUsers(False)
     elif (options.stocks):
         now = convertToEST(datetime.datetime.now())
-        date = datetime.datetime(now.year, now.month, 16)
+        date = datetime.datetime(now.year, now.month, 21)
         analyzeStocks(date)
     else:
         # now = convertToEST(datetime.datetime.now())

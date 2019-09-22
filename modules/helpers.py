@@ -6,16 +6,20 @@ from datetime import *
 from dateutil.tz import *
 
 import pytz
+import hashlib
 
 from .fileIO import *
 from .hyperparameters import constants
-# from .prediction import *
 from .stockPriceAPI import *
-
 
 # ------------------------------------------------------------------------
 # ----------------------------- Functions --------------------------------
 # ------------------------------------------------------------------------
+
+
+# Hash function for creating id in DB
+def customHash(string):
+    return int(hashlib.sha224(bytearray(string, 'utf8')).hexdigest()[:15], 16)
 
 
 # Close and quit driver
@@ -24,10 +28,11 @@ def endDriver(driver):
     driver.quit()
 
 
+# Convert datetime object to EST
 def convertToEST(dateTime):
     if (constants['current_timezone'] != 'EDT' and
-        constants['current_timezone'] != 'EST' and
-        constants['current_timezone'] != 'Eastern Daylight Time'):
+       constants['current_timezone'] != 'EST' and
+       constants['current_timezone'] != 'Eastern Daylight Time'):
         # localize to current time zone
         currTimeZone = pytz.timezone(constants['current_timezone'])
         dateTime = currTimeZone.localize(dateTime)
