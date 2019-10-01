@@ -187,8 +187,13 @@ def calculateSentiment(tweets, symbol):
         username = tweet['user']
         isBull = tweet['isBull']
         print(username)
+        analyzedUsersDB = constants['db_user_client'].get_database('user_data_db')
+        userAccuracy = analyzedUsersDB.user_accuracy
+        result = userAccuracy.find({'_id': username})
+        if (result.count() != 0):
+            continue
+            
         allUserInfo = getAllUserInfo(username)
-        print(allUserInfo)
 
 
 # Basic prediction algo
