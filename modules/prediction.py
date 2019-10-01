@@ -139,7 +139,10 @@ def getStatsPerUser(user):
 
 def getAllUserInfo(username):
     userInfoDB = constants['db_user_client'].get_database('user_data_db').users
-    userInfo = userInfoDB.find({'_id': username})[0]
+    checkUserInfo = userInfoDB.find({'_id': username})
+    if (checkUserInfo.count() == 0):
+        return {}
+    userInfo = checkUserInfo[0]
     if (userInfo['error'] != ''):
         return {}
     stats = getStatsPerUser(username)
@@ -183,16 +186,21 @@ def calculateSentiment(tweets, symbol):
     # minPercentForSymbol = reduce(lambda a, b: min(a, b), mappedReturns)
     # sentiment = 0
 
+    usersParsedAccuracy = constants['db_user_client'].get_database('user_data_db').last_user_accuracy_calculated.find()
+    users = set(list(map(lambda doc: doc['_id'], usersParsedAccuracy)))
+
     for tweet in tweets:
         username = tweet['user']
         isBull = tweet['isBull']
+        if (username in users):
+            continue
         print(username)
         analyzedUsersDB = constants['db_user_client'].get_database('user_data_db')
         userAccuracy = analyzedUsersDB.user_accuracy
         result = userAccuracy.find({'_id': username})
         if (result.count() != 0):
             continue
-            
+
         allUserInfo = getAllUserInfo(username)
 
 
