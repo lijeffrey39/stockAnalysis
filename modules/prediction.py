@@ -170,7 +170,7 @@ def getAllUserInfo(username):
 
 
 # Returns a value for the sentiment for this stock given tweets
-def calculateSentiment(tweets, symbol):
+def calculateSentiment(tweets, symbol, userAccDict):
     # stockDB = constants['db_client'].get_database('stocktwits_db').stockRanking
     # usersForStock = stockDB.find({'_id': symbol})
     # listUsers = []
@@ -189,9 +189,27 @@ def calculateSentiment(tweets, symbol):
     usersParsedAccuracy = constants['db_user_client'].get_database('user_data_db').last_user_accuracy_calculated.find()
     users = set(list(map(lambda doc: doc['_id'], usersParsedAccuracy)))
 
+    bullTotal = 0
+    bearTotal = 0
+    bullCount = 0
+    bearCount = 0
     for tweet in tweets:
         username = tweet['user']
         isBull = tweet['isBull']
+        if (username in userAccDict):
+            stockInfo = userAccDict[username]['perStock'][symbol]
+            bullReturns = stockInfo['percentBullReturn']
+            bearReturns = stockInfo['percentBearReturn']
+            if (isBull):
+                if (bullReturns > 0):
+                    bullCount += 1
+                    bullTotal += math.log(bullReturns)
+            else:
+                if (bearReturns > 0):
+                    bearCount += 1
+                    bearTotal += math.log(bearReturns)
+
+        continue
         if (username in users):
             continue
         print(username)
@@ -202,6 +220,10 @@ def calculateSentiment(tweets, symbol):
             continue
 
         allUserInfo = getAllUserInfo(username)
+    if (bearTotal != 0 and bearCount != 0):
+        return (float('%.2f' % (bullCount * 1.0 / bearCount)), bullCount, bearCount, float('%.2f' % (bullTotal / bearTotal)), bullTotal, bearTotal)
+    else:
+        return (bullCount, bearCount, bullTotal, bearTotal)
 
 
 # Basic prediction algo
@@ -209,21 +231,28 @@ def basicPrediction(dates):
     stocks = getAllStocks()
     tweetsDB = constants['stocktweets_client'].get_database('tweets_db')
 
-    stocks = ['TVIX']
+    stocks = ['NIO']
 
     for symbol in stocks:
+        accuracy = constants['db_user_client'].get_database('user_data_db').user_accuracy
+        allUsersAccs = accuracy.find({'perStock.' + symbol: {'$exists': True}})
+        userAccDict = {}
+        for user in allUsersAccs:
+            userAccDict[user['_id']] = user
+
         for date in dates:
+            dateStart = datetime.datetime(date.year, date.month, date.day, 9, 30)
+            dateEnd = datetime.datetime(date.year, date.month, date.day, 16, 0)
             labeledTweets = tweetsDB.tweets.find({"$and": [{'symbol': symbol},
                                                  {"$or": [
                                                     {'isBull': True},
                                                     {'isBull': False}
-                                                 ]}]})
-            tweets = list(filter(lambda doc:
-                                 doc['time'].day == date.day and
-                                 doc['time'].month == date.month and
-                                 inTradingDay(doc['time']), labeledTweets))
+                                                 ]},
+                                                 {'time': {'$gte': dateStart,
+                                                  '$lt': dateEnd}}]})
 
-            sentiment = calculateSentiment(tweets, symbol)
+            sentiment = calculateSentiment(labeledTweets, symbol, userAccDict)
+            print(date, labeledTweets.count(), closeToOpen(symbol, date), sentiment)
 
 
 # Creates top users for each stock (Run each time there are new users)

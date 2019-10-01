@@ -53,7 +53,7 @@ def insertResults(results):
 def analyzeStocks(date):
     stocks = getAllStocks()
     dateString = date.strftime("%Y-%m-%d")
-    stocks = ['A']
+    stocks = ['NIO']
     for symbol in stocks:
         print(symbol)
         db = clientStockTweets.get_database('stocks_data_db')
@@ -159,7 +159,7 @@ def main():
         analyzeUsers(False)
     elif (options.stocks):
         now = convertToEST(datetime.datetime.now())
-        date = datetime.datetime(now.year, now.month, 21)
+        date = datetime.datetime(now.year, now.month, 1)
         analyzeStocks(date)
     else:
         # now = convertToEST(datetime.datetime.now())
@@ -173,7 +173,7 @@ def main():
         # return
 
         date = datetime.datetime(dateNow.year, 8, 30, 10)
-        dateUpTo = datetime.datetime(dateNow.year, 9, 24)
+        dateUpTo = datetime.datetime(dateNow.year, 10, 1)
         dates = findTradingDays(date, dateUpTo)
         basicPrediction(dates)
         return

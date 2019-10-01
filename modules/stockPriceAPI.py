@@ -21,11 +21,11 @@ currDateTimeStr = ""
 
 
 def inTradingDay(date):
-    market_open = datetime.datetime(date.year, date.month, date.day, 9, 35)
+    market_open = datetime.datetime(date.year, date.month, date.day, 9, 30)
     market_close = datetime.datetime(date.year, date.month, date.day, 16, 0)
     day = date.weekday()
 
-    if ((date < market_open and date >= market_close) or day == 5 or day == 6):
+    if (date < market_open or date >= market_close or day == 5 or day == 6):
         return False
     return True
 
