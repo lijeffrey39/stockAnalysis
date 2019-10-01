@@ -169,14 +169,13 @@ def main():
         # return
         # getUserAccuracy('stockilluminatus')
         # return
-        stocks = ['SQ', 'AMD', 'HSGX', 'AAPL', 'BIDU', 'TVIX', 'JNUG', 'ROKU', 'TSLA', 'UGAZ', 'CHK', 'DGAZ', 'QQQ', 'NIO']
-        symbol = 'TVIX'
+        # print(getStatsPerUser('ACInvestorBlog'))
+        # return
 
         date = datetime.datetime(dateNow.year, 8, 30, 10)
-        dateUpTo = datetime.datetime(dateNow.year, 9, 18)
+        dateUpTo = datetime.datetime(dateNow.year, 9, 24)
         dates = findTradingDays(date, dateUpTo)
-        calculateAccuracy(symbol)
-        basicPrediction(symbol, dates)
+        basicPrediction(dates)
         return
         # dates = [datetime.datetime(dateNow.year, 5, 21)]
 
