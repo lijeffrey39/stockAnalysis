@@ -41,7 +41,7 @@ def closeToOpen(ticker, time, days=1):
     if (end is None) or (start is None) or start == 0 or end == 0:
         return None
     else:
-        return (start, end, ((end-start)/start) * 100)
+        return (start, end, round(((end-start)/start) * 100, 3))
 
 
 def getPrice(ticker, time):

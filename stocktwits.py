@@ -10,6 +10,7 @@ import platform
 import ssl
 import sys
 import time
+from random import shuffle
 from multiprocessing import Pool, Process
 
 import pymongo
@@ -50,10 +51,8 @@ def insertResults(results):
 # ------------------------------------------------------------------------
 
 
-def analyzeStocks(date):
-    stocks = getAllStocks()
+def analyzeStocks(date, stocks):
     dateString = date.strftime("%Y-%m-%d")
-    stocks = ['NIO']
     for symbol in stocks:
         print(symbol)
         db = clientStockTweets.get_database('stocks_data_db')
@@ -148,19 +147,35 @@ def addOptions(parser):
                       help="parse stock information")
 
 
+def makePredictionToday():
+    now = convertToEST(datetime.datetime.now())
+    date = datetime.datetime(now.year, now.month, 3)
+
+    stocks = getTopStocks()
+    stocks = stocks[:25]
+    shuffle(stocks)
+    analyzeStocks(date, stocks)
+
+    basicPrediction([date])
+
+
 def main():
     opt_parser = optparse.OptionParser()
     addOptions(opt_parser)
     options, args = opt_parser.parse_args()
     dateNow = datetime.datetime.now()
 
+    makePredictionToday()
+    return
+
     if (options.users):
         # refreshUserStatus()
         analyzeUsers(False)
     elif (options.stocks):
         now = convertToEST(datetime.datetime.now())
-        date = datetime.datetime(now.year, now.month, 1)
-        analyzeStocks(date)
+        date = datetime.datetime(now.year, now.month, 2)
+        stocks = getAllStocks()
+        analyzeStocks(date, stocks)
     else:
         # now = convertToEST(datetime.datetime.now())
         # date = datetime.datetime(now.year, now.month, 10)
@@ -175,7 +190,10 @@ def main():
         date = datetime.datetime(dateNow.year, 8, 30, 10)
         dateUpTo = datetime.datetime(dateNow.year, 10, 1)
         dates = findTradingDays(date, dateUpTo)
+        # print(dates)
+        # return
         basicPrediction(dates)
+        # updateBasicStockInfo(dates)
         return
         # dates = [datetime.datetime(dateNow.year, 5, 21)]
 
