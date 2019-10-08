@@ -1,4 +1,5 @@
 import datetime
+import requests
 from multiprocessing import current_process
 
 from .hyperparameters import constants
@@ -18,6 +19,49 @@ currDateTimeStr = ""
 # ------------------------------------------------------------------------
 # ----------------------------- Functions --------------------------------
 # ------------------------------------------------------------------------
+
+
+def updateAllCloseOpen(stocks, dates):
+    db = constants['db_client'].get_database('stocks_data_db').updated_close_open
+    for symbol in stocks:
+        for date in dates:
+            dateString = date.strftime("%Y-%m-%d")
+            idString = symbol + ' ' + dateString
+            found = db.find_one({'_id': idString})
+            if (found is None):
+                updateCloseOpen(symbol, date, db)
+
+
+def updateCloseOpen(symbol, date, db):
+    dateString = date.strftime("%Y%m%d")
+    baseURL = "https://cloud.iexapis.com/stable/stock/" + symbol + "/chart/date/"
+    restURL = "?chartByDay=True&token=sk_f993e71175fc4213a0cea1515436270e"
+    URL = baseURL + dateString + restURL
+    r = requests.get(url=URL)
+    print(symbol)
+    data = r.json()[0]
+
+    _id = symbol + ' ' + data['date']
+    result = {'_id': _id, 'open': data['open'], 'close': data['close']}
+    print(result)
+    db.insert_one(result)
+
+
+def getUpdatedCloseOpen(symbol, date):
+    db = constants['db_client'].get_database('stocks_data_db').updated_close_open
+    days_in_future = datetime.timedelta(days=1)
+    future_date = date + days_in_future
+    if future_date.weekday() > 4:
+        next_weekday = datetime.timedelta(days=7 - future_date.weekday())
+        future_date += next_weekday
+    start = db.find_one({'_id': symbol + ' ' + date.strftime("%Y-%m-%d")})
+    end = db.find_one({'_id': symbol + ' ' + future_date.strftime("%Y-%m-%d")})
+    if (end is None) or (start is None) or start == 0 or end == 0:
+        return None
+    else:
+        closePrice = start['close']
+        openPrice = end['open']
+        return (closePrice, openPrice, round(((openPrice-closePrice)/closePrice) * 100, 3))
 
 
 def inTradingDay(date):

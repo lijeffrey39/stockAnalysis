@@ -34,14 +34,14 @@ if (timeZoneName == 'Coordinated Universal Time'):
 
 constants = {
     'min_idea_threshold': 200,
-    'max_tweets': 1500,
+    'max_tweets': 2000,
     'hoursBackToAnalyze': 3,
     'project_root': project_root,
     'driver_bin': driver_bin,
     'chrome_options': chrome_options,
     'caps': caps,
     'scroll_pause_time': 2,
-    'alpha_vantage_api_key':'URK33PG7JX4SFFXH' ,
+    'alpha_vantage_api_key':'URK33PG7JX4SFFXH',
     'db_client': pymongo.MongoClient("mongodb+srv://lijeffrey39:test@cluster0"
                                      "-qthez.mongodb.net/test?retryWrites=true"
                                      "&w=majority",
@@ -59,6 +59,11 @@ constants = {
     'timeAttr': 'st_2q3fdlM',
     'current_timezone': timeZoneName,
     'eastern_timezone': pytz.timezone('US/Eastern'),
+    'keys': ['bullReturns', 'bearReturns', 'returnRatio', 'bullCount',
+             'bearCount', 'countRatio', 'UBullReturns', 'UBearReturns',
+             'UReturnRatio', 'UBullCount', 'UBearCount', 'UCountRatio',
+             'totalLabeledTweets', 'totalLabeledTweetsUsed', 
+             'UtotalLabeledTweetsUsed'],
 
     'html_class_user_div': 'st_CFwNYeI st_jGV698i st_PLa30pM',
     'html_class_user_info': 'st_21r0FbC st_2fTou_q',

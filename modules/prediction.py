@@ -210,6 +210,8 @@ def calculateSentiment(tweets, symbol, userAccDict):
         isBull = tweet['isBull']
         result['totalLabeledTweets'] += 1
         if (username in userAccDict):
+            if (symbol not in userAccDict[username]['perStock']):
+                continue
             stockInfo = userAccDict[username]['perStock'][symbol]
             bullReturns = stockInfo['percentBullReturn']
             bearReturns = stockInfo['percentBearReturn']
@@ -245,11 +247,9 @@ def setupUserInfos(stocks):
     for symbol in stocks:
         accuracy = constants['db_user_client'].get_database('user_data_db').user_accuracy
         allUsersAccs = accuracy.find({'perStock.' + symbol: {'$exists': True}})
-        userAccDict = {}
         for user in allUsersAccs:
-            userAccDict[user['_id']] = user
-        result[symbol] = userAccDict
-
+            if (user['_id'] not in result):
+                result[user['_id']] = user
     return result
 
 
@@ -263,108 +263,234 @@ def setupStockInfos(stocks):
     return result
 
 
+def setupResults(dates, keys):
+    results = {}
+    for date in dates:
+        results[date] = {}
+        results[date]['params'] = {}
+        results[date]['closeOpen'] = {}
+        for k in keys:
+            results[date]['params'][k] = {}
+    return results
+
+
+def findAllTweets(stocks, dates):
+    result = {}
+    tweetsDB = constants['stocktweets_client'].get_database('tweets_db')
+    for symbol in stocks:
+        dateStart = dates[0]
+        dateEnd = dates[-1]
+        labeledTweets = tweetsDB.tweets.find({"$and": [{'symbol': symbol},
+                                                       {"$or": [
+                                                        {'isBull': True},
+                                                        {'isBull': False}
+                                                        ]},
+                                                       {'time': {'$gte': dateStart,
+                                                        '$lt': dateEnd}}]})
+        result[symbol] = list(labeledTweets)
+    return result
+
+
+def simpleWeightPredictionReturns(date, results, paramWeightings):
+    summedDict = {}
+    for param in paramWeightings:
+        if (param == 'numStocks'):
+            continue
+        resultsForDay = results[date]['params'][param]
+        paramWeight = paramWeightings[param]
+        for symbol in resultsForDay:
+            if (symbol not in summedDict):
+                summedDict[symbol] = (resultsForDay[symbol] * paramWeight)
+            else:
+                summedDict[symbol] += (resultsForDay[symbol] * paramWeight)
+
+    resPerParam = list(summedDict.items())
+    resPerParam.sort(key=lambda x: abs(x[1]), reverse=True)
+    resPerParam = resPerParam[:paramWeightings['numStocks']]
+    sumDiffs = reduce(lambda a, b: a + b,
+                      list(map(lambda x: abs(x[1]), resPerParam)))
+
+    returnToday = 0
+    for symbolObj in resPerParam:
+        symbol = symbolObj[0]
+        stdDev = symbolObj[1]
+        if symbol not in results[date]['closeOpen']:
+            continue
+        closeOpen = results[date]['closeOpen'][symbol]
+        try:
+            returnToday += ((stdDev / sumDiffs) * closeOpen)
+        except:
+            continue
+    mappedResult = list(map(lambda x: [x[0], round(x[1] / sumDiffs * 100, 2), results[date]['closeOpen'][x[0]]], resPerParam))
+    print(date, round(returnToday, 3), mappedResult)
+    return returnToday
+
+
 # Basic prediction algo
 def basicPrediction(dates):
+    startTime = time.time()
     stocks = getTopStocks()
     tweetsDB = constants['stocktweets_client'].get_database('tweets_db')
     stocks = stocks[:25]
     total = {}
-    keys = ['bullReturns', 'bearReturns', 'returnRatio', 'bullCount', 
-            'countRatio', 'UBullReturns', 'UBearReturns', 'UReturnRatio',
-            'UBullCount', 'UBearCount', 'UCountRatio',
-            'totalLabeledTweets', 'totalLabeledTweetsUsed', 
-            'UtotalLabeledTweetsUsed']
 
     userInfos = setupUserInfos(stocks)
     stockInfos = setupStockInfos(stocks)
+    allTweets = findAllTweets(stocks, dates)
+    results = setupResults(dates, constants['keys'])
     combinedResult = 0
-    for date in dates:
-        resultsForDay = {}
-        closeOpenDict = {}
-        for symbol in stocks:
-            userAccDict = userInfos[symbol]
-            symbolInfo = stockInfos[symbol]
+    print(time.time() - startTime)
 
-            dateStart = datetime.datetime(date.year, date.month, date.day, 9, 30)
-            dateEnd = datetime.datetime(date.year, date.month, date.day, 16, 0)
-            labeledTweets = tweetsDB.tweets.find({"$and": [{'symbol': symbol},
-                                                 {"$or": [
-                                                    {'isBull': True},
-                                                    {'isBull': False}
-                                                 ]},
-                                                 {'time': {'$gte': dateStart,
-                                                  '$lt': dateEnd}}]})
+    for symbol in stocks:
+        print(symbol)
+        symbolInfo = stockInfos[symbol]
+        tweetsSymbol = allTweets[symbol]
 
-            sentiment = calculateSentiment(labeledTweets, symbol, userAccDict)
-            for k in sentiment:
-                stdDev = round((sentiment[k] - symbolInfo[k]['mean']) / symbolInfo[k]['stdev'], 2)
-                if (k not in resultsForDay):
-                    resultsForDay[k] = {}
-                resultsForDay[k][symbol] = stdDev
+        for date in dates:
+            dateStart = datetime.datetime(date.year,
+                                          date.month, date.day, 9, 30)
+            dateEnd = datetime.datetime(date.year,
+                                        date.month, date.day, 16, 0)
+            tweets = list(filter(lambda x: x['time'] >= dateStart and
+                          x['time'] <= dateEnd, tweetsSymbol))
+            sentiment = calculateSentiment(tweets, symbol, userInfos)
+            for param in sentiment:
+                paramVal = sentiment[param]
+                paramMean = symbolInfo[param]['mean']
+                paramStd = symbolInfo[param]['stdev']
+                if (paramStd == 0.0):
+                    results[date]['params'][param][symbol] = 0
+                    continue
+                stdDev = round((paramVal - paramMean) / paramStd, 2)
+                results[date]['params'][param][symbol] = stdDev
 
-            print(symbol, sentiment)
-            closeOpen = closeToOpen(symbol, date)
+            closeOpen = getUpdatedCloseOpen(symbol, date)
             if (closeOpen is None):
                 continue
-            closeOpenDict[symbol] = closeOpen[2]
+            results[date]['closeOpen'][symbol] = closeOpen[2]
 
-        returns = []
-        for k in keys:
-            results = list(resultsForDay[k].items())
-            results.sort(key=lambda x: abs(x[1]), reverse=True)
-            results = results[:3]
-            sumDiffs = reduce(lambda a, b: a + b, list(map(lambda x: abs(x[1]), results)))
-            returnToday = 0
-            for s in results:
-                if (s[0]) not in closeOpenDict:
-                    continue
-                returnToday += ((s[1] / sumDiffs) * closeOpenDict[s[0]])
-            returns.append(round(returnToday, 3))
-            # mappedResult = list(map(lambda x: [x[0], abs(round(x[1] / sumDiffs * 100, 2)), x[2]], stockResult))
+    print(time.time() - startTime)
 
-        keysTest = ['returnRatio', 'countRatio']
+    combinedResults = {}
 
-        # keyTest = [['returnRatio', 70.9], ['bullReturns', 54], ['countRatio', 76.6], ['UReturnRatio', 65]]
-        # sumVals = reduce(lambda a, b: a + b, list(map(lambda x: abs(x[1]), keyTest)))
-        dictSymbols = {}
-        for k in keysTest:
-            results = resultsForDay[k]
-            for symbol in results:
-                if (symbol not in dictSymbols):
-                    dictSymbols[symbol] = results[symbol]
-                else:
-                    dictSymbols[symbol] += results[symbol]
+    for date in dates:
+        # for a in range(0, 5):
+        #     for b in range(0, 5):
+        #         for c in range(0, 5):
+        #             for d in range(0, 5):
+        #                 for e in range(2, 5):
+        #                     paramWeightings = {'returnRatio': a * 0.1,
+        #                                        'countRatio': b * 0.1,
+        #                                        'bullReturns': c * 0.1,
+        #                                        'UBullCount': d * 0.1,
+        #                                        'numStocks': e}
+        #                     returns = simpleWeightPredictionReturns(date, results, paramWeightings)
+        #                     if (tuple(paramWeightings.items()) not in combinedResults):
+        #                         combinedResults[tuple(paramWeightings.items())] = returns
+        #                     else:
+        #                         combinedResults[tuple(paramWeightings.items())] += returns
 
-        results = list(dictSymbols.items())
-        results.sort(key=lambda x: abs(x[1]), reverse=True)
-        print(results)
-        results = results[:3]
-        sumDiffs = reduce(lambda a, b: a + b, list(map(lambda x: abs(x[1]), results)))
-        returnToday = 0
-        for s in results:
-            if (s[0]) not in closeOpenDict:
-                continue
-            returnToday += ((s[1] / sumDiffs) * closeOpenDict[s[0]])
-        combinedResult += returnToday
+        simpleWeight = {'returnRatio': 3, 'countRatio': 4, 'bullReturns': 4, 'numStocks': 2}
+        # combinedResult += simpleWeightPredictionReturns(date, results, simpleWeight)
 
-        # mappedResult = list(map(lambda x: [x[0], abs(round(x[1] / sumDiffs * 100, 2)), closeOpenDict[x[0]]], results))
-        # print(date.strftime('%Y-%m-%d'), round(returnToday, 2), mappedResult)
-        for k in keys:
-            if k not in total:
-                total[k] = returns[0]
-            else:
-                total[k] += returns[0]
-            returns = returns[1:]
+    # print(combinedResult)
 
-    print(round(combinedResult, 2))
+    bestParams = list(combinedResults.items())
+    bestParams.sort(key=lambda x: x[1], reverse=True)
+    for x in bestParams[:100]:
+        print(x)
+
+
+    # combinedResult = 0
+    # for date in dates[2:]:
+    #     resultsForDay = {}
+    #     closeOpenDict = {}
+    #     for symbol in stocks:
+    #         symbolInfo = stockInfos[symbol]
+
+    #         dateStart = datetime.datetime(date.year, date.month, date.day, 9, 30)
+    #         dateEnd = datetime.datetime(date.year, date.month, date.day, 16, 0)
+    #         labeledTweets = tweetsDB.tweets.find({"$and": [{'symbol': symbol},
+    #                                              {"$or": [
+    #                                                 {'isBull': True},
+    #                                                 {'isBull': False}
+    #                                              ]},
+    #                                              {'time': {'$gte': dateStart,
+    #                                               '$lt': dateEnd}}]})
+
+    #         sentiment = calculateSentiment(labeledTweets, symbol, userInfos)
+    #         for k in sentiment:
+    #             stdDev = round((sentiment[k] - symbolInfo[k]['mean']) / symbolInfo[k]['stdev'], 2)
+    #             if (k not in resultsForDay):
+    #                 resultsForDay[k] = {}
+    #             resultsForDay[k][symbol] = stdDev
+
+    #         # print(symbol, sentiment)
+    #         closeOpen = closeToOpen(symbol, date)
+    #         if (closeOpen is None):
+    #             continue
+    #         closeOpenDict[symbol] = closeOpen[2]
+
+    #     returns = []
+    #     for k in keys:
+    #         results = list(resultsForDay[k].items())
+    #         results.sort(key=lambda x: abs(x[1]), reverse=True)
+    #         results = results[:3]
+    #         sumDiffs = reduce(lambda a, b: a + b, list(map(lambda x: abs(x[1]), results)))
+    #         returnToday = 0
+    #         for s in results:
+    #             if (s[0]) not in closeOpenDict:
+    #                 continue
+    #             returnToday += ((s[1] / sumDiffs) * closeOpenDict[s[0]])
+    #         returns.append(round(returnToday, 3))
+    #         # mappedResult = list(map(lambda x: [x[0], abs(round(x[1] / sumDiffs * 100, 2)), x[2]], stockResult))
+
+    #     keysTest = ['returnRatio', 'countRatio']
+
+    #     # keyTest = [['returnRatio', 70.9], ['bullReturns', 54], ['countRatio', 76.6], ['UReturnRatio', 65]]
+    #     # sumVals = reduce(lambda a, b: a + b, list(map(lambda x: abs(x[1]), keyTest)))
+    #     dictSymbols = {}
+    #     for k in keysTest:
+    #         results = resultsForDay[k]
+    #         for symbol in results:
+    #             if (symbol not in dictSymbols):
+    #                 dictSymbols[symbol] = results[symbol]
+    #             else:
+    #                 dictSymbols[symbol] += results[symbol]
+
+    #     results = list(dictSymbols.items())
+    #     results.sort(key=lambda x: abs(x[1]), reverse=True)
+    #     # print(results)
+    #     results = results[:2]
+    #     sumDiffs = reduce(lambda a, b: a + b, list(map(lambda x: abs(x[1]), results)))
+    #     returnToday = 0
+    #     for s in results:
+    #         if (s[0]) not in closeOpenDict:
+    #             continue
+    #         returnToday += ((s[1] / sumDiffs) * closeOpenDict[s[0]])
+    #     combinedResult += returnToday
+    #     try:
+    #         mappedResult = list(map(lambda x: [x[0], abs(round(x[1] / sumDiffs * 100, 2)), closeOpenDict[x[0]], round(x[1], 2)], results))
+    #         print(date.strftime('%Y-%m-%d'), round(returnToday, 2), mappedResult)   
+    #     except:
+    #         mappedResult = list(map(lambda x: [x[0], abs(round(x[1] / sumDiffs * 100, 2))], results))
+    #         print(date.strftime('%Y-%m-%d'), round(returnToday, 2), mappedResult)   
+    #     for k in keys:
+    #         if k not in total:
+    #             total[k] = returns[0]
+    #         else:
+    #             total[k] += returns[0]
+    #         returns = returns[1:]
+
+    # print(round(combinedResult, 2))
 
 
 # Updates stock mean and standard deviation
 def updateBasicStockInfo(dates):
     stocks = getTopStocks()
+    stocks = stocks[:25]
     tweetsDB = constants['stocktweets_client'].get_database('tweets_db')
     basicStockInfo = constants['stocktweets_client'].get_database('stocks_data_db').basic_stock_info
-    stocks = stocks[:50]
 
     for symbol in stocks:
         accuracy = constants['db_user_client'].get_database('user_data_db').user_accuracy
@@ -376,7 +502,7 @@ def updateBasicStockInfo(dates):
         symbolInfo = {'_id': symbol}
         found = basicStockInfo.find_one({'_id': symbol})
         if (found is not None):
-            continue
+            basicStockInfo.delete_one(symbolInfo)
 
         print(symbol)
         for date in dates:
@@ -391,10 +517,6 @@ def updateBasicStockInfo(dates):
                                                   '$lt': dateEnd}}]})
 
             sentiment = calculateSentiment(labeledTweets, symbol, userAccDict)
-
-            keys = ['countRatio', 'bullCount', 'bearCount', 'returnRatio']
-            diffs = []
-
             if ('bullReturns' not in symbolInfo):
                 for k in sentiment:
                     symbolInfo[k] = [sentiment[k]]
@@ -406,13 +528,10 @@ def updateBasicStockInfo(dates):
             if (k != '_id'):
                 vals = symbolInfo[k]
                 symbolInfo[k] = {}
-                symbolInfo[k]['stdev'] = statistics.stdev(vals)
                 symbolInfo[k]['mean'] = statistics.mean(vals)
+                symbolInfo[k]['stdev'] = statistics.stdev(vals)
+        print(symbolInfo)
         basicStockInfo.insert_one(symbolInfo)
-
-
-
-
 
 
 # Creates top users for each stock (Run each time there are new users)

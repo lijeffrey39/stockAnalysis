@@ -147,16 +147,24 @@ def addOptions(parser):
                       help="parse stock information")
 
 
-def makePredictionToday():
+def makePredictionToday(processes):
     now = convertToEST(datetime.datetime.now())
-    date = datetime.datetime(now.year, now.month, 3)
+    date = datetime.datetime(now.year, now.month, 7)
 
     stocks = getTopStocks()
     stocks = stocks[:25]
     shuffle(stocks)
-    analyzeStocks(date, stocks)
 
+    analyzeStocks(date, stocks)
     basicPrediction([date])
+
+    # chunked = chunkIt(stocks, processes)
+    # pool = Pool()
+    # for i in range(processes):
+    #     pool.apply_async(analyzeStocks, [date, chunked[i]])
+
+    # pool.close()
+    # pool.join()
 
 
 def main():
@@ -165,15 +173,15 @@ def main():
     options, args = opt_parser.parse_args()
     dateNow = datetime.datetime.now()
 
-    makePredictionToday()
-    return
+    # makePredictionToday(1)
+    # return
 
     if (options.users):
         # refreshUserStatus()
         analyzeUsers(False)
     elif (options.stocks):
         now = convertToEST(datetime.datetime.now())
-        date = datetime.datetime(now.year, now.month, 2)
+        date = datetime.datetime(now.year, now.month, 3)
         stocks = getAllStocks()
         analyzeStocks(date, stocks)
     else:
@@ -186,52 +194,18 @@ def main():
         # return
         # print(getStatsPerUser('ACInvestorBlog'))
         # return
-
-        date = datetime.datetime(dateNow.year, 8, 30, 10)
-        dateUpTo = datetime.datetime(dateNow.year, 10, 1)
+        date = datetime.datetime(dateNow.year, 8, 30, 9, 30)
+        dateUpTo = datetime.datetime(dateNow.year, 10, 4)
         dates = findTradingDays(date, dateUpTo)
-        # print(dates)
+        dates = dates[2:]
+        stocks = getTopStocks()
+        stocks = stocks[:25]
+
+        # updateAllCloseOpen(stocks, dates)
         # return
+
         basicPrediction(dates)
         # updateBasicStockInfo(dates)
-        return
-        # dates = [datetime.datetime(dateNow.year, 5, 21)]
-
-        money = 2000
-        startMoney = 2000
-        totalReturn = 0
-        x = 0
-        y = 0
-        dictPrices = {}
-        for date in dates:
-            weights = [9, 0.48, 0.45, 0.64, 1.92]
-
-            (res, hitPercent) = topStocks(date, money, weights)
-            (foundReturn, pos, neg, newRes) = calcReturnBasedResults(date, res)
-
-            for new in newRes:
-                if (new[0] not in dictPrices):
-                    dictPrices[new[0]] = new[1]
-                else:
-                    dictPrices[new[0]] += new[1]
-
-            x += pos
-            y += neg
-            if (foundReturn >= 0):
-                print("%s $%.2f +%.2f%%    Hit: %.2f%%" % (date.strftime("%m-%d-%y"), foundReturn,
-                    round((((money + foundReturn) / money) - 1) * 100, 2), hitPercent))
-            else:
-                print("%s $%.2f %.2f%%    Hit: %.2f%%" % (date.strftime("%m-%d-%y"), foundReturn,
-                    round((((money + foundReturn) / money) - 1) * 100, 2), hitPercent))
-            totalReturn += foundReturn
-            money += foundReturn
-
-        sorted_x = sorted(dictPrices.items(), key = operator.itemgetter(1))
-        # print(sorted_x)
-        print("$%d -> $%d" % (startMoney, startMoney + totalReturn))
-        print("+%.2f%%" % (round((((startMoney + totalReturn) / startMoney) - 1) * 100, 2)))
-        print("+%d -%d" % (x, y))
-
 
 if __name__ == "__main__":
     main()
