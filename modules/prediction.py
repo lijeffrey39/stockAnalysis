@@ -321,7 +321,10 @@ def simpleWeightPredictionReturns(date, results, paramWeightings):
             returnToday += ((stdDev / sumDiffs) * closeOpen)
         except:
             continue
-    mappedResult = list(map(lambda x: [x[0], round(x[1] / sumDiffs * 100, 2), results[date]['closeOpen'][x[0]]], resPerParam))
+    try:
+        mappedResult = list(map(lambda x: [x[0], round(x[1] / sumDiffs * 100, 2), results[date]['closeOpen'][x[0]]], resPerParam))
+    except:
+        mappedResult = list(map(lambda x: [x[0], round(x[1] / sumDiffs * 100, 2)], resPerParam))
     print(date, round(returnToday, 3), mappedResult)
     return returnToday
 
@@ -369,10 +372,7 @@ def basicPrediction(dates):
                 continue
             results[date]['closeOpen'][symbol] = closeOpen[2]
 
-    print(time.time() - startTime)
-
     combinedResults = {}
-
     for date in dates:
         # for a in range(0, 5):
         #     for b in range(0, 5):
@@ -390,10 +390,10 @@ def basicPrediction(dates):
         #                     else:
         #                         combinedResults[tuple(paramWeightings.items())] += returns
 
-        simpleWeight = {'returnRatio': 3, 'countRatio': 4, 'bullReturns': 4, 'numStocks': 2}
-        # combinedResult += simpleWeightPredictionReturns(date, results, simpleWeight)
+        simpleWeight = {'returnRatio': 3, 'countRatio': 4, 'bullReturns': 4, 'numStocks': 3}
+        combinedResult += simpleWeightPredictionReturns(date, results, simpleWeight)
 
-    # print(combinedResult)
+    print(combinedResult)
 
     bestParams = list(combinedResults.items())
     bestParams.sort(key=lambda x: x[1], reverse=True)

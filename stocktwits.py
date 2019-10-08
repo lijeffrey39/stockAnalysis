@@ -149,13 +149,13 @@ def addOptions(parser):
 
 def makePredictionToday(processes):
     now = convertToEST(datetime.datetime.now())
-    date = datetime.datetime(now.year, now.month, 7)
+    date = datetime.datetime(now.year, now.month, 8)
 
     stocks = getTopStocks()
     stocks = stocks[:25]
     shuffle(stocks)
 
-    analyzeStocks(date, stocks)
+    # analyzeStocks(date, stocks)
     basicPrediction([date])
 
     # chunked = chunkIt(stocks, processes)
@@ -173,7 +173,10 @@ def main():
     options, args = opt_parser.parse_args()
     dateNow = datetime.datetime.now()
 
-    # makePredictionToday(1)
+    makePredictionToday(1)
+    return
+
+    # print(getUpdatedCloseOpen('AAPL', datetime.datetime(dateNow.year, 9, 24)))
     # return
 
     if (options.users):
@@ -195,7 +198,7 @@ def main():
         # print(getStatsPerUser('ACInvestorBlog'))
         # return
         date = datetime.datetime(dateNow.year, 8, 30, 9, 30)
-        dateUpTo = datetime.datetime(dateNow.year, 10, 4)
+        dateUpTo = datetime.datetime(dateNow.year, 10, 7)
         dates = findTradingDays(date, dateUpTo)
         dates = dates[2:]
         stocks = getTopStocks()
