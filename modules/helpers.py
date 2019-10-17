@@ -83,7 +83,7 @@ def findTradingDays(date, upToDate):
     delta = datetime.timedelta(1)
     dates = []
 
-    while (date < upToDate + delta):
+    while (date < upToDate):
         # See if it's a valid trading day
         if (inTradingDay(date)):
             dates.append(date)

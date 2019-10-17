@@ -38,12 +38,11 @@ def updateCloseOpen(symbol, date, db):
     restURL = "?chartByDay=True&token=sk_f993e71175fc4213a0cea1515436270e"
     URL = baseURL + dateString + restURL
     r = requests.get(url=URL)
-    print(symbol)
+    print(symbol, date, URL)
     data = r.json()[0]
 
     _id = symbol + ' ' + data['date']
     result = {'_id': _id, 'open': data['open'], 'close': data['close']}
-    print(result)
     db.insert_one(result)
 
 
@@ -117,12 +116,12 @@ def getPrice(ticker, time):
 
 
 def getPriceAtEndOfDay(ticker, time):
-    market_close = datetime.datetime(time.year, time.month, time.day, 16, 0)
+    market_close = datetime.datetime(time.year, time.month, time.day, 15, 50)
     return getPrice(ticker, market_close)
 
 
 def getPriceAtBeginningOfDay(ticker, time):
-    market_open = datetime.datetime(time.year, time.month, time.day, 9, 35)
+    market_open = datetime.datetime(time.year, time.month, time.day, 9, 40)
     return getPrice(ticker, market_open)
 
 

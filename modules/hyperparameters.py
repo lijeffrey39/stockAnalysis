@@ -35,12 +35,12 @@ if (timeZoneName == 'Coordinated Universal Time'):
 constants = {
     'min_idea_threshold': 200,
     'max_tweets': 2000,
-    'hoursBackToAnalyze': 3,
+    'hoursBackToAnalyze': 0.1,
     'project_root': project_root,
     'driver_bin': driver_bin,
     'chrome_options': chrome_options,
     'caps': caps,
-    'scroll_pause_time': 2,
+    'scroll_pause_time': 5,
     'alpha_vantage_api_key':'URK33PG7JX4SFFXH',
     'db_client': pymongo.MongoClient("mongodb+srv://lijeffrey39:test@cluster0"
                                      "-qthez.mongodb.net/test?retryWrites=true"

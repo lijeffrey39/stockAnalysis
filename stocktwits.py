@@ -149,14 +149,15 @@ def addOptions(parser):
 
 def makePredictionToday(processes):
     now = convertToEST(datetime.datetime.now())
-    date = datetime.datetime(now.year, now.month, 8)
+    date = datetime.datetime(now.year, now.month, now.day)
 
     stocks = getTopStocks()
     stocks = stocks[:25]
     shuffle(stocks)
 
-    # analyzeStocks(date, stocks)
-    basicPrediction([date])
+    analyzeStocks(date, stocks)
+    dates = [datetime.datetime(now.year, now.month, 16, 9, 30), datetime.datetime(now.year, now.month, 17, 16)]
+    basicPrediction(dates, stocks)
 
     # chunked = chunkIt(stocks, processes)
     # pool = Pool()
@@ -197,18 +198,26 @@ def main():
         # return
         # print(getStatsPerUser('ACInvestorBlog'))
         # return
-        date = datetime.datetime(dateNow.year, 8, 30, 9, 30)
-        dateUpTo = datetime.datetime(dateNow.year, 10, 7)
+
+        # date = datetime.datetime(dateNow.year, 9, 3, 9, 30)
+        # dateUpTo = datetime.datetime(dateNow.year, 9, 24, 16)
+
+        # date = datetime.datetime(dateNow.year, 9, 25, 9, 30)
+        # dateUpTo = datetime.datetime(dateNow.year, 10, 14, 16)
+
+        date = datetime.datetime(dateNow.year, 9, 3, 9, 30)
+        dateUpTo = datetime.datetime(dateNow.year, 10, 16, 16)
         dates = findTradingDays(date, dateUpTo)
-        dates = dates[2:]
         stocks = getTopStocks()
         stocks = stocks[:25]
-
+        # for i in range(len(stocks)):
+        #     print(i, stocks[i])
+        # print(dates)
         # updateAllCloseOpen(stocks, dates)
         # return
 
-        basicPrediction(dates)
-        # updateBasicStockInfo(dates)
+        basicPrediction(dates, stocks)
+        # updateBasicStockInfo(dates, stocks)
 
 if __name__ == "__main__":
     main()

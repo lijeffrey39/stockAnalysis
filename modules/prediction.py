@@ -254,7 +254,9 @@ def setupUserInfos(stocks):
 
 
 def setupStockInfos(stocks):
-    basicStockInfo = constants['stocktweets_client'].get_database('stocks_data_db').basic_stock_info
+    # basicStockInfo = constants['stocktweets_client'].get_database('stocks_data_db').basic_stock_info
+    # basicStockInfo = constants['stocktweets_client'].get_database('stocks_data_db').training_stock_info
+    basicStockInfo = constants['stocktweets_client'].get_database('stocks_data_db').training_stock_info_1015
     result = {}
     for symbol in stocks:
         symbolInfo = basicStockInfo.find_one({'_id': symbol})
@@ -330,11 +332,9 @@ def simpleWeightPredictionReturns(date, results, paramWeightings):
 
 
 # Basic prediction algo
-def basicPrediction(dates):
+def basicPrediction(dates, stocks):
     startTime = time.time()
-    stocks = getTopStocks()
     tweetsDB = constants['stocktweets_client'].get_database('tweets_db')
-    stocks = stocks[:25]
     total = {}
 
     userInfos = setupUserInfos(stocks)
@@ -367,7 +367,7 @@ def basicPrediction(dates):
                 stdDev = round((paramVal - paramMean) / paramStd, 2)
                 results[date]['params'][param][symbol] = stdDev
 
-            closeOpen = getUpdatedCloseOpen(symbol, date)
+            closeOpen = closeToOpen(symbol, date)
             if (closeOpen is None):
                 continue
             results[date]['closeOpen'][symbol] = closeOpen[2]
@@ -386,19 +386,19 @@ def basicPrediction(dates):
         #                                        'numStocks': e}
         #                     returns = simpleWeightPredictionReturns(date, results, paramWeightings)
         #                     if (tuple(paramWeightings.items()) not in combinedResults):
-        #                         combinedResults[tuple(paramWeightings.items())] = returns
+        #                         combinedResults[tuple(paramWeightings.items())] = [returns]
         #                     else:
-        #                         combinedResults[tuple(paramWeightings.items())] += returns
+        #                         combinedResults[tuple(paramWeightings.items())].append(returns)
 
-        simpleWeight = {'returnRatio': 3, 'countRatio': 4, 'bullReturns': 4, 'numStocks': 3}
+        simpleWeight = {'returnRatio': 3, 'countRatio': 4, 'bullReturns': 4, 'numStocks': 5}
         combinedResult += simpleWeightPredictionReturns(date, results, simpleWeight)
 
     print(combinedResult)
 
-    bestParams = list(combinedResults.items())
-    bestParams.sort(key=lambda x: x[1], reverse=True)
-    for x in bestParams[:100]:
-        print(x)
+    # bestParams = list(combinedResults.items())
+    # bestParams.sort(key=lambda x: sum(x[1]), reverse=True)
+    # for x in bestParams[:100]:
+    #     print(x)
 
 
     # combinedResult = 0
@@ -486,11 +486,11 @@ def basicPrediction(dates):
 
 
 # Updates stock mean and standard deviation
-def updateBasicStockInfo(dates):
-    stocks = getTopStocks()
-    stocks = stocks[:25]
+def updateBasicStockInfo(dates, stocks):
     tweetsDB = constants['stocktweets_client'].get_database('tweets_db')
-    basicStockInfo = constants['stocktweets_client'].get_database('stocks_data_db').basic_stock_info
+    # basicStockInfo = constants['stocktweets_client'].get_database('stocks_data_db').basic_stock_info
+    # basicStockInfo = constants['stocktweets_client'].get_database('stocks_data_db').training_stock_info
+    basicStockInfo = constants['stocktweets_client'].get_database('stocks_data_db').training_stock_info_1015
 
     for symbol in stocks:
         accuracy = constants['db_user_client'].get_database('user_data_db').user_accuracy
@@ -502,7 +502,8 @@ def updateBasicStockInfo(dates):
         symbolInfo = {'_id': symbol}
         found = basicStockInfo.find_one({'_id': symbol})
         if (found is not None):
-            basicStockInfo.delete_one(symbolInfo)
+            continue
+            # basicStockInfo.delete_one(symbolInfo)
 
         print(symbol)
         for date in dates:
@@ -530,7 +531,6 @@ def updateBasicStockInfo(dates):
                 symbolInfo[k] = {}
                 symbolInfo[k]['mean'] = statistics.mean(vals)
                 symbolInfo[k]['stdev'] = statistics.stdev(vals)
-        print(symbolInfo)
         basicStockInfo.insert_one(symbolInfo)
 
 
