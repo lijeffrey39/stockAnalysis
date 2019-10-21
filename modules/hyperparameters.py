@@ -35,7 +35,7 @@ if (timeZoneName == 'Coordinated Universal Time'):
 constants = {
     'min_idea_threshold': 200,
     'max_tweets': 2000,
-    'hoursBackToAnalyze': 0.1,
+    'hoursBackToAnalyze': 1,
     'project_root': project_root,
     'driver_bin': driver_bin,
     'chrome_options': chrome_options,

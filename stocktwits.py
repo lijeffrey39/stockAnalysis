@@ -153,10 +153,11 @@ def makePredictionToday(processes):
 
     stocks = getTopStocks()
     stocks = stocks[:25]
+    # stocks.extend(['SBUX', 'TGT', 'COST', 'VMW', 'VZ', 'BABA', 'AVGO'])
     shuffle(stocks)
 
     analyzeStocks(date, stocks)
-    dates = [datetime.datetime(now.year, now.month, 16, 9, 30), datetime.datetime(now.year, now.month, 17, 16)]
+    dates = [datetime.datetime(now.year, now.month, 17, 9, 30), datetime.datetime(now.year, now.month, 18, 16)]
     basicPrediction(dates, stocks)
 
     # chunked = chunkIt(stocks, processes)
@@ -174,8 +175,12 @@ def main():
     options, args = opt_parser.parse_args()
     dateNow = datetime.datetime.now()
 
-    makePredictionToday(1)
-    return
+
+    # tempFindStockPage('SNAP', dateNow, 5)
+    # return
+
+    # makePredictionToday(1)
+    # return
 
     # print(getUpdatedCloseOpen('AAPL', datetime.datetime(dateNow.year, 9, 24)))
     # return
@@ -185,7 +190,7 @@ def main():
         analyzeUsers(False)
     elif (options.stocks):
         now = convertToEST(datetime.datetime.now())
-        date = datetime.datetime(now.year, now.month, 3)
+        date = datetime.datetime(now.year, now.month, 21)
         stocks = getAllStocks()
         analyzeStocks(date, stocks)
     else:
@@ -206,7 +211,7 @@ def main():
         # dateUpTo = datetime.datetime(dateNow.year, 10, 14, 16)
 
         date = datetime.datetime(dateNow.year, 9, 3, 9, 30)
-        dateUpTo = datetime.datetime(dateNow.year, 10, 16, 16)
+        dateUpTo = datetime.datetime(dateNow.year, 10, 17, 16)
         dates = findTradingDays(date, dateUpTo)
         stocks = getTopStocks()
         stocks = stocks[:25]

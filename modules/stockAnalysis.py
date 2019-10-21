@@ -3,6 +3,7 @@ import os
 
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.common.keys import Keys
 
 from bs4 import BeautifulSoup
 
@@ -54,6 +55,41 @@ def getTopStocks():
     return stocks
 
 
+# def tempFindStockPage(symbol, date, hoursBack):
+#     driver = None
+#     try:
+#         driver = webdriver.Chrome(executable_path=constants['driver_bin'],
+#                                   options=constants['chrome_options'],
+#                                   desired_capabilities=constants['caps'])
+#         driver.set_page_load_timeout(90)
+#     except Exception as e:
+#         return ('', str(e), 0)
+
+#     start = time.time()
+#     url = "https://stocktwits.com"
+
+#     try:
+#         driver.get(url)
+#     except Exception as e:
+#         end = time.time()
+#         endDriver(driver)
+#         return ('', str(e), end - start)
+
+#     inputElement = driver.find_element_by_tag_name("input")
+#     inputElement.send_keys(symbol)
+#     inputElement.send_keys(Keys.ENTER)
+
+#     time.sleep(1)
+    
+#     button = driver.find_element_by_class_name('st_1luPg-o')
+#     button.click()
+#     time.sleep(10)
+#     # endDriver(driver)
+#     return
+
+#     return (soup, '', (end - start))
+
+
 # Return soup object page of that stock
 def findPageStock(symbol, date, hoursBack):
     driver = None
@@ -66,15 +102,24 @@ def findPageStock(symbol, date, hoursBack):
         return ('', str(e), 0)
 
     start = time.time()
-    url = "https://stocktwits.com/symbol/%s" % symbol
+    url = "https://stocktwits.com"
 
-    # Handling exceptions and random shit
     try:
         driver.get(url)
     except Exception as e:
         end = time.time()
         endDriver(driver)
         return ('', str(e), end - start)
+
+    inputElement = driver.find_element_by_tag_name("input")
+    inputElement.send_keys(symbol)
+    inputElement.send_keys(Keys.ENTER)
+    time.sleep(1)
+    allButtons = driver.find_elements_by_class_name('st_1luPg-o')
+    for button in allButtons:
+        if button.text == symbol:
+            button.click()
+            break
 
     try:
         scroll.scrollFor(driver, hoursBack)
