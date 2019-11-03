@@ -1,7 +1,7 @@
 import datetime
-import statistics
 import math
 import os
+import statistics
 import time
 
 from dateutil.parser import parse
@@ -10,8 +10,9 @@ from . import helpers
 from .fileIO import *
 from .hyperparameters import constants
 from .messageExtract import *
+from .stockAnalysis import getTopStocks
 from .stockPriceAPI import *
-from .stockAnalysis import getAllStocks, getTopStocks
+
 
 # ------------------------------------------------------------------------
 # ----------------------------- Variables --------------------------------
@@ -27,147 +28,6 @@ symbolsIgnored = ["PTX", "RGSE", "AMD", "TSLA", "AMZN", "MNGA", "NBEV", "CRMD"]
 # ------------------------------------------------------------------------
 # ----------------------------- Functions --------------------------------
 # ------------------------------------------------------------------------
-
-
-# Loop through all users and for each stock, add user accuracy per stock
-# TODO: Need to make it update if new users stats are inserted
-def getStatsPerStock():
-    stocks = getAllStocks()
-    analyzedUsersDB = constants['db_user_client'].get_database('user_data_db')
-    stockDB = constants['db_client'].get_database('stocktwits_db').stockRanking
-
-    for symbol in stocks:
-        users = analyzedUserDB.user_accuracy.find({symbol: {'$exists': True}})
-        result = {}
-        result['_id'] = symbol
-        for user in users:
-            userEntry = user['perStock'][symbol]
-            result[user['_id']] = userEntry
-
-        stockDB.insert_one(result)
-
-
-# Initialize user info result for predicting
-def initializeResult(tweets, user):
-    result = {}
-    result['_id'] = user
-    result['totalTweets'] = len(tweets)
-    result['totalCorrectBullPredictions'] = 0
-    result['totalCorrectBearPredictions'] = 0
-    result['totalBullPredictions'] = 0
-    result['totalBearPredictions'] = 0
-    result['totalUniqueCorrectPredictions'] = 0
-    result['totalUniquePredictions'] = 0
-    result['totalBullReturn'] = 0
-    result['totalBearReturn'] = 0
-    result['totalUniqueReturn'] = 0
-    result['perStock'] = {}
-    uniqueSymbols = set(list(map(lambda tweet: tweet['symbol'], tweets)))
-    for symbol in uniqueSymbols:
-        result['perStock'][symbol] = {}
-        result['perStock'][symbol]['totalBullPredictions'] = 0
-        result['perStock'][symbol]['totalBearPredictions'] = 0
-        result['perStock'][symbol]['percentBullReturn'] = 0
-        result['perStock'][symbol]['percentBearReturn'] = 0
-        result['perStock'][symbol]['totalCorrectBullPredictions'] = 0
-        result['perStock'][symbol]['totalCorrectBearPredictions'] = 0
-
-    return result
-
-
-def getStatsPerUser(user):
-    analyzedUsersDB = constants['db_user_client'].get_database('user_data_db')
-    userAccuracy = analyzedUsersDB.user_accuracy
-    result = userAccuracy.find({'_id': user})
-    if (result.count() != 0):
-        return result[0]
-
-    tweetsDB = constants['stocktweets_client'].get_database('tweets_db')
-    labeledTweets = tweetsDB.tweets.find({"$and": [{'user': user},
-                                         {'symbol': {"$ne": None}},
-                                         {"$or": [
-                                            {'isBull': True},
-                                            {'isBull': False}
-                                         ]}]})
-
-    labeledTweets = list(map(lambda tweet: tweet, labeledTweets))
-    result = initializeResult(labeledTweets, user)
-    print(len(labeledTweets))
-    for tweet in labeledTweets:
-        time = tweet['time']
-        symbol = tweet['symbol']
-        isBull = tweet['isBull']
-        if (inTradingDay(time) is False or
-           getPrice(symbol, time) is None):
-            continue
-
-        closeOpen = closeToOpen(symbol, time)
-        if (closeOpen is None):
-            continue
-
-        percentChange = closeOpen[2]
-        correctPrediction = (isBull and percentChange >= 0) or (isBull is False and percentChange < 0)
-        correctNum = 1 if correctPrediction else 0
-        percentReturn = abs(percentChange) if correctPrediction else -abs(percentChange)
-
-        print(tweet['time'], tweet['isBull'], closeOpen, percentReturn, symbol)
-
-        if (isBull):
-            result['totalBullReturn'] += percentReturn
-            result['totalCorrectBullPredictions'] += correctNum
-            result['totalBullPredictions'] += 1
-            result['perStock'][symbol]['percentBullReturn'] += percentReturn
-            result['perStock'][symbol]['totalCorrectBullPredictions'] += correctNum
-            result['perStock'][symbol]['totalBullPredictions'] += 1
-        else:
-            result['totalBearReturn'] += percentReturn
-            result['totalCorrectBearPredictions'] += correctNum
-            result['totalBearPredictions'] += 1
-            result['perStock'][symbol]['percentBearReturn'] += percentReturn
-            result['perStock'][symbol]['totalCorrectBearPredictions'] += correctNum
-            result['perStock'][symbol]['totalBearPredictions'] += 1
-
-    for symbol in list(result['perStock'].keys()):
-        if (result['perStock'][symbol]['totalBullPredictions'] == 0 and
-           result['perStock'][symbol]['totalBearPredictions'] == 0):
-            del result['perStock'][symbol]
-
-    userAccuracy.insert_one(result)
-    currTime = convertToEST(datetime.datetime.now())
-    lastTime = {'_id': user, 'time': currTime}
-    analyzedUsersDB.last_user_accuracy_calculated.insert_one(lastTime)
-    return result
-
-
-def getAllUserInfo(username):
-    userInfoDB = constants['db_user_client'].get_database('user_data_db').users
-    checkUserInfo = userInfoDB.find({'_id': username})
-    if (checkUserInfo.count() == 0):
-        return {}
-    userInfo = checkUserInfo[0]
-    if (userInfo['error'] != ''):
-        return {}
-    stats = getStatsPerUser(username)
-
-    # Need to handle of there were no predictions
-    totalPredictions = stats['totalBullPredictions'] + stats['totalBearPredictions']
-    totalCorrect = stats['totalCorrectBullPredictions'] + stats['totalCorrectBearPredictions']
-    if (totalPredictions == 0):
-        return {}
-
-    userAccuracy = totalCorrect * 1.0 / totalPredictions
-    userTotalReturn = stats['totalBullReturn'] + stats['totalBearReturn']
-
-    result = {}
-    result['userAccuracy'] = userAccuracy
-    result['userTotalReturn'] = userTotalReturn
-    result['userStockInfo'] = stats['perStock']
-    result['followers'] = userInfo['followers']
-    result['following'] = userInfo['following']
-    result['ideas'] = userInfo['ideas']
-    result['like_count'] = userInfo['like_count']
-    # result['user_status'] = userInfo['user_status']
-    return result
 
 
 def calcRatio(bullNum, bearNum):
@@ -256,7 +116,7 @@ def setupUserInfos(stocks):
 def setupStockInfos(stocks):
     # basicStockInfo = constants['stocktweets_client'].get_database('stocks_data_db').basic_stock_info
     # basicStockInfo = constants['stocktweets_client'].get_database('stocks_data_db').training_stock_info
-    basicStockInfo = constants['stocktweets_client'].get_database('stocks_data_db').training_stock_info_1015
+    basicStockInfo = constants['stocktweets_client'].get_database('stocks_data_db').training_stock_info_1022
     result = {}
     for symbol in stocks:
         symbolInfo = basicStockInfo.find_one({'_id': symbol})
@@ -390,7 +250,7 @@ def basicPrediction(dates, stocks):
         #                     else:
         #                         combinedResults[tuple(paramWeightings.items())].append(returns)
 
-        simpleWeight = {'returnRatio': 3, 'countRatio': 4, 'bullReturns': 4, 'numStocks': 5}
+        simpleWeight = {'returnRatio': 3, 'countRatio': 4, 'bullReturns': 4, 'numStocks': 7}
         combinedResult += simpleWeightPredictionReturns(date, results, simpleWeight)
 
     print(combinedResult)
@@ -401,96 +261,13 @@ def basicPrediction(dates, stocks):
     #     print(x)
 
 
-    # combinedResult = 0
-    # for date in dates[2:]:
-    #     resultsForDay = {}
-    #     closeOpenDict = {}
-    #     for symbol in stocks:
-    #         symbolInfo = stockInfos[symbol]
-
-    #         dateStart = datetime.datetime(date.year, date.month, date.day, 9, 30)
-    #         dateEnd = datetime.datetime(date.year, date.month, date.day, 16, 0)
-    #         labeledTweets = tweetsDB.tweets.find({"$and": [{'symbol': symbol},
-    #                                              {"$or": [
-    #                                                 {'isBull': True},
-    #                                                 {'isBull': False}
-    #                                              ]},
-    #                                              {'time': {'$gte': dateStart,
-    #                                               '$lt': dateEnd}}]})
-
-    #         sentiment = calculateSentiment(labeledTweets, symbol, userInfos)
-    #         for k in sentiment:
-    #             stdDev = round((sentiment[k] - symbolInfo[k]['mean']) / symbolInfo[k]['stdev'], 2)
-    #             if (k not in resultsForDay):
-    #                 resultsForDay[k] = {}
-    #             resultsForDay[k][symbol] = stdDev
-
-    #         # print(symbol, sentiment)
-    #         closeOpen = closeToOpen(symbol, date)
-    #         if (closeOpen is None):
-    #             continue
-    #         closeOpenDict[symbol] = closeOpen[2]
-
-    #     returns = []
-    #     for k in keys:
-    #         results = list(resultsForDay[k].items())
-    #         results.sort(key=lambda x: abs(x[1]), reverse=True)
-    #         results = results[:3]
-    #         sumDiffs = reduce(lambda a, b: a + b, list(map(lambda x: abs(x[1]), results)))
-    #         returnToday = 0
-    #         for s in results:
-    #             if (s[0]) not in closeOpenDict:
-    #                 continue
-    #             returnToday += ((s[1] / sumDiffs) * closeOpenDict[s[0]])
-    #         returns.append(round(returnToday, 3))
-    #         # mappedResult = list(map(lambda x: [x[0], abs(round(x[1] / sumDiffs * 100, 2)), x[2]], stockResult))
-
-    #     keysTest = ['returnRatio', 'countRatio']
-
-    #     # keyTest = [['returnRatio', 70.9], ['bullReturns', 54], ['countRatio', 76.6], ['UReturnRatio', 65]]
-    #     # sumVals = reduce(lambda a, b: a + b, list(map(lambda x: abs(x[1]), keyTest)))
-    #     dictSymbols = {}
-    #     for k in keysTest:
-    #         results = resultsForDay[k]
-    #         for symbol in results:
-    #             if (symbol not in dictSymbols):
-    #                 dictSymbols[symbol] = results[symbol]
-    #             else:
-    #                 dictSymbols[symbol] += results[symbol]
-
-    #     results = list(dictSymbols.items())
-    #     results.sort(key=lambda x: abs(x[1]), reverse=True)
-    #     # print(results)
-    #     results = results[:2]
-    #     sumDiffs = reduce(lambda a, b: a + b, list(map(lambda x: abs(x[1]), results)))
-    #     returnToday = 0
-    #     for s in results:
-    #         if (s[0]) not in closeOpenDict:
-    #             continue
-    #         returnToday += ((s[1] / sumDiffs) * closeOpenDict[s[0]])
-    #     combinedResult += returnToday
-    #     try:
-    #         mappedResult = list(map(lambda x: [x[0], abs(round(x[1] / sumDiffs * 100, 2)), closeOpenDict[x[0]], round(x[1], 2)], results))
-    #         print(date.strftime('%Y-%m-%d'), round(returnToday, 2), mappedResult)   
-    #     except:
-    #         mappedResult = list(map(lambda x: [x[0], abs(round(x[1] / sumDiffs * 100, 2))], results))
-    #         print(date.strftime('%Y-%m-%d'), round(returnToday, 2), mappedResult)   
-    #     for k in keys:
-    #         if k not in total:
-    #             total[k] = returns[0]
-    #         else:
-    #             total[k] += returns[0]
-    #         returns = returns[1:]
-
-    # print(round(combinedResult, 2))
-
-
 # Updates stock mean and standard deviation
 def updateBasicStockInfo(dates, stocks):
     tweetsDB = constants['stocktweets_client'].get_database('tweets_db')
     # basicStockInfo = constants['stocktweets_client'].get_database('stocks_data_db').basic_stock_info
     # basicStockInfo = constants['stocktweets_client'].get_database('stocks_data_db').training_stock_info
-    basicStockInfo = constants['stocktweets_client'].get_database('stocks_data_db').training_stock_info_1015
+    # basicStockInfo = constants['stocktweets_client'].get_database('stocks_data_db').training_stock_info_1015
+    basicStockInfo = constants['stocktweets_client'].get_database('stocks_data_db').training_stock_info_1022
 
     for symbol in stocks:
         accuracy = constants['db_user_client'].get_database('user_data_db').user_accuracy

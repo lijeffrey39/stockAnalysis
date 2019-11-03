@@ -1,37 +1,23 @@
 import datetime
-import json
-import math
-import multiprocessing
-import operator
 import optparse
-import argparse
-import os
-import platform
-import ssl
-import sys
-import time
-from random import shuffle
-from multiprocessing import Pool, Process
 
-import pymongo
-from dateutil.parser import parse
-from selenium import webdriver
-from selenium.webdriver.common.action_chains import ActionChains
-from selenium.webdriver.common.keys import Keys
-
-from bs4 import BeautifulSoup
-from modules.analytics import *
-from modules.fileIO import *
 from modules.helpers import *
-from modules.hyperparameters import *
+from modules.hyperparameters import constants
 from modules.messageExtract import *
 from modules.prediction import *
 from modules.scroll import *
-from modules.stockAnalysis import *
+from modules.stockAnalysis import (shouldParseStock,
+                                   findPageStock,
+                                   parseStockData,
+                                   updateLastParsedTime,
+                                   updateLastMessageTime)
 from modules.stockPriceAPI import *
-from modules.userAnalysis import *
-from modules.hyperparameters import constants
-
+from modules.userAnalysis import (findUsers,
+                                  shouldParseUser,
+                                  findPageUser,
+                                  parseUserData,
+                                  insertUpdateError,
+                                  getAllUserInfo)
 
 client = constants['db_client']
 clientUser = constants['db_user_client']
@@ -40,11 +26,17 @@ clientStockTweets = constants['stocktweets_client']
 
 def insertResults(results):
     collection = clientStockTweets.get_database('tweets_db').tweets
+    count = 0
+    total = 0
     for r in results:
+        total += 1
         try:
             collection.insert_one(r)
+            count += 1
         except Exception as e:
-            print(str(e))
+            # print(str(e))
+            continue
+    print(count, total)
 
 # ------------------------------------------------------------------------
 # ----------------------- Analyze Specific Stock -------------------------
@@ -61,7 +53,7 @@ def analyzeStocks(date, stocks):
             continue
 
         (soup, errorMsg, timeElapsed) = findPageStock(symbol, date, hours)
-        if (soup is ''):
+        if (soup == ''):
             stockError = {'date': dateString, 'symbol': symbol,
                           'error': errorMsg, 'timeElapsed': timeElapsed}
             db.stock_tweets_errors.insert_one(stockError)
@@ -94,12 +86,16 @@ def analyzeStocks(date, stocks):
 # ------------------------------------------------------------------------
 
 
-def analyzeUsers(reAnalyze):
-    users = findUsers(reAnalyze)
-    # users = ['Beachswingtrader']
+# updateUser reparses tweets made by user and adds status flag if non-existing
+# findNewUsers updates user_not_analyzed table to find new users to parse/store
+# reAnalyze reanalyzes users that errored out
+def analyzeUsers(reAnalyze, findNewUsers, updateUser):
+    users = findUsers(reAnalyze, findNewUsers, updateUser)
+    print(len(users))
+    # users = ['v3r']
     for username in users:
         print(username)
-        coreInfo = shouldParseUser(username, reAnalyze)
+        coreInfo = shouldParseUser(username, reAnalyze, updateUser)
         if (not coreInfo):
             continue
 
@@ -107,18 +103,17 @@ def analyzeUsers(reAnalyze):
         coreInfo['timeElapsed'] = timeElapsed
         if (errorMsg != ''):
             coreInfo['error'] = errorMsg
-            insertUpdateError(coreInfo, reAnalyze)
+            insertUpdateError(coreInfo, reAnalyze, updateUser)
             continue
 
         result = parseUserData(username, soup)
         if (len(result) == 0):
             coreInfo['error'] = "Empty result list"
-            insertUpdateError(coreInfo, reAnalyze)
+            insertUpdateError(coreInfo, reAnalyze, updateUser)
             continue
 
-        insertUpdateError(coreInfo, reAnalyze)
-        userInfoCollection = clientUser.get_database('user_data_db').user_info
-        userInfoCollection.insert_many(result)
+        insertUpdateError(coreInfo, reAnalyze, updateUser)
+        insertResults(result)
 
 
 # ------------------------------------------------------------------------
@@ -146,83 +141,71 @@ def addOptions(parser):
                       action='store_true', dest="stocks",
                       help="parse stock information")
 
+    parser.add_option('-p', '--prediction',
+                      action='store_true', dest="prediction",
+                      help="make prediction for today")
 
-def makePredictionToday(processes):
-    now = convertToEST(datetime.datetime.now())
-    date = datetime.datetime(now.year, now.month, now.day)
+    parser.add_option('-c', '--updateCloseOpens',
+                      action='store_true', dest="updateCloseOpens",
+                      help="update Close open times")
 
-    stocks = getTopStocks()
-    stocks = stocks[:25]
-    # stocks.extend(['SBUX', 'TGT', 'COST', 'VMW', 'VZ', 'BABA', 'AVGO'])
-    shuffle(stocks)
 
-    analyzeStocks(date, stocks)
-    dates = [datetime.datetime(now.year, now.month, 17, 9, 30), datetime.datetime(now.year, now.month, 18, 16)]
+# Make a prediction for given date
+def makePrediction(date):
+    currDay = datetime.datetime(date.year, date.month, 31, 9, 30)
+    nextDay = currDay + datetime.timedelta(days=1)
+    dates = [currDay, nextDay]
+
+    stocks = getTopStocks(25)
+    print(stocks)
+    # analyzeStocks(date, stocks)
     basicPrediction(dates, stocks)
-
-    # chunked = chunkIt(stocks, processes)
-    # pool = Pool()
-    # for i in range(processes):
-    #     pool.apply_async(analyzeStocks, [date, chunked[i]])
-
-    # pool.close()
-    # pool.join()
 
 
 def main():
     opt_parser = optparse.OptionParser()
     addOptions(opt_parser)
     options, args = opt_parser.parse_args()
-    dateNow = datetime.datetime.now()
-
-
-    # tempFindStockPage('SNAP', dateNow, 5)
-    # return
-
-    # makePredictionToday(1)
-    # return
-
-    # print(getUpdatedCloseOpen('AAPL', datetime.datetime(dateNow.year, 9, 24)))
-    # return
+    dateNow = convertToEST(datetime.datetime.now())
 
     if (options.users):
-        # refreshUserStatus()
-        analyzeUsers(False)
+        analyzeUsers(reAnalyze=False, findNewUsers=False, updateUser=True)
     elif (options.stocks):
         now = convertToEST(datetime.datetime.now())
-        date = datetime.datetime(now.year, now.month, 21)
+        date = datetime.datetime(now.year, now.month, now.day)
         stocks = getAllStocks()
+        stocks.remove('SPY')
+        stocks.remove('OBLN')
         analyzeStocks(date, stocks)
+    elif (options.prediction):
+        makePrediction(dateNow)
+    elif (options.updateCloseOpens):
+        stocks = getTopStocks(100)
+        date = datetime.datetime(dateNow.year, 9, 3, 9, 30)
+        dateUpTo = datetime.datetime(dateNow.year, now.month, now.day, 16)
+        updateAllCloseOpen(stocks, dates)
     else:
+
+        # date = datetime.datetime(dateNow.year, 10, 21, 10, 30)
+        # print(getPrice('SNAP', date))
+        # return
+
         # now = convertToEST(datetime.datetime.now())
         # date = datetime.datetime(now.year, now.month, 10)
         # analyzeErrors(date)
         # updateUserNotAnalyzed()
         # return
-        # getUserAccuracy('stockilluminatus')
-        # return
+        print(getAllUserInfo('mikepru'))
+        return
         # print(getStatsPerUser('ACInvestorBlog'))
         # return
 
-        # date = datetime.datetime(dateNow.year, 9, 3, 9, 30)
-        # dateUpTo = datetime.datetime(dateNow.year, 9, 24, 16)
-
-        # date = datetime.datetime(dateNow.year, 9, 25, 9, 30)
-        # dateUpTo = datetime.datetime(dateNow.year, 10, 14, 16)
-
         date = datetime.datetime(dateNow.year, 9, 3, 9, 30)
-        dateUpTo = datetime.datetime(dateNow.year, 10, 17, 16)
+        dateUpTo = datetime.datetime(dateNow.year, 10, 30, 16)
         dates = findTradingDays(date, dateUpTo)
-        stocks = getTopStocks()
-        stocks = stocks[:25]
-        # for i in range(len(stocks)):
-        #     print(i, stocks[i])
-        # print(dates)
-        # updateAllCloseOpen(stocks, dates)
-        # return
-
+        stocks = getTopStocks(25)
         basicPrediction(dates, stocks)
-        # updateBasicStockInfo(dates, stocks)
+
 
 if __name__ == "__main__":
     main()

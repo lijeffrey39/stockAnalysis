@@ -1,29 +1,17 @@
 import datetime
-import os
+import time
+from random import shuffle
 
 from selenium import webdriver
-from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.keys import Keys
 
 from bs4 import BeautifulSoup
 
 from . import scroll
-from .fileIO import *
-from .helpers import convertToEST, customHash
+from .helpers import convertToEST, customHash, endDriver
 from .hyperparameters import constants
 from .messageExtract import *
 from .stockPriceAPI import *
-import time
-import hashlib
-
-
-# ------------------------------------------------------------------------
-# ----------------------------- Variables --------------------------------
-# ------------------------------------------------------------------------
-
-
-timeAttr = 'st_2q3fdlM'
-messageTextAttr = 'st_29E11sZ'
 
 
 # ------------------------------------------------------------------------
@@ -31,63 +19,17 @@ messageTextAttr = 'st_29E11sZ'
 # ------------------------------------------------------------------------
 
 
-def endDriver(driver):
-    driver.close()
-    driver.quit()
-
-
-# Returns list of all stocks
-def getAllStocks():
-    allStocks = constants['db_client'].get_database('stocktwits_db').all_stocks
-    cursor = allStocks.find()
-    stocks = list(map(lambda document: document['_id'], cursor))
-    stocks.sort()
-    stocks.remove('SPY')
-    stocks.remove('OBLN')
-    return stocks
-
-
-def getTopStocks():
+def getTopStocks(numStocks):
     stocks = ['AMD', 'TSLA', 'WKHS', 'ROKU', 'SLS', 'AAPL', 'FCEL', 'ACB', 'YRIV', 'TEUM', 'OSTK', 'AMZN', 'NIO', 'CEI', 'TVIX', 'NFLX', 'NAKD', 'HSGX', 'BB', 'AMRN', 'FB', 'SHOP', 'SQ', 'CHK', 'GE', 'NAK', 'RKDA', 'SNAP', 'JAGX', 'ENPH', 'MU', 'TBLT', 'TOPS', 'MNKD', 'UGAZ', 'TRXC', 'BA', 'DIS', 'NBEV', 'BABA', 'NVCN', 'PRPO', 'TEVA', 'DPW', 'MSFT', 'NTEC', 'ADXS', 'NVDA', 'NBRV', 'MNK', 'CGC', 'PTN', 'JNUG', 'MDR', 'QQQ', 'XXII', 'IQ', 'CRMD', 'YUMA', 'ADMP', 'ULTA', 'RBZ', 'IBIO', 'SESN', 'ATVI', 'RAD', 'AVEO', 'AMRH', 'CRON', 'TNDM', 'TXMD', 'DWT', 'TWTR', 'JD', 'XBIO', 'GUSH', 'JCP', 'CLF', 'FRAN', 'CLDR', 'APHA', 'FIT', 'DNR', 'BAC', 'ADMA', 'BZUN', 'GLD', 'INPX', 'OGEN', 'UWT', 'TLRY', 'PLUG', 'AUPH', 'T', 'MO', 'SLV', 'WATT', 'ENDP', 'X', 'NUGT', 'TRVN', 'DGAZ', 'TWLO', 'AMRS', 'AWSM', 'UVXY', 'SPHS', 'LCI', 'USO', 'TGT', 'ZS', 'CLD', 'MAXR', 'VSTM', 'OMER', 'CVM', 'IDEX', 'GME', 'AVGR', 'BIDU', 'NSPR', 'ISR', 'TWOU', 'CRM', 'BHC', 'PCG', 'LXRX', 'LODE', 'LPTX', 'TTD', 'ICPT', 'BLIN', 'PHUN', 'FDX', 'TTOO', 'AAL', 'VUZI', 'CPRX', 'ALT', 'ACAD', 'NVAX', 'IWM', 'TLT', 'AKER', 'AIMT', 'BPMX', 'JDST', 'SBUX', 'F', 'TTNP', 'NTNX', 'CMG', 'BIOC', 'NETE', 'CVS', 'JPM', 'MYSZ', 'LULU', 'SRPT', 'GLBS', 'HEAR', 'KNDI', 'TLRD', 'NKE', 'IDXG', 'NXTD', 'GALT', 'EKSO', 'MDB', 'OPTT', 'OPGN', 'COST', 'ALGN', 'PULM', 'DIA', 'AMC', 'GDX', 'ACST', 'SNNA', 'ABBV', 'HMNY', 'KHC', 'CLVS', 'DTEA', 'AG', 'SES', 'VKTX', 'WMT', 'CETX', 'ATNM', 'ZNGA', 'CRC', 'DUST', 'FFHL', 'ABEO', 'FPAY', 'GLUU', 'PBYI', 'INTC', 'OKTA', 'MCD', 'V', 'LABU', 'SPWR', 'PYX', 'SFIX', 'EOLS', 'BBBY', 'MRNS', 'BMY', 'PYPL', 'RH', 'MARK', 'HD', 'SRNE', 'WLL', 'APRN', 'NVTA', 'M', 'HIIQ', 'XGTI', 'MTCH', 'JNJ', 'GOOGL', 'PFE', 'SWN', 'GEVO', 'AYX', 'PTI', 'SMSI', 'CHFS', 'STNE', 'TROV', 'NEPT', 'IIPR', 'VTVT', 'HEB', 'GERN', 'DOCU', 'VLRX', 'GOOG', 'BLDP', 'GPRO', 'SHAK', 'CSCO', 'NDRA', 'SPLK', 'AKS', 'PANW', 'SAEX', 'ADBE', 'ACRX', 'VXX', 'BPTH', 'CYTR', 'EXEL', 'GS', 'AVGO', 'HUYA', 'SNES', 'EA', 'ASNA', 'SENS', 'S', 'NOG', 'SBOT', 'DMPI', 'QCOM', 'JWN', 'UNH', 'KMPH', 'BE', 'ATOS', 'MRKR', 'PLX', 'KR', 'RIOT', 'ARWR', 'SWIR', 'MRO', 'GM', 'AMPE', 'APPS', 'NOK', 'AUY', 'EYPT', 'QD', 'EARS', 'COUP', 'RIG', 'RRC', 'DRRX', 'MDCO', 'HTZ', 'AMR', 'CLSD', 'ZKIN', 'AGRX', 'MTP', 'ETSY']
     stocks = ['ROKU', 'FCEL', 'ACB', 'AAPL', 'TSLA', 'AMD', 'WKHS', 'NIO', 'OSTK', 'ADXS', 'AMZN', 'TEUM', 'TVIX', 'BB', 'NFLX', 'HSGX', 'UGAZ', 'NAKD', 'SLS', 'CEI', 'CHK', 'SHOP', 'TOPS', 'MDR', 'SQ', 'AMRN', 'ENPH', 'JAGX', 'BABA', 'FB', 'QQQ', 'SNAP', 'MU', 'PRPO', 'NTEC', 'MNK', 'DIS', 'MNKD', 'TRXC', 'ULTA', 'BA', 'MSFT', 'CGC', 'YUMA', 'DWT', 'ATVI', 'FRAN', 'ADMP', 'AUPH', 'CRMD']
     stocks.remove('HSGX')
     stocks.remove('AMZN')
+    # stocks.remove('ACB')
+    # stocks.remove('CHK')
+    # stocks.extend(['SBUX', 'TGT', 'COST', 'VMW', 'VZ', 'BABA', 'AVGO'])
+    stocks = stocks[:numStocks]
+    shuffle(stocks)
     return stocks
-
-
-# def tempFindStockPage(symbol, date, hoursBack):
-#     driver = None
-#     try:
-#         driver = webdriver.Chrome(executable_path=constants['driver_bin'],
-#                                   options=constants['chrome_options'],
-#                                   desired_capabilities=constants['caps'])
-#         driver.set_page_load_timeout(90)
-#     except Exception as e:
-#         return ('', str(e), 0)
-
-#     start = time.time()
-#     url = "https://stocktwits.com"
-
-#     try:
-#         driver.get(url)
-#     except Exception as e:
-#         end = time.time()
-#         endDriver(driver)
-#         return ('', str(e), end - start)
-
-#     inputElement = driver.find_element_by_tag_name("input")
-#     inputElement.send_keys(symbol)
-#     inputElement.send_keys(Keys.ENTER)
-
-#     time.sleep(1)
-    
-#     button = driver.find_element_by_class_name('st_1luPg-o')
-#     button.click()
-#     time.sleep(10)
-#     # endDriver(driver)
-#     return
-
-#     return (soup, '', (end - start))
 
 
 # Return soup object page of that stock
@@ -102,7 +44,7 @@ def findPageStock(symbol, date, hoursBack):
         return ('', str(e), 0)
 
     start = time.time()
-    url = "https://stocktwits.com"
+    url = "https://stocktwits.com/symbol/%s" % symbol
 
     try:
         driver.get(url)
@@ -111,15 +53,15 @@ def findPageStock(symbol, date, hoursBack):
         endDriver(driver)
         return ('', str(e), end - start)
 
-    inputElement = driver.find_element_by_tag_name("input")
-    inputElement.send_keys(symbol)
-    inputElement.send_keys(Keys.ENTER)
-    time.sleep(1)
-    allButtons = driver.find_elements_by_class_name('st_1luPg-o')
-    for button in allButtons:
-        if button.text == symbol:
-            button.click()
-            break
+    # inputElement = driver.find_element_by_tag_name("input")
+    # inputElement.send_keys(symbol)
+    # inputElement.send_keys(Keys.ENTER)
+    # time.sleep(1)
+    # allButtons = driver.find_elements_by_class_name('st_1luPg-o')
+    # for button in allButtons:
+    #     if button.text == symbol:
+    #         button.click()
+    #         break
 
     try:
         scroll.scrollFor(driver, hoursBack)
@@ -219,12 +161,12 @@ def parseStockData(symbol, soup):
 
     # want to add new users to users_not_analyzed table
     for m in messages:
-        t = m.find('div', {'class': timeAttr}).find_all('a')
+        t = m.find('div', {'class': constants['timeAttr']}).find_all('a')
         # length of 2, first is user, second is date
         if (t is None):
             continue
 
-        allT = m.find('div', {'class': messageTextAttr})
+        allT = m.find('div', {'class': constants['messageTextAttr']})
         allText = allT.find_all('div')
         username = findUser(t[0])
         textFound = allText[1].find('div').text  # No post processing

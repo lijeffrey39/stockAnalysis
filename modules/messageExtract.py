@@ -2,8 +2,6 @@ import datetime
 
 from dateutil.parser import parse
 
-from bs4 import BeautifulSoup
-
 from .helpers import convertToEST
 from .hyperparameters import constants
 
@@ -18,7 +16,6 @@ messageStreamAttr = 'st_1m1w96g'
 timeAttr = 'st_HsSv26f'
 usernameAttr = 'st_x9n-9YN'
 messageTextAttr = 'st_2giLhWN'
-likeCountAttr = 'st_1tZ744c'
 commmentCountAttr = 'st_1cZCCSt'
 messagesCountAttr = 'st__tZJhLh'
 bullBearAttr = 'st_11GoBZI'
@@ -29,42 +26,31 @@ bullBearAttr = 'st_11GoBZI'
 # ------------------------------------------------------------------------
 
 
-def createMessageObj(message, isUser):
-    t = m.find('div', {'class': constants['timeAttr']}).find_all('a')
-    # length of 2, first is user, second is date
-    if (t is None):
-        return None
-    
-    allT = m.find('div', {'class': messageTextAttr})
-    allText = allT.find_all('div')
-    textFound = allText[1].find('div').text  # No post processing
-    isBull = isBullMessage(m)
-    likeCnt = likeCount(m)
-    commentCnt = commentCount(m)
-    dateString = ""
-
-
-    return
-
-
-def findSymbol(text):
+# Finds symbol from a string (Only returns if exactly 1 symbol fonud)
+def findSymbol(text, allSymbols):
     textArray = text.split(' ')
-    symbol = ''
-    moreThanOne = False
+    foundSymbols = []
     for w in textArray:
         if ('$' in w):
             # if number in string, continue
             if (any(char.isdigit() for char in w)):
                 continue
-            if (symbol != ''):
-                moreThanOne = True
-            else:
-                symbol = w
+            foundSymbols.append(w)
 
-    if (moreThanOne):
-        return ''
-    else:
-        return symbol
+    foundStocks = []
+    for s in foundSymbols:
+        ind = s.find('$')
+        if (len(s) == 1):
+            continue
+        found = ""
+        for i in range(ind + 1, len(s) + 1):
+            currSymbolCheck = s[ind + 1:i]
+            if (currSymbolCheck in allSymbols):
+                found = currSymbolCheck
+
+        if (found != ""):
+            foundStocks.append(found)
+    return foundStocks
 
 
 # Returns datetime object from message
@@ -112,7 +98,7 @@ def findUser(message):
 
 
 def likeCount(message):
-    count = message.find('span', attrs={'class': likeCountAttr})
+    count = message.find('span', attrs={'class': constants['likeCountAttr']})
     if (count is None):
         return 0
     else:

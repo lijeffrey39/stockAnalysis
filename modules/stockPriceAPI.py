@@ -1,8 +1,11 @@
 import datetime
-import requests
+import math
 from multiprocessing import current_process
 
+import requests
+
 from .hyperparameters import constants
+
 
 # ------------------------------------------------------------------------
 # ----------------------------- Variables --------------------------------
@@ -19,6 +22,22 @@ currDateTimeStr = ""
 # ------------------------------------------------------------------------
 # ----------------------------- Functions --------------------------------
 # ------------------------------------------------------------------------
+
+
+def averagedOpenClose(symbol, date):
+    updatedOpenClose = getUpdatedCloseOpen(symbol, date)
+    ogOpenClose = closeToOpen(symbol, date)
+
+    if (updatedOpenClose is None and ogOpenClose is None):
+        return None
+    elif (updatedOpenClose is None):
+        return ogOpenClose
+    elif (ogOpenClose is None):
+        return updatedOpenClose
+    else:
+        closePrice = (updatedOpenClose[0] + ogOpenClose[0]) / 2.0
+        openPrice = (updatedOpenClose[1] + ogOpenClose[1]) / 2.0
+        return (closePrice, openPrice, round(((openPrice - closePrice) / closePrice) * 100, 3))
 
 
 def updateAllCloseOpen(stocks, dates):
@@ -60,7 +79,7 @@ def getUpdatedCloseOpen(symbol, date):
     else:
         closePrice = start['close']
         openPrice = end['open']
-        return (closePrice, openPrice, round(((openPrice-closePrice)/closePrice) * 100, 3))
+        return (closePrice, openPrice, round(((openPrice - closePrice) / closePrice) * 100, 3))
 
 
 def inTradingDay(date):

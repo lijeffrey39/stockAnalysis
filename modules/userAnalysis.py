@@ -1,32 +1,19 @@
-import os
 import datetime
+import time
+from random import shuffle
 
 import requests
 from dateutil import parser
 from selenium import webdriver
-from selenium.common.exceptions import TimeoutException
-from selenium.webdriver.common.action_chains import ActionChains
-from selenium.webdriver.common.keys import Keys
 
 from bs4 import BeautifulSoup
 
-from random import shuffle
 from . import scroll
 from .fileIO import *
-from .helpers import convertToEST, endDriver
+from .helpers import convertToEST, customHash, endDriver, getAllStocks, getActualAllStocks
 from .hyperparameters import constants
 from .messageExtract import *
 from .stockPriceAPI import *
-import time
-
-# ------------------------------------------------------------------------
-# ----------------------------- Variables --------------------------------
-# ------------------------------------------------------------------------
-
-
-# TODO: Invalid symbols so they aren't check again
-messageTextAttr = 'st_29E11sZ'
-ideaAttr = 'st__tZJhLh'
 
 
 # ------------------------------------------------------------------------
@@ -36,9 +23,9 @@ ideaAttr = 'st__tZJhLh'
 
 # Handles inserting coreInfo into mongodb
 # if reanlyze, assumes user is already in db so need to update coreinfo
-def insertUpdateError(coreInfo, reAnalyze):
+def insertUpdateError(coreInfo, reAnalyze, updateUser):
     analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
-    if (reAnalyze is False):
+    if (reAnalyze is False and updateUser is False):
         analyzedUsers.insert_one(coreInfo)
     else:
         updateQuery = {'_id': coreInfo['_id']}
@@ -48,10 +35,10 @@ def insertUpdateError(coreInfo, reAnalyze):
 
 # Checks whether to parse user
 # Can parse/analyze users if it is set to true
-def shouldParseUser(username, reAnalyze):
+def shouldParseUser(username, reAnalyze, updateUser):
     analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
-    if (reAnalyze is False and
-       analyzedUsers.count_documents({'_id': username}) != 0):
+    if (reAnalyze is False and updateUser is False and
+        analyzedUsers.count_documents({'_id': username}) != 0):
         return None
 
     (coreInfo, error) = findUserInfo(username)
@@ -63,7 +50,7 @@ def shouldParseUser(username, reAnalyze):
         userInfoError = {'_id': username,
                          'error': errorMsg,
                          'last_updated': currTime}
-        insertUpdateError(userInfoError, reAnalyze)
+        insertUpdateError(userInfoError, reAnalyze, updateUser)
         return None
 
     # If exceed the 200 limited API calls
@@ -73,7 +60,7 @@ def shouldParseUser(username, reAnalyze):
             userInfoError = {'_id': username,
                              'error': errorMsg,
                              'last_updated': currTime}
-            insertUpdateError(userInfoError, reAnalyze)
+            insertUpdateError(userInfoError, reAnalyze, updateUser)
             return None
 
     coreInfo['last_updated'] = currTime
@@ -90,8 +77,21 @@ def shouldParseUser(username, reAnalyze):
 
 
 # Returns list of all users to analyze
-def findUsers(reAnalyze):
-    if (reAnalyze):
+def findUsers(reAnalyze, findNewUsers, updateUser):
+    # Find new users to analyze from all tweets
+    if (findNewUsers):
+        updateUserNotAnalyzed()
+        return
+
+    cursor = None
+    # Find all tweets this user posted again up till last time
+    if (updateUser):
+        analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
+        # dateStart = datetime.datetime.now() - datetime.timedelta(days=30)
+        query = {"$and": [{'error': ''}, {'last_updated': {'$exists': False}}]}
+                        #   {'last_updated': {'$lte': dateStart}}]}
+        cursor = analyzedUsers.find(query)
+    elif (reAnalyze):
         analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
         query = {"$and": [{'error': {'$ne': ''}}, 
                           {'error': {'$ne': 'Not enough ideas'}},
@@ -101,18 +101,19 @@ def findUsers(reAnalyze):
                           {'error': {'$ne': "Scroll for too long"}},
                           {'error': {'$ne': "User doesn't exist / API down"}}]}
         cursor = analyzedUsers.find(query)
-        users = list(map(lambda document: document['_id'], cursor))
-        return users
     else:
         allUsers = constants['db_client'].get_database('stocktwits_db').users_not_analyzed
         cursor = allUsers.find()
-        users = list(map(lambda document: document['_id'], cursor))
-        shuffle(users)
-        return users
+
+    users = list(map(lambda document: document['_id'], cursor))
+    shuffle(users)
+    return users
 
 
 # Return soup object page of that user
 def findPageUser(username):
+    analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
+    cursor = analyzedUsers.find({'_id': username})
     driver = None
     try:
         driver = webdriver.Chrome(executable_path=constants['driver_bin'],
@@ -123,16 +124,17 @@ def findPageUser(username):
 
     # Hardcoded to the first day we have historical stock data
     start_date = convertToEST(datetime.datetime(2019, 7, 22))
+    if (cursor.count() != 0 and 'last_updated' in cursor[0]):
+        start_date = cursor[0]['last_updated']
+        print('FOUND', start_date)
     current_date = convertToEST(datetime.datetime.now())
     date_span = current_date - start_date
     current_span_hours = 24 * date_span.days + int(date_span.seconds/3600)
-    error_message = ''
     start = time.time()
     url = 'https://stocktwits.com/%s' % username
     try:
         driver.get(url)
     except Exception as e:
-        print("Timed Out from findPageUser")
         end = time.time()
         endDriver(driver)
         return ('', str(e), end - start)
@@ -155,42 +157,7 @@ def findPageUser(username):
     end = time.time()
     print('Parsing user took %d seconds' % (end - start))
     endDriver(driver)
-    return (soup, error_message, (end - start))
-
-
-# First write to userCalculated, then write to newUserInfo.csv
-def saveUserToCSV(username, result, otherInfo):
-    res = []
-    read = list(filter(lambda x: x[5] != -1, result))
-    symbols = list(set(map(lambda x: x[0], read)))
-    total = float(len(read))
-
-    for s in symbols:
-        filterSymbol = list(filter(lambda x: x[0] == s, read))
-        totalCorrect = list(map(lambda x: abs(float(x[7])), list(filter(lambda x: x[5] == 1, filterSymbol))))
-        totalIncorrect = list(map(lambda x: abs(float(x[7])), list(filter(lambda x: x[5] == 0, filterSymbol))))
-        summedCorrect = reduce(lambda a, b: a + b, totalCorrect) if len(totalCorrect) > 0 else 0
-        summedIncorrect = reduce(lambda a, b: a + b, totalIncorrect) if len(totalIncorrect) > 0 else 0
-        res.append([s, round(100 * len(filterSymbol) / total, 2), len(totalCorrect),
-            len(totalIncorrect), round(summedCorrect - summedIncorrect, 2)])
-
-    res.sort(key = lambda x: x[4], reverse = True)
-    writeSingleList('newUserCalculated/' + username + '_info.csv', res)
-
-    resNewUserInfo = []
-    if (len(res) == 0):
-        resNewUserInfo = [username, 0, 0, 0.0]
-    else:
-        totalReturn = round(reduce(lambda a, b: a + b, list(map(lambda x: x[4], res))), 4)
-        correct = round(reduce(lambda a, b: a + b, list(map(lambda x: x[2], res))), 4)
-        incorrect = round(reduce(lambda a, b: a + b, list(map(lambda x: x[3], res))), 4)
-        resNewUserInfo = [username, correct, incorrect, totalReturn]
-
-    resNewUserInfo.extend(otherInfo)
-    currNewUserInfo = readMultiList('newUserInfo.csv')
-    currNewUserInfo.append(resNewUserInfo)
-    currNewUserInfo.sort(key = lambda x: float(x[3]), reverse = True)
-    writeSingleList('newUserInfo.csv', currNewUserInfo)
+    return (soup, '', (end - start))
 
 
 # Gets initial information for user from selenium
@@ -214,7 +181,7 @@ def findUserInfoDriver(username):
     user_info_dict = dict()
     html = driver.page_source
     soup = BeautifulSoup(html, 'html.parser')
-    ideas = soup.find_all('h2', attrs={'class': ideaAttr})
+    ideas = soup.find_all('h2', attrs={'class': constants['ideaAttr']})
     memberTextArray = soup.find_all('span', attrs={'class': constants['html_class_user_info']})
 
     if (len(ideas) == 0):
@@ -224,13 +191,12 @@ def findUserInfoDriver(username):
     # find user type, will be stored in bitwise fashion
     # plus is bit 3, lifetime is bit 2, official is bit 1, premium bit 0
     user_block = soup.find('div', attrs={'class': constants['html_class_user_div']})
-
     plus = user_block.find('div', attrs={'class': constants['html_class_plus']})
     official = user_block.find('span', attrs={'class': constants['html_class_official']})
     premium = user_block.find('a', attrs={'class': constants['html_class_premium_room']})
 
     status = 0
-    if plus:
+    if (plus):
         status += 8 if plus.text == 'Lifetime' else 4
     status += 2 if official else 0
     status += 1 if premium else 0
@@ -278,22 +244,18 @@ def findUserInfo(username):
         user_info_dict[f] = info[f]
 
     status = 0
-    if info["plus_tier"] == 'life':
-        status += 8
-    if info["plus_tier"] == 'month':
-        status += 4
-    if info["official"]:
-        status += 2
-    if info["premium_room"] != "":
-        status += 1
+    if (info["plus_tier"] == 'life'): status += 8
+    if (info["plus_tier"] == 'month'): status += 4
+    if (info["official"]): status += 2
+    if (info["premium_room"] != ""): status += 1
 
     user_info_dict['user_status'] = status
-
     return (user_info_dict, '')
 
 
 def parseUserData(username, soup):
     res = []
+    allSymbols = getActualAllStocks()
     messages = soup.find_all('div',
                              attrs={'class': constants['messageStreamAttr']})
     for m in messages:
@@ -302,12 +264,18 @@ def parseUserData(username, soup):
         if (t is None):
             continue
 
-        allT = m.find('div', {'class': messageTextAttr})
+        allT = m.find('div', {'class': constants['messageTextAttr']})
         allText = allT.find_all('div')
         textFound = allText[1].find('div').text  # No post processing
         isBull = isBullMessage(m)
         likeCnt = likeCount(m)
         commentCnt = commentCount(m)
+        symbols = findSymbol(textFound, allSymbols)
+
+        # Only care about tweets that are labeled
+        if (len(symbols) == 0):
+            continue
+        print(symbols)
         dateString = ""
 
         # Handle edge cases
@@ -324,46 +292,21 @@ def parseUserData(username, soup):
             print(errorMsg)
             continue
 
+        dateAsString = dateTime.strftime("%Y-%m-%d %H:%M:%S")
+        hashString = textFound + dateAsString + username
+        hashID = customHash(hashString)
+
         cur_res = {}
+        cur_res['_id'] = hashID
+        cur_res['symbol'] = symbols[0]
         cur_res['user'] = username
-        cur_res['time'] = dateTime.strftime("%Y-%m-%d %H:%M:%S")
+        cur_res['time'] = dateTime
         cur_res['isBull'] = isBull
         cur_res['likeCount'] = likeCnt
         cur_res['commentCount'] = commentCnt
         cur_res['messageText'] = textFound
         res.append(cur_res)
     return res
-
-
-# Only should need to be called once. Adds two new fields to each user
-def refreshUserStatus():
-    analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
-    query = {"error": ""}
-    goodUsers = analyzedUsers.find(query)
-    goodUsers = list(map(lambda document: document, goodUsers))
-    currTime = convertToEST(datetime.datetime.now())
-
-    for users in goodUsers:
-        # only update if data is over 7 days old
-        if 'last_updated' in users:
-            lastTime = users['last_updated']
-            lastTime = convertToEST(lastTime)
-            hoursPast = (currTime - lastTime).total_seconds() / 3600.0
-            if (hoursPast < 168):
-                continue
-
-        username = users['_id']
-        print(username)
-        (result, error) = findUserInfoDriver(username)
-        # If the user doesn't exist anymore (Should update in DB to reflect)
-        if (result is None):
-            continue
-
-        users.update(result)
-        users['last_updated'] = convertToEST(datetime.datetime.now())
-        updateQuery = {'_id': username}
-        newValues = {'$set': users}
-        analyzedUsers.update_one(updateQuery, newValues)
 
 
 # extract status information from bits
@@ -379,7 +322,7 @@ def updateUserNotAnalyzed():
     users = set(list(map(lambda document: document['_id'], cursor)))
 
     userSet = set([])
-    tweets = constants['stocktweets_client'].get_database('stocks_data_db').stock_tweets.find()
+    tweets = constants['stocktweets_client'].get_database('tweets_db').tweets.find()
     for doc in tweets:
         currUserName = doc['user']
         if (currUserName not in users):
@@ -387,7 +330,150 @@ def updateUserNotAnalyzed():
 
     listNewUsers = list(userSet)
     listNewUsers.sort()
-    print(listNewUsers)
     for user in listNewUsers:
         allUsers.insert_one({'_id': user})
-    print(len(listNewUsers))
+    print("Finished Updating:", len(listNewUsers))
+
+
+# ------------------------------------------------------------------------
+# -------------------- User Prediction Functions -------------------------
+# ------------------------------------------------------------------------
+
+
+# Initialize user info result for predicting
+def initializeResult(tweets, user):
+    result = {}
+    result['_id'] = user
+    result['totalTweets'] = len(tweets)
+
+    keys = ['ReturnCloseOpen', 'ReturnTimePrice', 'NumCloseOpen', 
+            'NumTimePrice', 'Predictions', 'ReturnUnique', 'NumUnique']
+    allKeys = list(map(lambda key: 'bull' + key, keys))
+    bearKeys = list(map(lambda key: 'bear' + key, keys))
+    allKeys.extend(bearKeys)
+
+    for k in allKeys:
+        result[k] = 0
+
+    result['perStock'] = {}
+    uniqueSymbols = set(list(map(lambda tweet: tweet['symbol'], tweets)))
+    for symbol in uniqueSymbols:
+        result['perStock'][symbol] = {}
+        for k in allKeys:
+            result['perStock'][symbol][k] = 0
+    return result
+
+
+# Update feature results for a user given close open prices
+def updateUserFeatures(result, time, symbol, isBull, seenTweets):
+    if (inTradingDay(time) is False):
+        return
+
+    timePrice = getPrice(symbol, time)
+    if (timePrice is None):
+        return
+
+    closeOpen = averagedOpenClose(symbol, time)
+    print(symbol, time, isBull, closeOpen)
+    if (closeOpen is None):
+        return
+
+    pChangeCloseOpen = closeOpen[2]
+    pChangeTimePrice = round(((closeOpen[1] - timePrice) / timePrice) * 100, 3)
+    correctPredCloseOpen = (isBull and pChangeCloseOpen >= 0) or (isBull is False and pChangeCloseOpen < 0)
+    correctPredTimePrice = (isBull and pChangeTimePrice >= 0) or (isBull is False and pChangeTimePrice < 0)
+    correctNumCloseOpen = 1 if correctPredCloseOpen else 0
+    correctNumTimePrice = 1 if correctPredTimePrice else 0
+    pReturnCloseOpen = abs(pChangeCloseOpen) if correctPredCloseOpen else -abs(pChangeCloseOpen)
+    pReturnTimePrice = abs(pChangeTimePrice) if correctNumTimePrice else -abs(pChangeTimePrice)
+    values = [pReturnCloseOpen, pReturnTimePrice, correctNumCloseOpen, correctNumTimePrice, 1]
+
+    seenTweetString = time.strftime("%Y-%m-%d ") + symbol
+    if (seenTweetString not in seenTweets):
+        seenTweets.add(seenTweetString)
+        values.extend([pReturnCloseOpen, correctNumCloseOpen])
+    else:
+        values.extend([0, 0])
+
+    keys = ['ReturnCloseOpen', 'ReturnTimePrice', 'NumCloseOpen',
+            'NumTimePrice', 'Predictions', 'ReturnUnique', 'NumUnique']
+    mappedKeys = list(map(lambda key: ('bull' if (isBull) else 'bear') + key, keys))
+
+    count = 0
+    for k in mappedKeys:
+        result[k] += values[count]
+        result['perStock'][symbol][k] += values[count]
+
+
+# Returns stats from user info for prediction
+def getStatsPerUser(user):
+    analyzedUsersDB = constants['db_user_client'].get_database('user_data_db')
+    # userAccuracy = analyzedUsersDB.user_accuracy
+    userAccuracy = analyzedUsersDB.new_user_accuracy
+    result = userAccuracy.find({'_id': user})
+    if (result.count() != 0):
+        return result[0]
+
+    tweetsDB = constants['stocktweets_client'].get_database('tweets_db')
+    labeledTweets = tweetsDB.tweets.find({"$and": [{'user': user},
+                                         {'symbol': {"$ne": None}},
+                                         {"$or": [
+                                            {'isBull': True},
+                                            {'isBull': False}
+                                         ]}]})
+
+    labeledTweets = list(map(lambda tweet: tweet, labeledTweets))
+    result = initializeResult(labeledTweets, user)
+    seenTweets = set([])
+    print(len(labeledTweets))
+
+    # Loop through all tweets made by user and feature extract per user
+    for tweet in labeledTweets:
+        time = tweet['time']
+        symbol = tweet['symbol']
+        isBull = tweet['isBull']
+        updateUserFeatures(result, time, symbol, isBull, seenTweets)
+
+    # Remove symbols that user didn't have valid tweets about
+    for symbol in list(result['perStock'].keys()):
+        if (result['perStock'][symbol]['bullPredictions'] == 0 and
+           result['perStock'][symbol]['bearPredictions'] == 0):
+            del result['perStock'][symbol]
+
+    userAccuracy.insert_one(result)
+    # currTime = convertToEST(datetime.datetime.now())
+    # lastTime = {'_id': user, 'time': currTime}
+    # analyzedUsersDB.last_user_accuracy_calculated.insert_one(lastTime)
+    return result
+
+
+# Returns all information regarding a user
+# Need better error handling
+# Save this in database so don't need to make to 2 calls to consolidate data
+def getAllUserInfo(username):
+    userInfoDB = constants['db_user_client'].get_database('user_data_db').users
+    checkUserInfo = userInfoDB.find({'_id': username})
+
+    # Need to parse the user for basic information
+    if (checkUserInfo.count() == 0):
+        return {}
+    userInfo = checkUserInfo[0]
+
+    # Need to reanalyze user
+    if (userInfo['error'] != ''):
+        return {}
+    result = getStatsPerUser(username)
+
+    totalPredictions = result['bullPredictions'] + result['bearPredictions']
+    totalCorrect = result['bullNumCloseOpen'] + result['bearNumCloseOpen']
+    if (totalPredictions == 0):
+        return {}
+
+    result['accuracy'] = totalCorrect * 1.0 / totalPredictions
+    result['totalReturn'] = result['bullReturnCloseOpen'] + result['bearReturnCloseOpen']
+    result['followers'] = userInfo['followers']
+    result['following'] = userInfo['following']
+    result['ideas'] = userInfo['ideas']
+    result['like_count'] = userInfo['like_count']
+    result['user_status'] = userInfo['user_status']
+    return result

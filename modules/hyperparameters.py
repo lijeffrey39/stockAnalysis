@@ -34,7 +34,7 @@ if (timeZoneName == 'Coordinated Universal Time'):
 
 constants = {
     'min_idea_threshold': 200,
-    'max_tweets': 2000,
+    'max_tweets': 5000,
     'hoursBackToAnalyze': 1,
     'project_root': project_root,
     'driver_bin': driver_bin,
@@ -57,6 +57,9 @@ constants = {
                                               ssl_cert_reqs=ssl.CERT_NONE),
     'messageStreamAttr': 'st_2o0zabc',
     'timeAttr': 'st_2q3fdlM',
+    'messageTextAttr': 'st_29E11sZ',
+    'ideaAttr': 'st__tZJhLh',
+    'likeCountAttr': 'st_1tZ744c',
     'current_timezone': timeZoneName,
     'eastern_timezone': pytz.timezone('US/Eastern'),
     'keys': ['bullReturns', 'bearReturns', 'returnRatio', 'bullCount',

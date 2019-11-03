@@ -53,7 +53,7 @@ def scrollFor(driver, hoursBack):
         else:
             prevTime = currTime
 
-        if (countSame == 5):
+        if (countSame == 10):
             raise Exception('Scroll for too long')
 
         last_height = new_height
