@@ -17,7 +17,8 @@ from modules.userAnalysis import (findUsers,
                                   findPageUser,
                                   parseUserData,
                                   insertUpdateError,
-                                  getAllUserInfo)
+                                  getAllUserInfo,
+                                  findUserInfoDriver)
 
 client = constants['db_client']
 clientUser = constants['db_user_client']
@@ -93,6 +94,7 @@ def analyzeUsers(reAnalyze, findNewUsers, updateUser):
     users = findUsers(reAnalyze, findNewUsers, updateUser)
     print(len(users))
     # users = ['v3r']
+    users.remove('neotrades')
     for username in users:
         print(username)
         coreInfo = shouldParseUser(username, reAnalyze, updateUser)
@@ -195,7 +197,8 @@ def main():
         # analyzeErrors(date)
         # updateUserNotAnalyzed()
         # return
-        print(getAllUserInfo('mikepru'))
+        # print(getAllUserInfo('mikepru'))
+        print(findUserInfoDriver('panda317'))
         return
         # print(getStatsPerUser('ACInvestorBlog'))
         # return

@@ -69,7 +69,7 @@ def shouldParseUser(username, reAnalyze, updateUser):
     # If number of ideas are < the curren min threshold
     if (coreInfo['ideas'] < constants['min_idea_threshold']):
         coreInfo['error'] = 'Not enough ideas'
-        insertUpdateError(coreInfo, reAnalyze)
+        insertUpdateError(coreInfo, reAnalyze, updateUser)
         return None
 
     coreInfo['error'] = ""
