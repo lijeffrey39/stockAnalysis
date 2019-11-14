@@ -93,8 +93,6 @@ def analyzeStocks(date, stocks):
 def analyzeUsers(reAnalyze, findNewUsers, updateUser):
     users = findUsers(reAnalyze, findNewUsers, updateUser)
     print(len(users))
-    # users = ['v3r']
-    users.remove('neotrades')
     for username in users:
         print(username)
         coreInfo = shouldParseUser(username, reAnalyze, updateUser)
@@ -154,7 +152,7 @@ def addOptions(parser):
 
 # Make a prediction for given date
 def makePrediction(date):
-    currDay = datetime.datetime(date.year, date.month, 31, 9, 30)
+    currDay = datetime.datetime(date.year, date.month, date.day, 9, 30)
     nextDay = currDay + datetime.timedelta(days=1)
     dates = [currDay, nextDay]
 
@@ -197,14 +195,14 @@ def main():
         # analyzeErrors(date)
         # updateUserNotAnalyzed()
         # return
-        # print(getAllUserInfo('mikepru'))
-        print(findUserInfoDriver('panda317'))
-        return
+        # print(getAllUserInfo('v3r'))
+        # print(findUserInfoDriver('panda317'))
+        # return
         # print(getStatsPerUser('ACInvestorBlog'))
         # return
 
         date = datetime.datetime(dateNow.year, 9, 3, 9, 30)
-        dateUpTo = datetime.datetime(dateNow.year, 10, 30, 16)
+        dateUpTo = datetime.datetime(dateNow.year, 11, 13, 16)
         dates = findTradingDays(date, dateUpTo)
         stocks = getTopStocks(25)
         basicPrediction(dates, stocks)

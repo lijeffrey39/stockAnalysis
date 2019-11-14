@@ -10,7 +10,10 @@ from bs4 import BeautifulSoup
 
 from . import scroll
 from .fileIO import *
-from .helpers import convertToEST, customHash, endDriver, getAllStocks, getActualAllStocks
+from .helpers import (convertToEST,
+                      customHash,
+                      endDriver,
+                      getActualAllStocks)
 from .hyperparameters import constants
 from .messageExtract import *
 from .stockPriceAPI import *
@@ -88,7 +91,7 @@ def findUsers(reAnalyze, findNewUsers, updateUser):
     if (updateUser):
         analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
         # dateStart = datetime.datetime.now() - datetime.timedelta(days=30)
-        query = {"$and": [{'error': ''}, {'last_updated': {'$exists': False}}]}
+        query = {"$and": [{'error': {'$ne': ''}}, {'last_updated': {'$exists': False}}]}
                         #   {'last_updated': {'$lte': dateStart}}]}
         cursor = analyzedUsers.find(query)
     elif (reAnalyze):
@@ -374,7 +377,7 @@ def updateUserFeatures(result, time, symbol, isBull, seenTweets):
         return
 
     closeOpen = averagedOpenClose(symbol, time)
-    print(symbol, time, isBull, closeOpen)
+    print(symbol, isBull, closeOpen)
     if (closeOpen is None):
         return
 
@@ -403,6 +406,7 @@ def updateUserFeatures(result, time, symbol, isBull, seenTweets):
     for k in mappedKeys:
         result[k] += values[count]
         result['perStock'][symbol][k] += values[count]
+        count += 1
 
 
 # Returns stats from user info for prediction
@@ -416,7 +420,8 @@ def getStatsPerUser(user):
 
     tweetsDB = constants['stocktweets_client'].get_database('tweets_db')
     labeledTweets = tweetsDB.tweets.find({"$and": [{'user': user},
-                                         {'symbol': {"$ne": None}},
+                                         {'symbol': {"$ne": ''}},
+                                         {'symbol': {'$ne': None}},
                                          {"$or": [
                                             {'isBull': True},
                                             {'isBull': False}

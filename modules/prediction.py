@@ -250,7 +250,7 @@ def basicPrediction(dates, stocks):
         #                     else:
         #                         combinedResults[tuple(paramWeightings.items())].append(returns)
 
-        simpleWeight = {'returnRatio': 3, 'countRatio': 4, 'bullReturns': 4, 'numStocks': 7}
+        simpleWeight = {'returnRatio': 3, 'countRatio': 4, 'bullReturns': 4, 'numStocks': 10}
         combinedResult += simpleWeightPredictionReturns(date, results, simpleWeight)
 
     print(combinedResult)
