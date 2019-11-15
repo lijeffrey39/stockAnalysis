@@ -57,12 +57,15 @@ def updateCloseOpen(symbol, date, db):
     restURL = "?chartByDay=True&token=sk_f993e71175fc4213a0cea1515436270e"
     URL = baseURL + dateString + restURL
     r = requests.get(url=URL)
-    print(symbol, date, URL)
-    data = r.json()[0]
+    data = r.json()
+    if (len(data) == 0):
+        return
+    data = data[0]
 
     _id = symbol + ' ' + data['date']
     result = {'_id': _id, 'open': data['open'], 'close': data['close']}
     db.insert_one(result)
+    print(result)
 
 
 def getUpdatedCloseOpen(symbol, date):

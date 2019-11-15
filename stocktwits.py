@@ -158,7 +158,7 @@ def makePrediction(date):
 
     stocks = getTopStocks(25)
     print(stocks)
-    # analyzeStocks(date, stocks)
+    analyzeStocks(date, stocks)
     basicPrediction(dates, stocks)
 
 
@@ -182,7 +182,8 @@ def main():
     elif (options.updateCloseOpens):
         stocks = getTopStocks(100)
         date = datetime.datetime(dateNow.year, 9, 3, 9, 30)
-        dateUpTo = datetime.datetime(dateNow.year, now.month, now.day, 16)
+        dateUpTo = datetime.datetime(dateNow.year, dateNow.month, dateNow.day, 16)
+        dates = findTradingDays(date, dateUpTo)
         updateAllCloseOpen(stocks, dates)
     else:
 
@@ -195,17 +196,17 @@ def main():
         # analyzeErrors(date)
         # updateUserNotAnalyzed()
         # return
-        # print(getAllUserInfo('v3r'))
+        print(getAllUserInfo('CannaRiskModelo'))
         # print(findUserInfoDriver('panda317'))
         # return
         # print(getStatsPerUser('ACInvestorBlog'))
         # return
 
-        date = datetime.datetime(dateNow.year, 9, 3, 9, 30)
-        dateUpTo = datetime.datetime(dateNow.year, 11, 13, 16)
-        dates = findTradingDays(date, dateUpTo)
-        stocks = getTopStocks(25)
-        basicPrediction(dates, stocks)
+        # date = datetime.datetime(dateNow.year, 9, 3, 9, 30)
+        # dateUpTo = datetime.datetime(dateNow.year, 11, 13, 16)
+        # dates = findTradingDays(date, dateUpTo)
+        # stocks = getTopStocks(25)
+        # basicPrediction(dates, stocks)
 
 
 if __name__ == "__main__":
