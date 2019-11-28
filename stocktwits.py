@@ -1,5 +1,6 @@
 import datetime
 import optparse
+from random import shuffle
 
 from modules.helpers import *
 from modules.hyperparameters import constants
@@ -18,7 +19,8 @@ from modules.userAnalysis import (findUsers,
                                   parseUserData,
                                   insertUpdateError,
                                   getAllUserInfo,
-                                  findUserInfoDriver)
+                                  findUserInfoDriver,
+                                  updateUserNotAnalyzed)
 
 client = constants['db_client']
 clientUser = constants['db_user_client']
@@ -169,7 +171,7 @@ def main():
     dateNow = convertToEST(datetime.datetime.now())
 
     if (options.users):
-        analyzeUsers(reAnalyze=False, findNewUsers=False, updateUser=True)
+        analyzeUsers(reAnalyze=False, findNewUsers=False, updateUser=False)
     elif (options.stocks):
         now = convertToEST(datetime.datetime.now())
         date = datetime.datetime(now.year, now.month, now.day)
@@ -181,7 +183,7 @@ def main():
         makePrediction(dateNow)
     elif (options.updateCloseOpens):
         stocks = getTopStocks(100)
-        date = datetime.datetime(dateNow.year, 9, 3, 9, 30)
+        date = datetime.datetime(dateNow.year, 11, 3, 9, 30)
         dateUpTo = datetime.datetime(dateNow.year, dateNow.month, dateNow.day, 16)
         dates = findTradingDays(date, dateUpTo)
         updateAllCloseOpen(stocks, dates)
@@ -196,7 +198,12 @@ def main():
         # analyzeErrors(date)
         # updateUserNotAnalyzed()
         # return
-        print(getAllUserInfo('CannaRiskModelo'))
+        print(getAllUserInfo('007greatscott'))
+
+        # print(averagedOpenClose('AJRD', datetime.datetime(dateNow.year, 10, 29, 10, 30)))
+        # print(getUpdatedCloseOpen('AJRD', datetime.datetime(dateNow.year, 10, 29, 10, 30)))
+        # print(closeToOpen('AJRD', datetime.datetime(dateNow.year, 10, 29, 10, 30)))
+
         # print(findUserInfoDriver('panda317'))
         # return
         # print(getStatsPerUser('ACInvestorBlog'))
@@ -207,6 +214,16 @@ def main():
         # dates = findTradingDays(date, dateUpTo)
         # stocks = getTopStocks(25)
         # basicPrediction(dates, stocks)
+        # analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
+        # query = {"$and": [{'error': ''}, {'last_updated': {'$exists': True}}]}
+        # cursor = analyzedUsers.find(query)
+        # users = list(map(lambda document: document['_id'], cursor))
+        # print(len(users))
+        # shuffle(users)
+        # for u in users:
+        #     print(u)
+        #     getAllUserInfo(u)
+        # print(users[:10])
 
 
 if __name__ == "__main__":

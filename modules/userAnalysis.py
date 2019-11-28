@@ -17,6 +17,7 @@ from .helpers import (convertToEST,
 from .hyperparameters import constants
 from .messageExtract import *
 from .stockPriceAPI import *
+from .stockAnalysis import getTopStocks
 
 
 # ------------------------------------------------------------------------
@@ -105,8 +106,21 @@ def findUsers(reAnalyze, findNewUsers, updateUser):
                           {'error': {'$ne': "User doesn't exist / API down"}}]}
         cursor = analyzedUsers.find(query)
     else:
+        analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
+        cursor = analyzedUsers.find()
+        users = list(map(lambda document: document['_id'], cursor))
+        setUsers = set(users)
+
         allUsers = constants['db_client'].get_database('stocktwits_db').users_not_analyzed
         cursor = allUsers.find()
+        allNewUsers = list(map(lambda document: document['_id'], cursor))
+        setAllUsers = set(allNewUsers)
+
+        toBeFound = setAllUsers - setUsers
+        newL = sorted(list(toBeFound))
+        print(len(newL))
+        return newL
+
 
     users = list(map(lambda document: document['_id'], cursor))
     shuffle(users)
@@ -326,7 +340,11 @@ def updateUserNotAnalyzed():
 
     userSet = set([])
     tweets = constants['stocktweets_client'].get_database('tweets_db').tweets.find()
+    count = 0
     for doc in tweets:
+        count += 1
+        if (count % 10000 == 0):
+            print(count)
         currUserName = doc['user']
         if (currUserName not in users):
             userSet.add(currUserName)
@@ -377,7 +395,10 @@ def updateUserFeatures(result, time, symbol, isBull, seenTweets):
         return
 
     closeOpen = averagedOpenClose(symbol, time)
-    print(symbol, isBull, closeOpen)
+    allTop = getTopStocks(100)
+    if (symbol not in allTop):
+        closeOpen = getUpdatedCloseOpen(symbol, time)
+    # print(symbol, isBull, closeOpen, time, timePrice)
     if (closeOpen is None):
         return
 
@@ -390,6 +411,9 @@ def updateUserFeatures(result, time, symbol, isBull, seenTweets):
     pReturnCloseOpen = abs(pChangeCloseOpen) if correctPredCloseOpen else -abs(pChangeCloseOpen)
     pReturnTimePrice = abs(pChangeTimePrice) if correctNumTimePrice else -abs(pChangeTimePrice)
     values = [pReturnCloseOpen, pReturnTimePrice, correctNumCloseOpen, correctNumTimePrice, 1]
+
+    if (abs(pReturnTimePrice) > 50):
+        print(symbol, isBull, closeOpen, time, timePrice)
 
     seenTweetString = time.strftime("%Y-%m-%d ") + symbol
     if (seenTweetString not in seenTweets):
@@ -413,6 +437,7 @@ def updateUserFeatures(result, time, symbol, isBull, seenTweets):
 def getStatsPerUser(user):
     analyzedUsersDB = constants['db_user_client'].get_database('user_data_db')
     # userAccuracy = analyzedUsersDB.user_accuracy
+    top100 = getTopStocks(100)
     userAccuracy = analyzedUsersDB.new_user_accuracy
     result = userAccuracy.find({'_id': user})
     if (result.count() != 0):
@@ -422,6 +447,9 @@ def getStatsPerUser(user):
     labeledTweets = tweetsDB.tweets.find({"$and": [{'user': user},
                                          {'symbol': {"$ne": ''}},
                                          {'symbol': {'$ne': None}},
+                                         {'symbol': {
+                                             '$in': top100
+                                         }},
                                          {"$or": [
                                             {'isBull': True},
                                             {'isBull': False}
@@ -437,7 +465,8 @@ def getStatsPerUser(user):
         time = tweet['time']
         symbol = tweet['symbol']
         isBull = tweet['isBull']
-        updateUserFeatures(result, time, symbol, isBull, seenTweets)
+        if (symbol in top100):
+            updateUserFeatures(result, time, symbol, isBull, seenTweets)
 
     # Remove symbols that user didn't have valid tweets about
     for symbol in list(result['perStock'].keys()):
@@ -446,6 +475,7 @@ def getStatsPerUser(user):
             del result['perStock'][symbol]
 
     userAccuracy.insert_one(result)
+
     # currTime = convertToEST(datetime.datetime.now())
     # lastTime = {'_id': user, 'time': currTime}
     # analyzedUsersDB.last_user_accuracy_calculated.insert_one(lastTime)

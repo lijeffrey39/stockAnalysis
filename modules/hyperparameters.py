@@ -31,11 +31,13 @@ driver_bin = os.path.join(project_root, chrome_driver_name)
 timeZoneName = datetime.now(tzlocal()).tzname()
 if (timeZoneName == 'Coordinated Universal Time'):
     timeZoneName = 'UTC'
+if (timeZoneName == 'PST'):
+    timeZoneName = 'America/Los_Angeles'
 
 constants = {
     'min_idea_threshold': 200,
     'max_tweets': 5000,
-    'hoursBackToAnalyze': 0.1,
+    'hoursBackToAnalyze': 2,
     'project_root': project_root,
     'driver_bin': driver_bin,
     'chrome_options': chrome_options,
