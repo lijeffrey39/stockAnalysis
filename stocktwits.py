@@ -190,13 +190,18 @@ def main():
         dates = findTradingDays(date, dateUpTo)
         updateAllCloseOpen(stocks, dates)
     else:
+        date = datetime.datetime(dateNow.year, 7, 22, 9, 30)
+        dateUpTo = datetime.datetime(dateNow.year, 11, 28, 16)
+        dates = findTradingDays(date, dateUpTo)
+        stocks = getTopStocks(100)
+        # updateBasicStockInfo(dates, stocks)
+        # return
+
         usefulFunctions()
         return
 
-        # date = datetime.datetime(dateNow.year, 9, 3, 9, 30)
-        # dateUpTo = datetime.datetime(dateNow.year, 11, 13, 16)
-        # dates = findTradingDays(date, dateUpTo)
-        # stocks = getTopStocks(25)
+        # stocks = getTopStocks(20)
+        # stocks = ['TSLA', 'AMD', 'ROKU', 'AAPL', 'NFLX', 'DIS', 'TVIX', 'FB', 'SQ', 'UGAZ', 'SHOP', 'BABA', 'MSFT', 'ACB']
         # basicPrediction(dates, stocks)
         # analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
         # query = {"$and": [{'error': ''}, {'last_updated': {'$exists': True}}]}
