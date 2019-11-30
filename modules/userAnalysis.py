@@ -99,11 +99,10 @@ def findUsers(reAnalyze, findNewUsers, updateUser):
         analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
         query = {"$and": [{'error': {'$ne': ''}}, 
                           {'error': {'$ne': 'Not enough ideas'}},
-                          {'error': {'$ne': "'user'"}},
+                        #   {'error': {'$ne': "'user'"}},
                           {'error': {'$ne': "User doesn't exist"}},
-                          {'error': {'$ne': "User has no tweets"}},
-                          {'error': {'$ne': "Scroll for too long"}},
-                          {'error': {'$ne': "User doesn't exist / API down"}}]}
+                          {'error': {'$ne': "User has no tweets"}}]}
+                        #   {'error': {'$ne': "Scroll for too long"}},]}
         cursor = analyzedUsers.find(query)
     else:
         analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
@@ -141,7 +140,7 @@ def findPageUser(username):
 
     # Hardcoded to the first day we have historical stock data
     start_date = convertToEST(datetime.datetime(2019, 7, 22))
-    if (cursor.count() != 0 and 'last_updated' in cursor[0]):
+    if (cursor.count() != 0 and 'last_updated' in cursor[0] and cursor[0]['error'] == ''):
         start_date = cursor[0]['last_updated']
         print('FOUND', start_date)
     current_date = convertToEST(datetime.datetime.now())
@@ -387,6 +386,12 @@ def initializeResult(tweets, user):
 
 # Update feature results for a user given close open prices
 def updateUserFeatures(result, time, symbol, isBull, seenTweets):
+
+    # edge case
+    if (symbol == 'AMRN' and time.month == 11 and time.day == 13 or
+        symbol == 'AGRX' and time.month == 10 and time.day == 29):
+        return
+
     if (inTradingDay(time) is False):
         return
 
@@ -442,6 +447,8 @@ def getStatsPerUser(user):
     result = userAccuracy.find({'_id': user})
     if (result.count() != 0):
         return result[0]
+    # else:
+    #     return {}
 
     tweetsDB = constants['stocktweets_client'].get_database('tweets_db')
     labeledTweets = tweetsDB.tweets.find({"$and": [{'user': user},
@@ -498,6 +505,8 @@ def getAllUserInfo(username):
     if (userInfo['error'] != ''):
         return {}
     result = getStatsPerUser(username)
+    if (len(result) == 0):
+        return {}
 
     totalPredictions = result['bullPredictions'] + result['bearPredictions']
     totalCorrect = result['bullNumCloseOpen'] + result['bearNumCloseOpen']

@@ -21,6 +21,8 @@ from modules.userAnalysis import (findUsers,
                                   getAllUserInfo,
                                   findUserInfoDriver,
                                   updateUserNotAnalyzed)
+from modules.nn import testing
+from svm import usefulFunctions
 
 client = constants['db_client']
 clientUser = constants['db_user_client']
@@ -171,7 +173,7 @@ def main():
     dateNow = convertToEST(datetime.datetime.now())
 
     if (options.users):
-        analyzeUsers(reAnalyze=False, findNewUsers=False, updateUser=False)
+        analyzeUsers(reAnalyze=True, findNewUsers=False, updateUser=False)
     elif (options.stocks):
         now = convertToEST(datetime.datetime.now())
         date = datetime.datetime(now.year, now.month, now.day)
@@ -183,31 +185,13 @@ def main():
         makePrediction(dateNow)
     elif (options.updateCloseOpens):
         stocks = getTopStocks(100)
-        date = datetime.datetime(dateNow.year, 11, 3, 9, 30)
-        dateUpTo = datetime.datetime(dateNow.year, dateNow.month, dateNow.day, 16)
+        date = datetime.datetime(dateNow.year, 7, 22, 9, 30)
+        dateUpTo = datetime.datetime(dateNow.year, 11, 28, 16)
         dates = findTradingDays(date, dateUpTo)
         updateAllCloseOpen(stocks, dates)
     else:
-
-        # date = datetime.datetime(dateNow.year, 10, 21, 10, 30)
-        # print(getPrice('SNAP', date))
-        # return
-
-        # now = convertToEST(datetime.datetime.now())
-        # date = datetime.datetime(now.year, now.month, 10)
-        # analyzeErrors(date)
-        # updateUserNotAnalyzed()
-        # return
-        print(getAllUserInfo('007greatscott'))
-
-        # print(averagedOpenClose('AJRD', datetime.datetime(dateNow.year, 10, 29, 10, 30)))
-        # print(getUpdatedCloseOpen('AJRD', datetime.datetime(dateNow.year, 10, 29, 10, 30)))
-        # print(closeToOpen('AJRD', datetime.datetime(dateNow.year, 10, 29, 10, 30)))
-
-        # print(findUserInfoDriver('panda317'))
-        # return
-        # print(getStatsPerUser('ACInvestorBlog'))
-        # return
+        usefulFunctions()
+        return
 
         # date = datetime.datetime(dateNow.year, 9, 3, 9, 30)
         # dateUpTo = datetime.datetime(dateNow.year, 11, 13, 16)
@@ -223,7 +207,6 @@ def main():
         # for u in users:
         #     print(u)
         #     getAllUserInfo(u)
-        # print(users[:10])
 
 
 if __name__ == "__main__":
