@@ -11,7 +11,8 @@ from modules.stockAnalysis import (shouldParseStock,
                                    findPageStock,
                                    parseStockData,
                                    updateLastParsedTime,
-                                   updateLastMessageTime)
+                                   updateLastMessageTime,
+                                   getTopStocks)
 from modules.stockPriceAPI import *
 from modules.userAnalysis import (findUsers,
                                   shouldParseUser,
@@ -158,11 +159,12 @@ def addOptions(parser):
 def makePrediction(date):
     currDay = datetime.datetime(date.year, date.month, date.day, 9, 30)
     nextDay = currDay + datetime.timedelta(days=1)
-    dates = [currDay, nextDay]
+    dates = [currDay]
 
-    stocks = getTopStocks(25)
-    print(stocks)
-    analyzeStocks(date, stocks)
+    stocks = getTopStocks(20)
+    # print(stocks)
+    # analyzeStocks(date, stocks)
+    # stocks = ['TSLA', 'AAPL', 'ADXS']
     basicPrediction(dates, stocks)
 
 
@@ -180,29 +182,31 @@ def main():
         stocks = getAllStocks()
         stocks.remove('SPY')
         stocks.remove('OBLN')
+        # stocks = ['TSLA']
+        stocks = getTopStocks(20)
+        # stocks.remove('TSLA')
         analyzeStocks(date, stocks)
     elif (options.prediction):
         makePrediction(dateNow)
     elif (options.updateCloseOpens):
         stocks = getTopStocks(100)
-        date = datetime.datetime(dateNow.year, 7, 22, 9, 30)
-        dateUpTo = datetime.datetime(dateNow.year, 11, 28, 16)
+        date = datetime.datetime(dateNow.year, 11, 26, 9, 30)
+        dateUpTo = datetime.datetime(dateNow.year, 12, 1, 16)
         dates = findTradingDays(date, dateUpTo)
         updateAllCloseOpen(stocks, dates)
     else:
         date = datetime.datetime(dateNow.year, 7, 22, 9, 30)
         dateUpTo = datetime.datetime(dateNow.year, 11, 28, 16)
         dates = findTradingDays(date, dateUpTo)
-        stocks = getTopStocks(100)
-        # updateBasicStockInfo(dates, stocks)
+        # print(dates)
+        stocks = getTopStocks(20)
+        # print(getUpdatedCloseOpen('TSLA', datetime.datetime(dateNow.year, 8, 30, 16)))
+        # res = setupCloseOpen(dates, stocks, False)
+        # print(res['TSLA'])
         # return
+        basicPrediction(dates, stocks)
+        # updateBasicStockInfo(dates, stocks)
 
-        usefulFunctions()
-        return
-
-        # stocks = getTopStocks(20)
-        # stocks = ['TSLA', 'AMD', 'ROKU', 'AAPL', 'NFLX', 'DIS', 'TVIX', 'FB', 'SQ', 'UGAZ', 'SHOP', 'BABA', 'MSFT', 'ACB']
-        # basicPrediction(dates, stocks)
         # analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
         # query = {"$and": [{'error': ''}, {'last_updated': {'$exists': True}}]}
         # cursor = analyzedUsers.find(query)

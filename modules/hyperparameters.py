@@ -37,7 +37,7 @@ if (timeZoneName == 'PST'):
 constants = {
     'min_idea_threshold': 200,
     'max_tweets': 5000,
-    'hoursBackToAnalyze': 2,
+    'hoursBackToAnalyze': 0.1,
     'project_root': project_root,
     'driver_bin': driver_bin,
     'chrome_options': chrome_options,
@@ -64,11 +64,7 @@ constants = {
     'likeCountAttr': 'st_1tZ744c',
     'current_timezone': timeZoneName,
     'eastern_timezone': pytz.timezone('US/Eastern'),
-    'keys': ['bullReturns', 'bearReturns', 'returnRatio', 'bullCount',
-             'bearCount', 'countRatio', 'UBullReturns', 'UBearReturns',
-             'UReturnRatio', 'UBullCount', 'UBearCount', 'UCountRatio',
-             'totalLabeledTweets', 'totalLabeledTweetsUsed', 
-             'UtotalLabeledTweetsUsed'],
+    'keys': ['countRatio', 'UCountRatio', 'totalLabeledTweetsUsed', 'UtotalLabeledTweetsUsed'],
 
     'html_class_user_div': 'st_CFwNYeI st_jGV698i st_PLa30pM',
     'html_class_user_info': 'st_21r0FbC st_2fTou_q',

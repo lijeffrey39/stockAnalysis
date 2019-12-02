@@ -1,16 +1,23 @@
+import ast
+import csv
 import datetime
 import math
 import os
+import pickle
 import statistics
 import time
+from functools import reduce
 
 from dateutil.parser import parse
 
-from . import helpers
-from .fileIO import *
+from .helpers import (readPickleObject,
+                      writePickleObject,
+                      writeToCachedFile,
+                      cachedCloseOpen,
+                      recurse,
+                      calcRatio)
 from .hyperparameters import constants
 from .messageExtract import *
-from .stockAnalysis import getTopStocks
 from .stockPriceAPI import *
 
 
@@ -22,7 +29,6 @@ from .stockPriceAPI import *
 CREATED_DICT_USERS = False
 dictPredictions = {}
 dictAccuracy = {}
-symbolsIgnored = ["PTX", "RGSE", "AMD", "TSLA", "AMZN", "MNGA", "NBEV", "CRMD"]
 
 
 # ------------------------------------------------------------------------
@@ -30,139 +36,102 @@ symbolsIgnored = ["PTX", "RGSE", "AMD", "TSLA", "AMZN", "MNGA", "NBEV", "CRMD"]
 # ------------------------------------------------------------------------
 
 
-def calcRatio(bullNum, bearNum):
-    maxVal = max(bullNum, bearNum)
-    minVal = min(bullNum, bearNum)
-    ratio = 0.0
-    if (minVal == 0 or minVal == 0.0):
-        ratio = maxVal
-    else:
-        ratio = maxVal * 1.0 / minVal
-
-    if (bullNum < bearNum):
-        ratio = -ratio
-    return ratio
-
-
-# Returns a value for the sentiment for this stock given tweets
-def calculateSentiment(tweets, symbol, userAccDict):
-    usersTweetedBull = set([])
-    usersTweetedBear = set([])
-
-    result = {'bullReturns': 0,
-              'bearReturns': 0,
-              'returnRatio': 0.0,
-              'bullCount': 0,
-              'bearCount': 0,
-              'countRatio': 0.0,
-              'UBullReturns': 0,
-              'UBearReturns': 0,
-              'UReturnRatio': 0.0,
-              'UBullCount': 0,
-              'UBearCount': 0,
-              'UCountRatio': 0.0,
-              'totalLabeledTweets': 0,
-              'totalLabeledTweetsUsed': 0,
-              'UtotalLabeledTweetsUsed': 0}
-
-    for tweet in tweets:
-        username = tweet['user']
-        isBull = tweet['isBull']
-        result['totalLabeledTweets'] += 1
-        if (username in userAccDict):
-            if (symbol not in userAccDict[username]['perStock']):
-                continue
-            stockInfo = userAccDict[username]['perStock'][symbol]
-            bullReturns = stockInfo['percentBullReturn']
-            bearReturns = stockInfo['percentBearReturn']
-            if (isBull):
-                if (bullReturns > 0):
-                    result['bullReturns'] += bullReturns
-                    result['bullCount'] += 1
-                    if (username not in usersTweetedBull):
-                        usersTweetedBull.add(username)
-                        result['UBullReturns'] += bullReturns
-                        result['UBullCount'] += 1
-            else:
-                if (bearReturns > 0):
-                    result['bearReturns'] += bearReturns
-                    result['bearCount'] += 1
-                    if (username not in usersTweetedBull):
-                        usersTweetedBull.add(username)
-                        result['UBearReturns'] += bearReturns
-                        result['UBearCount'] += 1
-
-    result['returnRatio'] = calcRatio(result['bullReturns'], result['bearReturns'])
-    result['countRatio'] = calcRatio(result['bullCount'], result['bearCount'])
-    result['UReturnRatio'] = calcRatio(result['UBullReturns'], result['UBearReturns'])
-    result['UCountRatio'] = calcRatio(result['UBullCount'], result['UBearCount'])
-
-    result['totalLabeledTweetsUsed'] = result['UBullCount'] + result['UBearCount']
-    result['UtotalLabeledTweetsUsed'] = result['bullCount'] + result['bearCount']
+# Build result for sentiment of tweets
+def buildResult():
+    result = {'totalLabeledTweets': 0}
+    for start in ['', 'U']:
+        for ending in ['Return', 'ReturnUnique']:
+            for second in ['user', 'stock']:
+                for label in ['Bull', 'Bear']:
+                    result[start + second + label + ending] = 0.0
+    for label in ['bull', 'bear']:
+        for start in ['', 'U']:
+            result[start + label + 'Count'] = 0
+    for start in ['', 'U']:
+        for ending in ['Return', 'ReturnUnique']:
+            for second in ['user', 'stock']:
+                result[start + second + ending + 'Ratio'] = 0.0
     return result
 
 
+# Calculate features based on list of tweets
 def newCalculateSentiment(tweets, symbol, userAccDict):
-    usersTweetedBull = set([])
-    usersTweetedBear = set([])
-
-    result = {'bullReturns': 0,
-              'bearReturns': 0,
-              'returnRatio': 0.0,
-              'bullCount': 0,
-              'bearCount': 0,
-              'countRatio': 0.0,
-              'UBullReturns': 0,
-              'UBearReturns': 0,
-              'UReturnRatio': 0.0,
-              'UBullCount': 0,
-              'UBearCount': 0,
-              'UCountRatio': 0.0,
-              'totalLabeledTweets': 0,
-              'totalLabeledTweetsUsed': 0,
-              'UtotalLabeledTweetsUsed': 0}
+    usersTweeted = {'bull': set([]), 'bear': set([])}
+    result = buildResult()
 
     for tweet in tweets:
         username = tweet['user']
         isBull = tweet['isBull']
         result['totalLabeledTweets'] += 1
-        if (username not in userAccDict):
+        if (username not in userAccDict or symbol not in userAccDict[username]['perStock']):
             continue
 
-        if (symbol not in userAccDict[username]['perStock']):
-            continue
+        lWord = 'bull'
+        uWord = 'Bull'
+        if (isBull is False):
+            lWord = 'bear'
+            uWord = 'Bear'
 
-        stockInfo = userAccDict[username]['perStock'][symbol]
-        bullReturns = stockInfo['bullReturnCloseOpen']
-        bearReturns = stockInfo['bearReturnCloseOpen']
-        if (isBull):
-            if (bullReturns > 0):
-                result['bullReturns'] += bullReturns
-                result['bullCount'] += 1
-                if (username not in usersTweetedBull):
-                    usersTweetedBull.add(username)
-                    result['UBullReturns'] += bullReturns
-                    result['UBullCount'] += 1
-        else:
-            if (bearReturns > 0):
-                result['bearReturns'] += bearReturns
-                result['bearCount'] += 1
-                if (username not in usersTweetedBear):
-                    usersTweetedBear.add(username)
-                    result['UBearReturns'] += bearReturns
-                    result['UBearCount'] += 1
+        userInfo = userAccDict[username]
+        stockInfo = userInfo['perStock'][symbol]
+        if (stockInfo[lWord + 'ReturnCloseOpen'] > 0):
+            result['user' + uWord + 'Return'] += userInfo[lWord + 'ReturnCloseOpen']
+            result['user' + uWord + 'ReturnUnique'] += userInfo[lWord + 'ReturnUnique']
+            result['stock' + uWord + 'Return'] += stockInfo[lWord + 'ReturnCloseOpen']
+            result['stock' + uWord + 'ReturnUnique'] += stockInfo[lWord + 'ReturnUnique']
+            result[lWord + 'Count'] += 1
+            if (username not in usersTweeted[lWord]):
+                usersTweeted[lWord].add(username)
+                result['Uuser' + uWord + 'Return'] += userInfo[lWord + 'ReturnCloseOpen']
+                result['Uuser' + uWord + 'ReturnUnique'] += userInfo[lWord + 'ReturnUnique']
+                result['Ustock' + uWord + 'Return'] += stockInfo[lWord + 'ReturnCloseOpen']
+                result['Ustock' + uWord + 'ReturnUnique'] += stockInfo[lWord + 'ReturnUnique']
+                result['U' + lWord + 'Count'] += 1
 
-    result['returnRatio'] = calcRatio(result['bullReturns'], result['bearReturns'])
+    for start in ['', 'U']:
+        for ending in ['Return', 'ReturnUnique']:
+            for second in ['user', 'stock']:
+                result[start + second + ending + 'Ratio'] = calcRatio(result[second + 'Bull' + ending],
+                          result[second + 'Bear' + ending])
+
     result['countRatio'] = calcRatio(result['bullCount'], result['bearCount'])
-    result['UReturnRatio'] = calcRatio(result['UBullReturns'], result['UBearReturns'])
-    result['UCountRatio'] = calcRatio(result['UBullCount'], result['UBearCount'])
-
-    result['totalLabeledTweetsUsed'] = result['UBullCount'] + result['UBearCount']
-    result['UtotalLabeledTweetsUsed'] = result['bullCount'] + result['bearCount']
+    result['UCountRatio'] = calcRatio(result['UbullCount'], result['UbearCount'])
+    result['totalLabeledTweetsUsed'] = result['bullCount'] + result['bearCount']
+    result['UtotalLabeledTweetsUsed'] = result['UbullCount'] + result['UbearCount']
     return result
 
 
-def setupUserInfos(stocks):
+# Close opens from saved file
+def setupCloseOpen(dates, stocks, updateObject=False):
+    print("Setup Close Open Info")
+    path = 'pickledObjects/closeOpen.pkl'
+    result = readPickleObject(path)
+    if (updateObject is False):
+        return result
+
+    for symbol in stocks:
+        if (symbol not in result):
+            result[symbol] = {}
+        for date in dates:
+            if (date not in result[symbol]):
+                print(date, symbol)
+                dayRes = cachedCloseOpen(symbol, date)
+                if (dayRes is None):
+                    continue
+                result[symbol][date] = cachedCloseOpen(symbol, date)
+
+    writePickleObject(path, result)
+    return result
+
+
+# User Infos from saved file
+def setupUserInfos(stocks, updateObject=False):
+    print("Setup User Info")
+    path = 'pickledObjects/userInfos.pkl'
+    result = readPickleObject(path)
+    if (updateObject is False):
+        return result
+
     result = {}
     for symbol in stocks:
         accuracy = constants['db_user_client'].get_database('user_data_db').new_user_accuracy
@@ -170,18 +139,25 @@ def setupUserInfos(stocks):
         for user in allUsersAccs:
             if (user['_id'] not in result):
                 result[user['_id']] = user
+
+    writePickleObject(path, result)
     return result
 
 
-def setupStockInfos(stocks):
-    # basicStockInfo = constants['stocktweets_client'].get_database('stocks_data_db').basic_stock_info
-    # basicStockInfo = constants['stocktweets_client'].get_database('stocks_data_db').training_stock_info
-    basicStockInfo = constants['stocktweets_client'].get_database('stocks_data_db').training_stock_info_1130
+# Stock Infos from saved file
+def setupStockInfos(stocks, updateObject=False):
+    print("Setup Stock Info")
+    path = 'pickledObjects/stockInfos.pkl'
+    result = readPickleObject(path)
+    if (updateObject is False):
+        return result
+
+    basicStockInfo = constants['stocktweets_client'].get_database('stocks_data_db').training_stock_info_1201
     result = {}
     for symbol in stocks:
         symbolInfo = basicStockInfo.find_one({'_id': symbol})
         result[symbol] = symbolInfo
-
+    writePickleObject(path, result)
     return result
 
 
@@ -191,25 +167,57 @@ def setupResults(dates, keys):
         results[date] = {}
         results[date]['params'] = {}
         results[date]['closeOpen'] = {}
+        results[date]['params'] = buildResult()
+        for k in results[date]['params']:
+            results[date]['params'][k] = {}
         for k in keys:
             results[date]['params'][k] = {}
     return results
 
 
-def findAllTweets(stocks, dates):
-    result = {}
+def findAllTweets(stocks, dates, updateObject=False, dayPrediction=False):
+    print("Setup Tweets")
+    path = 'pickledObjects/testing.pkl'
+    result = readPickleObject(path)
+    if (updateObject is False):
+        return result
+
+    if (dayPrediction):
+        result = {}
     tweetsDB = constants['stocktweets_client'].get_database('tweets_db')
     for symbol in stocks:
-        dateStart = dates[0]
-        dateEnd = dates[-1]
-        labeledTweets = tweetsDB.tweets.find({"$and": [{'symbol': symbol},
-                                                       {"$or": [
-                                                        {'isBull': True},
-                                                        {'isBull': False}
-                                                        ]},
-                                                       {'time': {'$gte': dateStart,
-                                                        '$lt': dateEnd}}]})
-        result[symbol] = list(labeledTweets)
+        print(symbol)
+        if (symbol not in result):
+            result[symbol] = {}
+        for date in dates:
+            d = date.strftime('%m/%d/%Y')
+            if (d not in result[symbol]):
+                result[symbol][d] = []
+                dateStart = datetime.datetime(date.year,
+                                              date.month, date.day, 9, 30)
+                dateEnd = datetime.datetime(date.year,
+                                            date.month, date.day, 16, 0)
+                query = {"$and": [{'symbol': symbol},
+                                  {"$or": [
+                                        {'isBull': True},
+                                        {'isBull': False}
+                                  ]},
+                                  {'time': {'$gte': dateStart,
+                                            '$lt': dateEnd}}]}
+                tweets = list(tweetsDB.tweets.find(query))
+                for tweet in tweets:
+                    result[symbol][d].append(tweet)
+
+                tweets = list(map(lambda x: [x['time'], x['isBull'], x['commentCount'],
+                                             x['likeCount'], x['user']], tweets))
+
+                if (dayPrediction is False):
+                    with open('./cachedTweets/' + symbol + '.csv', "a") as f:
+                        csvWriter = csv.writer(f, delimiter=',')
+                        csvWriter.writerows(tweets)
+
+    if (dayPrediction is False):
+        writePickleObject(path, result)
     return result
 
 
@@ -247,43 +255,26 @@ def simpleWeightPredictionReturns(date, results, paramWeightings):
         mappedResult = list(map(lambda x: [x[0], round(x[1] / sumDiffs * 100, 2), results[date]['closeOpen'][x[0]]], resPerParam))
     except:
         mappedResult = list(map(lambda x: [x[0], round(x[1] / sumDiffs * 100, 2)], resPerParam))
-    print(date, round(returnToday, 3), mappedResult)
-    return returnToday
+    # print(date, round(returnToday, 3), mappedResult)
+    return (returnToday, mappedResult)
 
 
 # Basic prediction algo
 def basicPrediction(dates, stocks):
-    startTime = time.time()
-    allTweets = constants['stocktweets_client'].get_database('tweets_db')
-
     userInfos = setupUserInfos(stocks)
     stockInfos = setupStockInfos(stocks)
-    # allTweets = findAllTweets(stocks, dates)
+    closeOpenInfos = setupCloseOpen(dates, stocks)
+    allTweets = findAllTweets(stocks, dates, True, True)
     results = setupResults(dates, constants['keys'])
     combinedResult = 0
-    print(time.time() - startTime)
 
     for symbol in stocks:
         print(symbol)
         symbolInfo = stockInfos[symbol]
-        # tweetsSymbol = allTweets[symbol]
-
         for date in dates:
-            dateStart = datetime.datetime(date.year,
-                                          date.month, date.day, 9, 30)
-            dateEnd = datetime.datetime(date.year,
-                                        date.month, date.day, 16, 0)
-            # tweets = list(filter(lambda x: x['time'] >= dateStart and
-            #               x['time'] <= dateEnd, tweetsSymbol))
-
-            query = {"$and": [{'symbol': symbol},
-                                {"$or": [
-                                            {'isBull': True},
-                                            {'isBull': False}
-                                        ]},
-                                {'time': {'$gte': dateStart,
-                                          '$lt': dateEnd}}]}
-            tweets = list(allTweets.tweets.find(query))
+            if (date.strftime('%m/%d/%Y') not in allTweets[symbol]):
+                continue
+            tweets = allTweets[symbol][date.strftime('%m/%d/%Y')]
             sentiment = newCalculateSentiment(tweets, symbol, userInfos)
             for param in sentiment:
                 paramVal = sentiment[param]
@@ -294,49 +285,99 @@ def basicPrediction(dates, stocks):
                     continue
                 stdDev = round((paramVal - paramMean) / paramStd, 2)
                 results[date]['params'][param][symbol] = stdDev
-
-            closeOpen = getUpdatedCloseOpen(symbol, date)
+            if (date not in closeOpenInfos[symbol]):
+                continue
+            closeOpen = closeOpenInfos[symbol][date]
             if (closeOpen is None):
                 continue
             results[date]['closeOpen'][symbol] = closeOpen[2]
 
-    combinedResults = {}
+    symbolReturns = {}
+    symbolCounts = {}
     for date in dates:
-        # for a in range(0, 5):
-        #     for b in range(0, 5):
-        #         for c in range(0, 5):
-        #             for d in range(0, 5):
-        #                 for e in range(2, 5):
-        #                     paramWeightings = {'returnRatio': a * 0.1,
-        #                                        'countRatio': b * 0.1,
-        #                                        'bullReturns': c * 0.1,
-        #                                        'UBullCount': d * 0.1,
-        #                                        'numStocks': e}
-        #                     returns = simpleWeightPredictionReturns(date, results, paramWeightings)
-        #                     if (tuple(paramWeightings.items()) not in combinedResults):
-        #                         combinedResults[tuple(paramWeightings.items())] = [returns]
-        #                     else:
-        #                         combinedResults[tuple(paramWeightings.items())].append(returns)
+        # params = ['numStocks']
+        # allPossibilities = []
+        # recurse([0] * 1, 0, 6, set([]), allPossibilities)
+        # for combo in allPossibilities:
+        #     paramWeightings = {'stockReturnUniqueRatio': 1, 
+        #                        'stockReturnRatio': 2,
+        #                        'UCountRatio': 5,
+        #                        'UuserReturnRatio': 1,
+        #                        'userReturnRatio': 1,
+        #                        'UstockReturnRatio': 2,
+        #                        'UstockBullReturnUnique': 5,
+        #                        'userReturnUniqueRatio': 1,
+        #                        'countRatio': 3}
+        #     for i in range(len(params)):
+        #         paramWeightings[params[i]] = combo[i]
 
-        simpleWeight = {'returnRatio': 3, 'countRatio': 4, 'bullReturns': 4, 'numStocks': 3}
-        combinedResult += simpleWeightPredictionReturns(date, results, simpleWeight)
+        #     try:
+        #         returns = simpleWeightPredictionReturns(date, results, paramWeightings)
+        #     except:
+        #         continue
+        #     if (tuple(paramWeightings.items()) not in combinedResults):
+        #         combinedResults[tuple(paramWeightings.items())] = [returns]
+        #     else:
+        #         combinedResults[tuple(paramWeightings.items())].append(returns)
 
+        paramWeightings = {'stockReturnUniqueRatio': 1,
+                            'stockReturnRatio': 2,
+                            'UCountRatio': 5,
+                            'UuserReturnRatio': 1,
+                            'userReturnRatio': 1,
+                            'UstockReturnRatio': 2,
+                            'UstockBullReturnUnique': 5,
+                            'userReturnUniqueRatio': 1,
+                            'countRatio': 3,
+                            'numStocks': 3}
+        returns, listReturns = simpleWeightPredictionReturns(date, results, paramWeightings)
+        print(date, round(returns, 3), listReturns)
+        for s in listReturns:
+            if (len(s) == 2):
+                continue
+            symbol = s[0]
+            val = 0
+            if ((s[1] < 0 and s[2] < 0) or (s[1] > 0 and s[2] > 0)):
+                val = abs(s[2])
+            else:
+                val = -s[2]
+            if (symbol not in symbolReturns):
+                symbolReturns[symbol] = val
+                symbolCounts[symbol] = {}
+                symbolCounts[symbol]['y'] = 1
+                if (val > 0):
+                    symbolCounts[symbol]['x'] = 1
+            else:
+                symbolReturns[symbol] += val
+                symbolCounts[symbol]['y'] += 1
+                if (val > 0):
+                    if ('x' not in symbolCounts[symbol]):
+                        symbolCounts[symbol]['x'] = 1
+                    else:
+                        symbolCounts[symbol]['x'] += 1
+        combinedResult += returns
     print(combinedResult)
+
+    bestParams = list(symbolReturns.items())
+    bestParams.sort(key=lambda x: x[1], reverse=True)
+    for x in bestParams:
+        print(x)
+
+    otherBest = list(symbolCounts.items())
+    otherBest.sort(key=lambda x: x[1]['x'] / x[1]['y'], reverse=True)
+    for x in otherBest:
+        print(x)
 
     # bestParams = list(combinedResults.items())
     # bestParams.sort(key=lambda x: sum(x[1]), reverse=True)
-    # for x in bestParams[:100]:
-    #     print(x)
+    # for x in bestParams[:50]:
+    #     print(x[0], sum(x[1]))
 
 
 # Updates stock mean and standard deviation
 def updateBasicStockInfo(dates, stocks):
     tweetsDB = constants['stocktweets_client'].get_database('tweets_db')
-    # basicStockInfo = constants['stocktweets_client'].get_database('stocks_data_db').basic_stock_info
-    # basicStockInfo = constants['stocktweets_client'].get_database('stocks_data_db').training_stock_info
-    # basicStockInfo = constants['stocktweets_client'].get_database('stocks_data_db').training_stock_info_1015
-    # basicStockInfo = constants['stocktweets_client'].get_database('stocks_data_db').training_stock_info_1022
-    basicStockInfo = constants['stocktweets_client'].get_database('stocks_data_db').training_stock_info_1130
+    basicStockInfo = constants['stocktweets_client'].get_database('stocks_data_db').training_stock_info_1202
 
     for symbol in stocks:
         accuracy = constants['db_user_client'].get_database('user_data_db').new_user_accuracy
@@ -349,7 +390,6 @@ def updateBasicStockInfo(dates, stocks):
         found = basicStockInfo.find_one({'_id': symbol})
         if (found is not None):
             continue
-            # basicStockInfo.delete_one(symbolInfo)
 
         print(symbol)
         for date in dates:
@@ -364,7 +404,7 @@ def updateBasicStockInfo(dates, stocks):
                                                   '$lt': dateEnd}}]})
 
             sentiment = newCalculateSentiment(labeledTweets, symbol, userAccDict)
-            if ('bullReturns' not in symbolInfo):
+            if ('countRatio' not in symbolInfo):
                 for k in sentiment:
                     symbolInfo[k] = [sentiment[k]]
             else:
@@ -378,122 +418,6 @@ def updateBasicStockInfo(dates, stocks):
                 symbolInfo[k]['mean'] = statistics.mean(vals)
                 symbolInfo[k]['stdev'] = statistics.stdev(vals)
         basicStockInfo.insert_one(symbolInfo)
-
-
-# Creates top users for each stock (Run each time there are new users)
-def writeTempListStocks():
-    stocks1 = readSingleList('stockList.csv')
-    stocks1.sort()
-    for s in stocks1:
-        res = topUsersStock(s, 0)
-        writeSingleList('templists/' + s + '.csv', res)
-
-
-# Returns the top users for that stock
-def topUsersStock(stock, num):
-    users = helpers.allUsers()
-    result = []
-
-    for user in users:
-        path = 'userCalculated/' + user + '_info.csv'
-        read = readMultiList(path)
-        filtered = list(filter(lambda x: x[0] == stock, read))
-        if (len(filtered) == 0):
-            continue
-        else:
-            percent = float(filtered[0][4])
-            result.append([user, percent, float(filtered[0][1]), float(filtered[0][2]), float(filtered[0][3])])
-
-    result.sort(key = lambda x: x[1], reverse = True)
-
-    if (num == 0):
-        return result
-    else:
-        return result[:num]
-
-
-# Creates userxxx_info.csv for each user
-def statsUsers():
-    users = helpers.allUsers()
-
-    for user in users:
-        path = "userinfo/" + user + ".csv"
-        if (os.path.isfile(path) == False):
-            continue
-
-        res = []
-        read = readMultiList(path)
-
-        # Temp filter by ones that have a bull/bear sentiment
-        read = list(filter(lambda x: x[5] != '-1', read))
-
-        symbols = list(set(map(lambda x: x[0], read)))
-        total = float(len(read))
-
-        for s in symbols:
-            filterSymbol = list(filter(lambda x: x[0] == s, read))
-            totalCorrect = list(map(lambda x: abs(float(x[7])), list(filter(lambda x: x[5] == '1', filterSymbol))))
-            totalIncorrect = list(map(lambda x: abs(float(x[7])), list(filter(lambda x: x[5] == '0', filterSymbol))))
-            summedCorrect = reduce(lambda a, b: a + b, totalCorrect) if len(totalCorrect) > 0 else 0
-            summedIncorrect = reduce(lambda a, b: a + b, totalIncorrect) if len(totalIncorrect) > 0 else 0
-
-            res.append([s, round(100 * len(filterSymbol) / total, 2), len(totalCorrect),
-                len(totalIncorrect), round(summedCorrect - summedIncorrect, 2)])
-
-        res.sort(key = lambda x: x[4], reverse = True)
-        #total = round(reduce(lambda a, b: a + b, list(map(lambda x: x[4], res))), 4)
-
-        writeSingleList('userCalculated/' + user + '_info.csv', res)
-
-
-# Find how much stock to buy based on money/ratios
-def recommendStocks(result, date, money, numStocks):
-    picked = result[:numStocks]
-    totalWeight = reduce(lambda a, b: a + b, list(map(lambda x: x[1], picked)))
-    ratios = list(map(lambda x: x[1] * money / totalWeight, picked))
-    stocksNum = []
-
-    date = datetime.datetime(date.year, date.month, date.day, 15, 59)
-
-    for i in range(len(picked)):
-        symbol = picked[i][0]
-        priceAtPost = savedPricesStocks(date, symbol)
-        numStocks = int(ratios[i] / priceAtPost)
-
-        stocksNum.append([symbol, priceAtPost, ratios[i], numStocks])
-        # print([symbol, priceAtPost, ratios[i], numStocks])
-
-    return stocksNum
-
-
-
-# Returns the price of a stock based on whether it was saved from a previous prediction
-# need to save all prices for all stocks
-
-def savedPricesStocks(date, stock):
-    path = date.strftime("stocksResults/%m-%d-%y-%I_savedStocks.csv")
-    dateStock = date.strftime("%m-%d-%y-%I:%M_") + stock
-
-    # create empty file
-    if (os.path.isfile(path) == False):
-        with open(path, "w") as my_empty_csv:
-            pass
-
-    stockList = readMultiList(path)
-    foundStock = list(filter(lambda x: x[0] == dateStock, stockList))
-
-    # If stock price exists
-    if (len(foundStock) == 1):
-        return float(foundStock[0][1])
-
-    (historical, dateTimeAdjusted) = stockPriceAPI.findHistoricalData(date, stock, False)
-    priceAtPost = stockPriceAPI.priceAtTime(date, historical) # Price at the time of posting
-
-    stockList.append([dateStock, priceAtPost])
-    stockList.sort(key = lambda x: x[0])
-    writeSingleList(path, stockList)
-
-    return priceAtPost
 
 
 # Finds the returns based on predictions made from topStocks

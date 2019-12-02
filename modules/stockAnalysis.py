@@ -63,7 +63,7 @@ def findPageStock(symbol, date, hoursBack):
     #     if button.text == symbol:
     #         button.click()
     #         break
-
+    hoursBack = 8
     try:
         scroll.scrollFor(driver, hoursBack)
     except Exception as e:
@@ -186,6 +186,7 @@ def parseStockData(symbol, soup):
             dateString = t[1].text
 
         (dateTime, errorMsg) = findDateTime(dateString)
+        print(dateTime)
         if (errorMsg != ""):
             print(errorMsg)
             continue
