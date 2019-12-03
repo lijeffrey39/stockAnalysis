@@ -182,40 +182,21 @@ def main():
         stocks = getAllStocks()
         stocks.remove('SPY')
         stocks.remove('OBLN')
-        # stocks = ['TSLA']
-        stocks = getTopStocks(20)
-        # stocks.remove('TSLA')
         analyzeStocks(date, stocks)
     elif (options.prediction):
         makePrediction(dateNow)
     elif (options.updateCloseOpens):
         stocks = getTopStocks(100)
-        date = datetime.datetime(dateNow.year, 11, 26, 9, 30)
+        date = datetime.datetime(dateNow.year, 7, 22, 9, 30)
         dateUpTo = datetime.datetime(dateNow.year, 12, 1, 16)
         dates = findTradingDays(date, dateUpTo)
         updateAllCloseOpen(stocks, dates)
     else:
         date = datetime.datetime(dateNow.year, 7, 22, 9, 30)
-        dateUpTo = datetime.datetime(dateNow.year, 11, 28, 16)
+        dateUpTo = datetime.datetime(dateNow.year, 11, 29, 16)
         dates = findTradingDays(date, dateUpTo)
-        # print(dates)
-        stocks = getTopStocks(20)
-        # print(getUpdatedCloseOpen('TSLA', datetime.datetime(dateNow.year, 8, 30, 16)))
-        # res = setupCloseOpen(dates, stocks, False)
-        # print(res['TSLA'])
-        # return
-        basicPrediction(dates, stocks)
-        # updateBasicStockInfo(dates, stocks)
-
-        # analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
-        # query = {"$and": [{'error': ''}, {'last_updated': {'$exists': True}}]}
-        # cursor = analyzedUsers.find(query)
-        # users = list(map(lambda document: document['_id'], cursor))
-        # print(len(users))
-        # shuffle(users)
-        # for u in users:
-        #     print(u)
-        #     getAllUserInfo(u)
+        stocks = getTopStocks(100)
+        # basicPrediction(dates, stocks)
 
 
 if __name__ == "__main__":

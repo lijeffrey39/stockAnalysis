@@ -376,16 +376,16 @@ def basicPrediction(dates, stocks):
 
 def generateFeatures(dates, stocks, updateObject=False):
     path = 'pickledObjects/features.pkl'
+    testing = [datetime.datetime(2019, 11, 19, 9, 30), datetime.datetime(2019, 10, 23, 9, 30), datetime.datetime(2019, 10, 4, 9, 30), datetime.datetime(2019, 9, 24, 9, 30), datetime.datetime(2019, 11, 15, 9, 30), datetime.datetime(2019, 11, 13, 9, 30), datetime.datetime(2019, 8, 1, 9, 30), datetime.datetime(2019, 7, 24, 9, 30), datetime.datetime(2019, 10, 8, 9, 30), datetime.datetime(2019, 10, 14, 9, 30), datetime.datetime(2019, 8, 27, 9, 30), datetime.datetime(2019, 10, 30, 9, 30), datetime.datetime(2019, 8, 7, 9, 30), datetime.datetime(2019, 8, 22, 9, 30), datetime.datetime(2019, 8, 2, 9, 30), datetime.datetime(2019, 10, 9, 9, 30), datetime.datetime(2019, 10, 16, 9, 30), datetime.datetime(2019, 9, 23, 9, 30)]
     if (updateObject is False):
         features = readPickleObject(path)
-        testing = [datetime.datetime(2019, 11, 19, 9, 30), datetime.datetime(2019, 10, 23, 9, 30), datetime.datetime(2019, 10, 4, 9, 30), datetime.datetime(2019, 9, 24, 9, 30), datetime.datetime(2019, 11, 15, 9, 30), datetime.datetime(2019, 11, 13, 9, 30), datetime.datetime(2019, 8, 1, 9, 30), datetime.datetime(2019, 7, 24, 9, 30), datetime.datetime(2019, 10, 8, 9, 30), datetime.datetime(2019, 10, 14, 9, 30), datetime.datetime(2019, 8, 27, 9, 30), datetime.datetime(2019, 10, 30, 9, 30), datetime.datetime(2019, 8, 7, 9, 30), datetime.datetime(2019, 8, 22, 9, 30), datetime.datetime(2019, 8, 2, 9, 30), datetime.datetime(2019, 10, 9, 9, 30), datetime.datetime(2019, 10, 16, 9, 30), datetime.datetime(2019, 9, 23, 9, 30)]
         return (features, testing)
 
     allTweets = findAllTweets(stocks, dates)
-    shuffle(dates)
-    training = dates[:75]
-    testing = dates[75:]
-    print(testing)
+    training = []
+    for d in dates:
+        if (d not in testing):
+            training.append(d)
 
     # Generate means and std for stocks
     # updateBasicStockInfo(training, stocks, allTweets)
