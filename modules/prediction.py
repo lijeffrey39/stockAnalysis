@@ -264,7 +264,7 @@ def basicPrediction(dates, stocks):
     userInfos = setupUserInfos(stocks)
     stockInfos = setupStockInfos(stocks)
     closeOpenInfos = setupCloseOpen(dates, stocks)
-    allTweets = findAllTweets(stocks, dates, True, True)
+    allTweets = findAllTweets(stocks, dates)
     results = setupResults(dates, constants['keys'])
     combinedResult = 0
 
@@ -400,7 +400,7 @@ def generateFeatures(dates, stocks, updateObject=False):
         for user in allUsersAccs:
             userAccDict[user['_id']] = user
 
-        for date in training:
+        for date in dates:
             if (date.strftime('%m/%d/%Y') not in allTweets[symbol]):
                 continue
             features[symbol][date] = {}
@@ -449,7 +449,6 @@ def updateBasicStockInfo(dates, stocks, allTweets):
                 symbolInfo[k]['mean'] = statistics.mean(vals)
                 symbolInfo[k]['stdev'] = statistics.stdev(vals)
         basicStockInfo.insert_one(symbolInfo)
-
 
 
 # Finds the returns based on predictions made from topStocks

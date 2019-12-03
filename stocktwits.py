@@ -196,6 +196,9 @@ def main():
         dateUpTo = datetime.datetime(dateNow.year, 11, 29, 16)
         dates = findTradingDays(date, dateUpTo)
         stocks = getTopStocks(100)
+
+        (setup, testing) = generateFeatures(dates, stocks, True)
+        # print(setup['AAPL'][datetime.datetime(dateNow.year, 7, 25, 9, 30)])
         # basicPrediction(dates, stocks)
 
 
