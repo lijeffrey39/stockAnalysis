@@ -46,7 +46,6 @@ def neuralnet():
             else:
                 label = [1,0]
             trainingData.append((np.asarray(list(features[stock][date].values())),np.asarray(label)))
-    print(len(trainingData))
 
     # print(features)
     # print(features)
@@ -75,7 +74,7 @@ def neuralnet():
     epochs = 5
     for e in range(epochs):
         running_loss = 0
-        print(len(trainloader))
+        # print(len(trainloader))
         for feature, labels in trainloader:
             # print(labels    )
             # print(feature.dim())
@@ -88,9 +87,49 @@ def neuralnet():
             optimizer.zero_grad()
 
             output = model(feature.float())
+            if output.argmax() == labels.argmax():
+                print("fuck ya")
+            else:
+                print("FUCKFUCKFUCK")
+            # print(output)
             loss = criterion(output, torch.max(labels, 1)[1])
             loss.backward()
             optimizer.step()
             running_loss += loss.item()
         else:
             print(f"Training loss: {running_loss/len(trainloader)}")
+
+    testingDates = [datetime.datetime(2019, 11, 19, 9, 30), datetime.datetime(2019, 10, 23, 9, 30), datetime.datetime(2019, 10, 4, 9, 30), datetime.datetime(2019, 9, 24, 9, 30), datetime.datetime(2019, 11, 15, 9, 30), datetime.datetime(2019, 11, 13, 9, 30), datetime.datetime(2019, 8, 1, 9, 30), datetime.datetime(2019, 7, 24, 9, 30), datetime.datetime(2019, 10, 8, 9, 30), datetime.datetime(2019, 10, 14, 9, 30), datetime.datetime(2019, 8, 27, 9, 30), datetime.datetime(2019, 10, 30, 9, 30), datetime.datetime(2019, 8, 7, 9, 30), datetime.datetime(2019, 8, 22, 9, 30), datetime.datetime(2019, 8, 2, 9, 30), datetime.datetime(2019, 10, 9, 9, 30), datetime.datetime(2019, 10, 16, 9, 30), datetime.datetime(2019, 9, 23, 9, 30)]
+
+
+    for stock in stocks:
+        for date in testingDates:
+            # print(len(features[stock][date]))
+            print(stock)
+            for feature in features[stock][date]:
+                mean = result[stock][feature]["mean"]
+                stdev = result[stock][feature]["stdev"]
+
+                features[stock][date][feature] = (features[stock][date][feature] - mean)/stdev
+
+    testingData = []
+
+    for stock in stocks:
+        for date in testingDates:
+            # print(stock)
+            # print(openClose[stock])
+            temp = openClose[stock][date];
+
+            if temp[2] < 0:
+                label = [0,1]
+            else:
+                label = [1,0]
+            testingData.append((np.asarray(list(features[stock][date].values())),np.asarray(label)))
+
+    testloader = torch.utils.data.DataLoader(trainingData, batch_size=1, shuffle=True)
+
+    for feature, labels in testloader:
+
+        optimizer.zero_grad()
+        output = model(feature.float())
+        print(output.argmax())
