@@ -198,7 +198,7 @@ def main():
         dates = findTradingDays(date, dateUpTo)
         stocks = getTopStocks(100)
 
-        (setup, testing) = generateFeatures(dates, stocks, True)
+        # (setup, testing) = generateFeatures(dates, stocks, True)
         # print(setup['AAPL'][datetime.datetime(dateNow.year, 7, 25, 9, 30)])
         # basicPrediction(dates, stocks)
         neuralnet()
