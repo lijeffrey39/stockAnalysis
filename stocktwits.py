@@ -1,5 +1,6 @@
 import datetime
 import optparse
+from modules.sung_nn import *
 from random import shuffle
 
 from modules.helpers import *
@@ -200,6 +201,18 @@ def main():
         (setup, testing) = generateFeatures(dates, stocks, True)
         # print(setup['AAPL'][datetime.datetime(dateNow.year, 7, 25, 9, 30)])
         # basicPrediction(dates, stocks)
+        neuralnet()
+        # updateBasicStockInfo(dates, stocks)
+
+        # analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
+        # query = {"$and": [{'error': ''}, {'last_updated': {'$exists': True}}]}
+        # cursor = analyzedUsers.find(query)
+        # users = list(map(lambda document: document['_id'], cursor))
+        # print(len(users))
+        # shuffle(users)
+        # for u in users:
+        #     print(u)
+        #     getAllUserInfo(u)
 
 
 if __name__ == "__main__":

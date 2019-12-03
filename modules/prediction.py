@@ -103,6 +103,7 @@ def newCalculateSentiment(tweets, symbol, userAccDict):
 
 # Close opens from saved file
 def setupCloseOpen(dates, stocks, updateObject=False):
+    # os.chdir(os.path.dirname(__file__))
     print("Setup Close Open Info")
     path = 'pickledObjects/closeOpen.pkl'
     result = readPickleObject(path)
@@ -299,7 +300,7 @@ def basicPrediction(dates, stocks):
         # allPossibilities = []
         # recurse([0] * 1, 0, 6, set([]), allPossibilities)
         # for combo in allPossibilities:
-        #     paramWeightings = {'stockReturnUniqueRatio': 1, 
+        #     paramWeightings = {'stockReturnUniqueRatio': 1,
         #                        'stockReturnRatio': 2,
         #                        'UCountRatio': 5,
         #                        'UuserReturnRatio': 1,
