@@ -1,5 +1,6 @@
 import datetime
 import optparse
+from modules.sung_nn import *
 from random import shuffle
 
 from modules.helpers import *
@@ -204,7 +205,8 @@ def main():
         # res = setupCloseOpen(dates, stocks, False)
         # print(res['TSLA'])
         # return
-        basicPrediction(dates, stocks)
+        # basicPrediction(dates, stocks)
+        neuralnet()
         # updateBasicStockInfo(dates, stocks)
 
         # analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
