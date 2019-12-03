@@ -1,19 +1,108 @@
+import copy
+import csv
 import datetime
 import hashlib
 import os
+import pickle
 from datetime import *
 
+from dateutil.parser import parse
 from dateutil.tz import *
 
 import pytz
 
-from .stockPriceAPI import inTradingDay
 from .hyperparameters import constants
+from .stockPriceAPI import (getUpdatedCloseOpen,
+                            inTradingDay,
+                            updateAllCloseOpen)
 
 
 # ------------------------------------------------------------------------
 # ----------------------------- Functions --------------------------------
 # ------------------------------------------------------------------------
+
+
+# Calculate ratio between two values
+def calcRatio(bullNum, bearNum):
+    maxVal = max(bullNum, bearNum)
+    minVal = min(bullNum, bearNum)
+    ratio = 0.0
+    if (minVal == 0 or minVal == 0.0):
+        ratio = maxVal
+    else:
+        ratio = maxVal * 1.0 / minVal
+
+    if (bullNum < bearNum):
+        ratio = -ratio
+    return ratio
+
+
+def readPickleObject(path):
+    f = open(path, 'rb')
+    result = pickle.load(f)
+    f.close()
+    return result
+
+
+def writePickleObject(path, result):
+    f = open(path, 'wb')
+    pickle.dump(result, f)
+    f.close()
+    return
+
+
+def writeToCachedFile(path, symbol, date):
+    result = getUpdatedCloseOpen(symbol, date)
+    if (result is None):
+        updateAllCloseOpen([symbol], [date])
+        result = getUpdatedCloseOpen(symbol, date)
+        if (result is None):
+            return None
+    with open(path, "a") as symbolFile:
+        csvWriter = csv.writer(symbolFile, delimiter=',')
+        csvWriter.writerows([[date, result[0], result[1], result[2]]])
+    return result
+
+
+def cachedCloseOpen(symbol, date):
+    path = './cachedCloseOpen/' + symbol + '.csv'
+    result = None
+    if (os.path.isfile(path) is False):
+        result = writeToCachedFile(path, symbol, date)
+    else:
+        with open(path) as csv_file:
+            csv_reader = csv.reader(csv_file, delimiter=',')
+            found = False
+            for row in csv_reader:
+                cDate = parse(row[0])
+                if (cDate.strftime('%m/%d/%Y') == date.strftime('%m/%d/%Y')):
+                    found = True
+                    result = (float(row[1]), float(row[2]), float(row[3]))
+            if (found is False):
+                result = writeToCachedFile(path, symbol, date)
+    return result
+
+
+# Generate all combinations
+def recurse(l, i, m, check, result):
+    if (i >= len(l)):
+        return
+
+    if (l[i] == m):
+        return
+    new = copy.deepcopy(l)
+    newStr = str(new).strip('[]')
+    if (newStr not in check):
+        check.add(newStr)
+        result.append(new)
+    new[i] += 1
+    recurse(new, i, m, check, result)
+    new1 = copy.deepcopy(l)
+    newStr = str(new1).strip('[]')
+    if (newStr not in check):
+        check.add(newStr)
+        result.append(new1)
+    recurse(new1, i + 1, m, check, result)
 
 
 # Returns list of all stocks
@@ -61,54 +150,20 @@ def convertToEST(dateTime):
     return dateTime
 
 
-def inTradingHours(dateTime, symbol):
-    day = dateTime.weekday()
-    nineAM = datetime.datetime(dateTime.year, dateTime.month, dateTime.day, 9, 30)
-    fourPM = datetime.datetime(dateTime.year, dateTime.month, dateTime.day, 16, 0)
-
-    if (dateTime < nineAM or dateTime >= fourPM or day == "0" or day == "6"):
-        return False
-
-    historical = historicalFromDict(symbol, dateTime)
-
-    if (len(historical) == 0):
-        return False
-
-    strDate = dateTime.strftime("%X")[:5]
-    found = False
-
-    for ts in historical:
-        if (ts.get('minute') == strDate):
-            found = True
-    return found
-
-
-def isTradingDay(date):
-    path = date.strftime("stocksResults/%m-%d-%y.csv")
-    return (os.path.isfile(path))
-
-
 # Return list of valid trading days from date on
 def findTradingDays(date, upToDate):
     delta = timedelta(1)
     dates = []
+    excluded = [[9, 2], [11, 28]]
 
     while (date < upToDate):
         # See if it's a valid trading day
+        if ((date.day == 2 and date.month == 9) or
+            date.day == 28 and date.month == 11):
+            date += delta
+            continue
         if (inTradingDay(date)):
             dates.append(date)
         date += delta
 
     return dates
-
-
-def chunkIt(seq, num):
-    avg = len(seq) / float(num)
-    out = []
-    last = 0.0
-
-    while last < len(seq):
-        out.append(seq[int(last):int(last + avg)])
-        last += avg
-
-    return out

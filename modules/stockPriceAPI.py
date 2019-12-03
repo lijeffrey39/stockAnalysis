@@ -69,14 +69,24 @@ def updateCloseOpen(symbol, date, db):
 
 
 def getUpdatedCloseOpen(symbol, date):
+    exceptions = [datetime.datetime(2019, 11, 27)]
     db = constants['db_client'].get_database('stocks_data_db').updated_close_open
     days_in_future = datetime.timedelta(days=1)
     future_date = date + days_in_future
-    if future_date.weekday() > 4:
+    if (future_date.weekday() > 4):
         next_weekday = datetime.timedelta(days=7 - future_date.weekday())
         future_date += next_weekday
+
+    # Edge Case
+    if (date.day == 27 and date.month == 11):
+        future_date = date + datetime.timedelta(days=2)
+
+    if (date.day == 30 and date.month == 8):
+        future_date = date + datetime.timedelta(days=4)
+
     start = db.find_one({'_id': symbol + ' ' + date.strftime("%Y-%m-%d")})
     end = db.find_one({'_id': symbol + ' ' + future_date.strftime("%Y-%m-%d")})
+
     if (end is None) or (start is None) or start == 0 or end == 0:
         return None
     else:
