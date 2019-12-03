@@ -196,12 +196,10 @@ def main():
         date = datetime.datetime(dateNow.year, 7, 22, 9, 30)
         dateUpTo = datetime.datetime(dateNow.year, 11, 29, 16)
         dates = findTradingDays(date, dateUpTo)
-        # print(dates)
-        stocks = getTopStocks(20)
-        # print(getUpdatedCloseOpen('TSLA', datetime.datetime(dateNow.year, 8, 30, 16)))
-        # res = setupCloseOpen(dates, stocks, False)
-        # print(res['TSLA'])
-        # return
+        stocks = getTopStocks(100)
+
+        (setup, testing) = generateFeatures(dates, stocks, True)
+        # print(setup['AAPL'][datetime.datetime(dateNow.year, 7, 25, 9, 30)])
         # basicPrediction(dates, stocks)
         neuralnet()
         # updateBasicStockInfo(dates, stocks)
