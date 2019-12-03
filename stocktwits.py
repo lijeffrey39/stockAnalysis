@@ -183,21 +183,18 @@ def main():
         stocks = getAllStocks()
         stocks.remove('SPY')
         stocks.remove('OBLN')
-        # stocks = ['TSLA']
-        stocks = getTopStocks(20)
-        # stocks.remove('TSLA')
         analyzeStocks(date, stocks)
     elif (options.prediction):
         makePrediction(dateNow)
     elif (options.updateCloseOpens):
         stocks = getTopStocks(100)
-        date = datetime.datetime(dateNow.year, 11, 26, 9, 30)
+        date = datetime.datetime(dateNow.year, 7, 22, 9, 30)
         dateUpTo = datetime.datetime(dateNow.year, 12, 1, 16)
         dates = findTradingDays(date, dateUpTo)
         updateAllCloseOpen(stocks, dates)
     else:
         date = datetime.datetime(dateNow.year, 7, 22, 9, 30)
-        dateUpTo = datetime.datetime(dateNow.year, 11, 28, 16)
+        dateUpTo = datetime.datetime(dateNow.year, 11, 29, 16)
         dates = findTradingDays(date, dateUpTo)
         # print(dates)
         stocks = getTopStocks(20)

@@ -11,7 +11,7 @@ import datetime
 from .prediction import setupCloseOpen
 
 def neuralnet():
-    stocks = getTopStocks(50)
+    stocks = getTopStocks(91)
     print(stocks)
     # import os
     # os.chdir(os.path.dirname(__file__))

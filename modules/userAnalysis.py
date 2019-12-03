@@ -521,3 +521,16 @@ def getAllUserInfo(username):
     result['like_count'] = userInfo['like_count']
     result['user_status'] = userInfo['user_status']
     return result
+
+
+# Finds users that haven't been calculated yet
+def calculateNewUserInfo():
+    analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
+    query = {"$and": [{'error': ''}, {'last_updated': {'$exists': True}}]}
+    cursor = analyzedUsers.find(query)
+    users = list(map(lambda document: document['_id'], cursor))
+    print(len(users))
+    shuffle(users)
+    for u in users:
+        print(u)
+        getAllUserInfo(u)

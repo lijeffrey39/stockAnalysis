@@ -375,10 +375,48 @@ def basicPrediction(dates, stocks):
     #     print(x[0], sum(x[1]))
 
 
+def generateFeatures(dates, stocks, updateObject=False):
+    path = 'pickledObjects/features.pkl'
+    testing = [datetime.datetime(2019, 11, 19, 9, 30), datetime.datetime(2019, 10, 23, 9, 30), datetime.datetime(2019, 10, 4, 9, 30), datetime.datetime(2019, 9, 24, 9, 30), datetime.datetime(2019, 11, 15, 9, 30), datetime.datetime(2019, 11, 13, 9, 30), datetime.datetime(2019, 8, 1, 9, 30), datetime.datetime(2019, 7, 24, 9, 30), datetime.datetime(2019, 10, 8, 9, 30), datetime.datetime(2019, 10, 14, 9, 30), datetime.datetime(2019, 8, 27, 9, 30), datetime.datetime(2019, 10, 30, 9, 30), datetime.datetime(2019, 8, 7, 9, 30), datetime.datetime(2019, 8, 22, 9, 30), datetime.datetime(2019, 8, 2, 9, 30), datetime.datetime(2019, 10, 9, 9, 30), datetime.datetime(2019, 10, 16, 9, 30), datetime.datetime(2019, 9, 23, 9, 30)]
+    if (updateObject is False):
+        features = readPickleObject(path)
+        return (features, testing)
+
+    allTweets = findAllTweets(stocks, dates)
+    training = []
+    for d in dates:
+        if (d not in testing):
+            training.append(d)
+
+    # Generate means and std for stocks
+    # updateBasicStockInfo(training, stocks, allTweets)
+
+    features = {}
+    accuracy = constants['db_user_client'].get_database('user_data_db').new_user_accuracy
+    for symbol in stocks:
+        print(symbol)
+        features[symbol] = {}
+        allUsersAccs = accuracy.find({'perStock.' + symbol: {'$exists': True}})
+        userAccDict = {}
+        for user in allUsersAccs:
+            userAccDict[user['_id']] = user
+
+        for date in training:
+            if (date.strftime('%m/%d/%Y') not in allTweets[symbol]):
+                continue
+            features[symbol][date] = {}
+            tweets = allTweets[symbol][date.strftime('%m/%d/%Y')]
+            sentiment = newCalculateSentiment(tweets, symbol, userAccDict)
+            for k in sentiment:
+                features[symbol][date][k] = sentiment[k]
+
+    writePickleObject(path, features)
+    return features
+
+
 # Updates stock mean and standard deviation
-def updateBasicStockInfo(dates, stocks):
-    tweetsDB = constants['stocktweets_client'].get_database('tweets_db')
-    basicStockInfo = constants['stocktweets_client'].get_database('stocks_data_db').training_stock_info_1202
+def updateBasicStockInfo(dates, stocks, allTweets):
+    basicStockInfo = constants['stocktweets_client'].get_database('stocks_data_db').training_stock_info_svm
 
     for symbol in stocks:
         accuracy = constants['db_user_client'].get_database('user_data_db').new_user_accuracy
@@ -394,17 +432,10 @@ def updateBasicStockInfo(dates, stocks):
 
         print(symbol)
         for date in dates:
-            dateStart = datetime.datetime(date.year, date.month, date.day, 9, 30)
-            dateEnd = datetime.datetime(date.year, date.month, date.day, 16, 0)
-            labeledTweets = tweetsDB.tweets.find({"$and": [{'symbol': symbol},
-                                                 {"$or": [
-                                                    {'isBull': True},
-                                                    {'isBull': False}
-                                                 ]},
-                                                 {'time': {'$gte': dateStart,
-                                                  '$lt': dateEnd}}]})
-
-            sentiment = newCalculateSentiment(labeledTweets, symbol, userAccDict)
+            if (date.strftime('%m/%d/%Y') not in allTweets[symbol]):
+                continue
+            tweets = allTweets[symbol][date.strftime('%m/%d/%Y')]
+            sentiment = newCalculateSentiment(tweets, symbol, userAccDict)
             if ('countRatio' not in symbolInfo):
                 for k in sentiment:
                     symbolInfo[k] = [sentiment[k]]
@@ -419,6 +450,7 @@ def updateBasicStockInfo(dates, stocks):
                 symbolInfo[k]['mean'] = statistics.mean(vals)
                 symbolInfo[k]['stdev'] = statistics.stdev(vals)
         basicStockInfo.insert_one(symbolInfo)
+
 
 
 # Finds the returns based on predictions made from topStocks
