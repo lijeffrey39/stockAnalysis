@@ -23,6 +23,8 @@ from modules.userAnalysis import (findUsers,
                                   findUserInfoDriver,
                                   updateUserNotAnalyzed)
 from modules.nn import testing
+from modules.pca import pcatesting
+from modules.jeff_svm import svmtesting
 from svm import usefulFunctions
 
 client = constants['db_client']
@@ -219,4 +221,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    svmtesting()

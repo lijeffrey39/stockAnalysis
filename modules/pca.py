@@ -93,7 +93,7 @@ def pcatesting():
 	#print(train, len(train))
 
 	pca = PCA()
-	classifier = DecisionTreeClassifier()
+	classifier = SVC()
 
 
 	X_transformed = pca.fit_transform(train)
@@ -103,6 +103,8 @@ def pcatesting():
 	testdates = [datetime.datetime(2019, 11, 19, 9, 30), datetime.datetime(2019, 10, 23, 9, 30), datetime.datetime(2019, 10, 4, 9, 30), datetime.datetime(2019, 9, 24, 9, 30), datetime.datetime(2019, 11, 15, 9, 30), datetime.datetime(2019, 11, 13, 9, 30), datetime.datetime(2019, 8, 1, 9, 30), datetime.datetime(2019, 7, 24, 9, 30), datetime.datetime(2019, 10, 8, 9, 30), datetime.datetime(2019, 10, 14, 9, 30), datetime.datetime(2019, 8, 27, 9, 30), datetime.datetime(2019, 10, 30, 9, 30), datetime.datetime(2019, 8, 7, 9, 30), datetime.datetime(2019, 8, 22, 9, 30), datetime.datetime(2019, 8, 2, 9, 30), datetime.datetime(2019, 10, 9, 9, 30), datetime.datetime(2019, 10, 16, 9, 30), datetime.datetime(2019, 9, 23, 9, 30)]
 
 
+	finalstart = []
+	finalend = []
 	testlabels = []
 	test = []
 	for stock in stocks:
@@ -117,13 +119,18 @@ def pcatesting():
 				feature = features[stock][date]
 				temp1 = []
 				for f in feature:
-					temp1.append(feature[f])
+					mean = result[stock][f]["mean"]
+					stdev = result[stock][f]["stdev"]
+					temp1.append((feature[f]-mean)/stdev)
 				
-				(_,_, change) = (x[stock][date])
+				(start,end, change) = (x[stock][date])
 				if change <= 0:
 					testlabels.append(0)
 				else:
 					testlabels.append(1)
+
+				finalstart.append(start)
+				finalend.append(end)
 
 				test.append(temp1)
 
@@ -146,11 +153,22 @@ def pcatesting():
 	print(pred_labels)
 
 	count = 0
+
+	before = 0
+	after = 0
 	for i in range(len(pred_labels)):
 		if testlabels[i] == pred_labels[i]:
 			count += 1;
 
+
+		if pred_labels[i] == 1:
+			before += finalstart[i]
+			after += finalend[i]
+
+	print("percent",(after-before)/after*100)
+
 	print(count/len(testlabels))
+
 
 	return(count/len(testlabels))
 
