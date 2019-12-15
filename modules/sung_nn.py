@@ -26,11 +26,11 @@ def neuralnet():
     openClose = setupCloseOpen(dates,stocks)
 
     featureList = ["UuserBullReturnUnique", "UstockBullReturnUnique","userReturnRatio","stockReturnRatio","userReturnUniqueRatio",
-    "stockReturnUniqueRatio","UuserReturnRatio","UstockReturnRatio","UstockReturnUniqueRatio"," countRatio","UCountRatio"]
+    "stockReturnUniqueRatio","UuserReturnRatio","UstockReturnRatio","UstockReturnUniqueRatio","countRatio","UCountRatio"]
     for stock in stocks:
         for date in dates:
             # print(len(features[stock][date]))
-            for feature in featureList:
+            for feature in features[stock][date]:
                 mean = result[stock][feature]["mean"]
                 stdev = result[stock][feature]["stdev"]
 
@@ -42,7 +42,7 @@ def neuralnet():
         for date in dates:
             # print(stock)
             # print(openClose[stock])
-            temp = openClose[stock][date];
+            temp = openClose[stock][date]
 
             if temp[2] < 0:
                 label = [0,1]
@@ -64,7 +64,7 @@ def neuralnet():
     trainloader = torch.utils.data.DataLoader(trainingData, batch_size=1, shuffle=True)
 
 
-    model = nn.Sequential(nn.Linear(11, 128),
+    model = nn.Sequential(nn.Linear(33, 128),
                           nn.ReLU(),
                           nn.Linear(128, 64),
                           nn.ReLU(),
@@ -74,7 +74,7 @@ def neuralnet():
     criterion = nn.NLLLoss()
     # Optimizers require the parameters to optimize and a learning rate
     optimizer = torch.optim.SGD(model.parameters(), lr=0.003)
-    epochs = 100
+    epochs = 25
     for e in range(epochs):
         running_loss = 0
         # print(len(trainloader))
@@ -100,7 +100,7 @@ def neuralnet():
             optimizer.step()
             running_loss += loss.item()
         else:
-            print(f"Training loss at epoch %d: {running_loss/len(trainloader)}" %(epoch))
+            print(f"Training loss at epoch %d: {running_loss/len(trainloader)}" %(e))
 
     testingDates = [datetime.datetime(2019, 11, 19, 9, 30), datetime.datetime(2019, 10, 23, 9, 30), datetime.datetime(2019, 10, 4, 9, 30), datetime.datetime(2019, 9, 24, 9, 30), datetime.datetime(2019, 11, 15, 9, 30), datetime.datetime(2019, 11, 13, 9, 30), datetime.datetime(2019, 8, 1, 9, 30), datetime.datetime(2019, 7, 24, 9, 30), datetime.datetime(2019, 10, 8, 9, 30), datetime.datetime(2019, 10, 14, 9, 30), datetime.datetime(2019, 8, 27, 9, 30), datetime.datetime(2019, 10, 30, 9, 30), datetime.datetime(2019, 8, 7, 9, 30), datetime.datetime(2019, 8, 22, 9, 30), datetime.datetime(2019, 8, 2, 9, 30), datetime.datetime(2019, 10, 9, 9, 30), datetime.datetime(2019, 10, 16, 9, 30), datetime.datetime(2019, 9, 23, 9, 30)]
 
@@ -109,7 +109,7 @@ def neuralnet():
         for date in testingDates:
             # print(len(features[stock][date]))
             # print(stock)
-            for feature in featureList:
+            for feature in features[stock][date]:
                 mean = result[stock][feature]["mean"]
                 stdev = result[stock][feature]["stdev"]
 
@@ -121,7 +121,7 @@ def neuralnet():
         for date in testingDates:
             # print(stock)
             # print(openClose[stock])
-            temp = openClose[stock][date];
+            temp = openClose[stock][date]
 
             if temp[2] < 0:
                 label = [0,1]
@@ -129,7 +129,7 @@ def neuralnet():
                 label = [1,0]
             testingData.append((np.asarray(list(features[stock][date].values())),np.asarray(label)))
 
-    testloader = torch.utils.data.DataLoader(trainingData, batch_size=1, shuffle=True)
+    testloader = torch.utils.data.DataLoader(testingData, batch_size=1, shuffle=True)
 
     correct = 0
     incorrect = 0
@@ -142,4 +142,4 @@ def neuralnet():
             incorrect += 1
     print("correct is %d" % (correct))
     print("incorrect is %d" % (incorrect))
-    print("correctness is %f" %((correct/incorrect)*100))
+    print("correctness is %f" %((correct/(incorrect + correct))*100))

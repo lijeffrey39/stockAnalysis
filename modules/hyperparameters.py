@@ -57,6 +57,9 @@ constants = {
                                               "mongodb.net/test?retryWrites"
                                               "=true&w=majority",
                                               ssl_cert_reqs=ssl.CERT_NONE),
+    # 'db_client': None,
+    # 'db_user_client': None,
+    # 'stocktweets_client': None,
     'messageStreamAttr': 'st_2o0zabc',
     'timeAttr': 'st_2q3fdlM',
     'messageTextAttr': 'st_29E11sZ',

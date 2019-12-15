@@ -12,14 +12,28 @@ from dateutil.tz import *
 import pytz
 
 from .hyperparameters import constants
-from .stockPriceAPI import (getUpdatedCloseOpen,
-                            inTradingDay,
+from .stockPriceAPI import (getUpdatedCloseOpen, inTradingDay,
                             updateAllCloseOpen)
 
 
 # ------------------------------------------------------------------------
 # ----------------------------- Functions --------------------------------
 # ------------------------------------------------------------------------
+
+
+# Insert list of tweets into tweets database
+def insertResults(results):
+    collection = constants['stocktweets_client'].get_database('tweets_db').tweets
+    count = 0
+    total = 0
+    for r in results:
+        total += 1
+        try:
+            collection.insert_one(r)
+            count += 1
+        except Exception:
+            continue
+    print(count, total)
 
 
 # Calculate ratio between two values
@@ -37,6 +51,7 @@ def calcRatio(bullNum, bearNum):
     return ratio
 
 
+# Return a pickled object from path
 def readPickleObject(path):
     f = open(path, 'rb')
     result = pickle.load(f)
@@ -44,6 +59,7 @@ def readPickleObject(path):
     return result
 
 
+# Write pickled object to path
 def writePickleObject(path, result):
     f = open(path, 'wb')
     pickle.dump(result, f)
@@ -51,7 +67,8 @@ def writePickleObject(path, result):
     return
 
 
-def writeToCachedFile(path, symbol, date):
+# Write open close to file if doesn't exist
+def writeOpenClose(path, symbol, date):
     result = getUpdatedCloseOpen(symbol, date)
     if (result is None):
         updateAllCloseOpen([symbol], [date])
@@ -64,11 +81,12 @@ def writeToCachedFile(path, symbol, date):
     return result
 
 
+# Return close open for stock from cache
 def cachedCloseOpen(symbol, date):
     path = './cachedCloseOpen/' + symbol + '.csv'
     result = None
     if (os.path.isfile(path) is False):
-        result = writeToCachedFile(path, symbol, date)
+        result = writeOpenClose(path, symbol, date)
     else:
         with open(path) as csv_file:
             csv_reader = csv.reader(csv_file, delimiter=',')
@@ -79,7 +97,7 @@ def cachedCloseOpen(symbol, date):
                     found = True
                     result = (float(row[1]), float(row[2]), float(row[3]))
             if (found is False):
-                result = writeToCachedFile(path, symbol, date)
+                result = writeOpenClose(path, symbol, date)
     return result
 
 
@@ -154,7 +172,6 @@ def convertToEST(dateTime):
 def findTradingDays(date, upToDate):
     delta = timedelta(1)
     dates = []
-    excluded = [[9, 2], [11, 28]]
 
     while (date < upToDate):
         # See if it's a valid trading day

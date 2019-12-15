@@ -63,7 +63,7 @@ def findPageStock(symbol, date, hoursBack):
     #     if button.text == symbol:
     #         button.click()
     #         break
-    hoursBack = 8
+    # hoursBack = 40
     try:
         scroll.scrollFor(driver, hoursBack)
     except Exception as e:
@@ -146,8 +146,8 @@ def updateLastMessageTime(db, symbol, result):
     lastTime = timesMapped[0]['time']
     newResult = []
     for tweet in result:
-        if (tweet['time'] > lastTime):
-            newResult.append(tweet)
+        # if (tweet['time'] > lastTime):
+        newResult.append(tweet)
 
     query = {'_id': symbol}
     newVal = {'$set': {'time': currLastTime}}
@@ -186,7 +186,6 @@ def parseStockData(symbol, soup):
             dateString = t[1].text
 
         (dateTime, errorMsg) = findDateTime(dateString)
-        print(dateTime)
         if (errorMsg != ""):
             print(errorMsg)
             continue

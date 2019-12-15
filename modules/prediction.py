@@ -12,7 +12,6 @@ from dateutil.parser import parse
 
 from .helpers import (readPickleObject,
                       writePickleObject,
-                      writeToCachedFile,
                       cachedCloseOpen,
                       recurse,
                       calcRatio)
@@ -103,13 +102,12 @@ def newCalculateSentiment(tweets, symbol, userAccDict):
 
 # Close opens from saved file
 def setupCloseOpen(dates, stocks, updateObject=False):
-    # os.chdir(os.path.dirname(__file__))
     print("Setup Close Open Info")
     path = 'pickledObjects/closeOpen.pkl'
     result = readPickleObject(path)
     if (updateObject is False):
         return result
-
+    result = {}
     for symbol in stocks:
         if (symbol not in result):
             result[symbol] = {}
@@ -153,7 +151,7 @@ def setupStockInfos(stocks, updateObject=False):
     if (updateObject is False):
         return result
 
-    basicStockInfo = constants['stocktweets_client'].get_database('stocks_data_db').training_stock_info_1201
+    basicStockInfo = constants['stocktweets_client'].get_database('stocks_data_db').training_stock_info_1203
     result = {}
     for symbol in stocks:
         symbolInfo = basicStockInfo.find_one({'_id': symbol})
@@ -166,7 +164,6 @@ def setupResults(dates, keys):
     results = {}
     for date in dates:
         results[date] = {}
-        results[date]['params'] = {}
         results[date]['closeOpen'] = {}
         results[date]['params'] = buildResult()
         for k in results[date]['params']:
@@ -180,7 +177,7 @@ def findAllTweets(stocks, dates, updateObject=False, dayPrediction=False):
     print("Setup Tweets")
     path = 'pickledObjects/testing.pkl'
     result = readPickleObject(path)
-    if (updateObject is False):
+    if (updateObject is False and dayPrediction is False):
         return result
 
     if (dayPrediction):
@@ -217,23 +214,23 @@ def findAllTweets(stocks, dates, updateObject=False, dayPrediction=False):
                         csvWriter = csv.writer(f, delimiter=',')
                         csvWriter.writerows(tweets)
 
-    if (dayPrediction is False):
+    if (updateObject):
         writePickleObject(path, result)
     return result
 
 
-def simpleWeightPredictionReturns(date, results, paramWeightings):
+def simpleWeightPrediction(date, features, closeOpenInfo, paramWeightings):
     summedDict = {}
     for param in paramWeightings:
+        paramWeight = paramWeightings[param]
         if (param == 'numStocks'):
             continue
-        resultsForDay = results[date]['params'][param]
-        paramWeight = paramWeightings[param]
-        for symbol in resultsForDay:
-            if (symbol not in summedDict):
-                summedDict[symbol] = (resultsForDay[symbol] * paramWeight)
-            else:
-                summedDict[symbol] += (resultsForDay[symbol] * paramWeight)
+
+        for stock in features:
+            resultsForDay = features[stock][date][param]
+            if (stock not in summedDict):
+                summedDict[stock] = 0
+            summedDict[stock] += (resultsForDay * paramWeight)
 
     resPerParam = list(summedDict.items())
     resPerParam.sort(key=lambda x: abs(x[1]), reverse=True)
@@ -242,59 +239,39 @@ def simpleWeightPredictionReturns(date, results, paramWeightings):
                       list(map(lambda x: abs(x[1]), resPerParam)))
 
     returnToday = 0
-    for symbolObj in resPerParam:
-        symbol = symbolObj[0]
-        stdDev = symbolObj[1]
-        if symbol not in results[date]['closeOpen']:
-            continue
-        closeOpen = results[date]['closeOpen'][symbol]
+    for stockObj in resPerParam:
+        stock = stockObj[0]
+        stdDev = stockObj[1]
         try:
+            closeOpen = closeOpenInfo[stock][date][2]
             returnToday += ((stdDev / sumDiffs) * closeOpen)
-        except:
+        except Exception:
             continue
+
     try:
-        mappedResult = list(map(lambda x: [x[0], round(x[1] / sumDiffs * 100, 2), results[date]['closeOpen'][x[0]]], resPerParam))
-    except:
-        mappedResult = list(map(lambda x: [x[0], round(x[1] / sumDiffs * 100, 2)], resPerParam))
-    # print(date, round(returnToday, 3), mappedResult)
+        mappedResult = list(map(lambda x: [x[0], 
+                            round(x[1] / sumDiffs * 100, 2),
+                            closeOpenInfo[x[0]][date][2]],
+                            resPerParam))
+    except Exception:
+        mappedResult = list(map(lambda x: [x[0],
+                            round(x[1] / sumDiffs * 100, 2)],
+                            resPerParam))
     return (returnToday, mappedResult)
 
 
 # Basic prediction algo
-def basicPrediction(dates, stocks):
-    userInfos = setupUserInfos(stocks)
-    stockInfos = setupStockInfos(stocks)
-    closeOpenInfos = setupCloseOpen(dates, stocks)
-    allTweets = findAllTweets(stocks, dates)
-    results = setupResults(dates, constants['keys'])
-    combinedResult = 0
-
-    for symbol in stocks:
-        print(symbol)
-        symbolInfo = stockInfos[symbol]
-        for date in dates:
-            if (date.strftime('%m/%d/%Y') not in allTweets[symbol]):
-                continue
-            tweets = allTweets[symbol][date.strftime('%m/%d/%Y')]
-            sentiment = newCalculateSentiment(tweets, symbol, userInfos)
-            for param in sentiment:
-                paramVal = sentiment[param]
-                paramMean = symbolInfo[param]['mean']
-                paramStd = symbolInfo[param]['stdev']
-                if (paramStd == 0.0):
-                    results[date]['params'][param][symbol] = 0
-                    continue
-                stdDev = round((paramVal - paramMean) / paramStd, 2)
-                results[date]['params'][param][symbol] = stdDev
-            if (date not in closeOpenInfos[symbol]):
-                continue
-            closeOpen = closeOpenInfos[symbol][date]
-            if (closeOpen is None):
-                continue
-            results[date]['closeOpen'][symbol] = closeOpen[2]
-
+def basicPrediction(dates, stocks, updateObject=False, dayPrediction=False):
+    userInfo = setupUserInfos(stocks)
+    stockInfo = setupStockInfos(stocks, False)
+    closeOpenInfo = setupCloseOpen(dates, stocks, False)
+    allTweets = findAllTweets(stocks, dates, updateObject, dayPrediction)
+    features = generateFeatures(dates, stocks, allTweets,
+                                stockInfo, userInfo,
+                                updateObject, dayPrediction=True)
     symbolReturns = {}
     symbolCounts = {}
+    combinedResult = 0
     for date in dates:
         # params = ['numStocks']
         # allPossibilities = []
@@ -330,8 +307,10 @@ def basicPrediction(dates, stocks):
                             'UstockBullReturnUnique': 5,
                             'userReturnUniqueRatio': 1,
                             'countRatio': 3,
-                            'numStocks': 3}
-        returns, listReturns = simpleWeightPredictionReturns(date, results, paramWeightings)
+                            'numStocks': 6}
+        returns, listReturns = simpleWeightPrediction(date, features,
+                                                      closeOpenInfo,
+                                                      paramWeightings)
         print(date, round(returns, 3), listReturns)
         for s in listReturns:
             if (len(s) == 2):
@@ -375,48 +354,40 @@ def basicPrediction(dates, stocks):
     #     print(x[0], sum(x[1]))
 
 
-def generateFeatures(dates, stocks, updateObject=False):
+def generateFeatures(dates, stocks, allTweets, stockInfo,
+                     userInfo, updateObject=False, dayPrediction=False):
+    print("Generating Features")
     path = 'pickledObjects/features.pkl'
-    testing = [datetime.datetime(2019, 11, 19, 9, 30), datetime.datetime(2019, 10, 23, 9, 30), datetime.datetime(2019, 10, 4, 9, 30), datetime.datetime(2019, 9, 24, 9, 30), datetime.datetime(2019, 11, 15, 9, 30), datetime.datetime(2019, 11, 13, 9, 30), datetime.datetime(2019, 8, 1, 9, 30), datetime.datetime(2019, 7, 24, 9, 30), datetime.datetime(2019, 10, 8, 9, 30), datetime.datetime(2019, 10, 14, 9, 30), datetime.datetime(2019, 8, 27, 9, 30), datetime.datetime(2019, 10, 30, 9, 30), datetime.datetime(2019, 8, 7, 9, 30), datetime.datetime(2019, 8, 22, 9, 30), datetime.datetime(2019, 8, 2, 9, 30), datetime.datetime(2019, 10, 9, 9, 30), datetime.datetime(2019, 10, 16, 9, 30), datetime.datetime(2019, 9, 23, 9, 30)]
-    if (updateObject is False):
+    if (updateObject is False and dayPrediction is False):
         features = readPickleObject(path)
-        return (features, testing)
-
-    allTweets = findAllTweets(stocks, dates)
-    training = []
-    for d in dates:
-        if (d not in testing):
-            training.append(d)
-
-    # Generate means and std for stocks
-    # updateBasicStockInfo(training, stocks, allTweets)
+        return features
 
     features = {}
-    accuracy = constants['db_user_client'].get_database('user_data_db').new_user_accuracy
     for symbol in stocks:
         print(symbol)
         features[symbol] = {}
-        allUsersAccs = accuracy.find({'perStock.' + symbol: {'$exists': True}})
-        userAccDict = {}
-        for user in allUsersAccs:
-            userAccDict[user['_id']] = user
-
         for date in dates:
             if (date.strftime('%m/%d/%Y') not in allTweets[symbol]):
                 continue
             features[symbol][date] = {}
             tweets = allTweets[symbol][date.strftime('%m/%d/%Y')]
-            sentiment = newCalculateSentiment(tweets, symbol, userAccDict)
-            for k in sentiment:
-                features[symbol][date][k] = sentiment[k]
+            print(len(tweets))
+            sentiment = newCalculateSentiment(tweets, symbol, userInfo)
+            for param in sentiment:
+                paramVal = sentiment[param]
+                paramMean = stockInfo[symbol][param]['mean']
+                paramStd = stockInfo[symbol][param]['stdev']
+                stdDev = round((paramVal - paramMean) / paramStd, 2)
+                features[symbol][date][param] = stdDev
 
-    writePickleObject(path, features)
+    if (updateObject):
+        writePickleObject(path, features)
     return features
 
 
 # Updates stock mean and standard deviation
 def updateBasicStockInfo(dates, stocks, allTweets):
-    basicStockInfo = constants['stocktweets_client'].get_database('stocks_data_db').training_stock_info_svm
+    basicStockInfo = constants['stocktweets_client'].get_database('stocks_data_db').training_stock_info_1203
 
     for symbol in stocks:
         accuracy = constants['db_user_client'].get_database('user_data_db').new_user_accuracy
