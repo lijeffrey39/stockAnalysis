@@ -29,6 +29,7 @@ def scrollFor(driver, hoursBack):
     last_height = ""
     prevTime = None
     countSame = 0
+    count = 0
 
     while(True):
         new_height = driver.execute_script("return document.body.scrollHeight")
@@ -45,7 +46,7 @@ def scrollFor(driver, hoursBack):
         if (errorMsg != ""):
             raise Exception(errorMsg)
 
-        print(currTime, compareTime)
+        print(count, currTime, compareTime)
         if (currTime < compareTime):
             break
 
@@ -59,6 +60,7 @@ def scrollFor(driver, hoursBack):
 
         last_height = new_height
         driver.execute_script("window.scrollTo(0,document.body.scrollHeight);")
+        count += 1
 
     print("Finished Reading")
     return True

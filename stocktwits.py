@@ -169,7 +169,7 @@ def main():
         stocks.remove('SLS')
         stocks.remove('CEI')
         # basicPrediction(dates, stocks)
-        getStatsPerUser('Jeffkins')
+        getStatsPerUser('LockStocksandBarrel')
         # updateUserNotAnalyzed()
         # (setup, testing) = generateFeatures(dates, stocks, True)
         # basicPrediction(dates, stocks, False, False)
