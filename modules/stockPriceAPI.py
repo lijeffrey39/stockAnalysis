@@ -41,11 +41,11 @@ def averagedOpenClose(symbol, date):
 
 
 def updateAllCloseOpen(stocks, dates):
-    db = constants['db_client'].get_database('stocks_data_db').updated_close_open
     for symbol in stocks:
         for date in dates:
             dateString = date.strftime("%Y-%m-%d")
             idString = symbol + ' ' + dateString
+            db = constants['db_client'].get_database('stocks_data_db').updated_close_open
             found = db.find_one({'_id': idString})
             if (found is None):
                 updateCloseOpen(symbol, date, db)
@@ -88,6 +88,7 @@ def getUpdatedCloseOpen(symbol, date):
     end = db.find_one({'_id': symbol + ' ' + future_date.strftime("%Y-%m-%d")})
 
     if (end is None) or (start is None) or start == 0 or end == 0:
+        print(start, end)
         return None
     else:
         closePrice = start['close']

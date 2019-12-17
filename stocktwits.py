@@ -5,13 +5,14 @@ from modules.helpers import (convertToEST, findTradingDays, getAllStocks,
                              insertResults)
 from modules.hyperparameters import constants
 from modules.nn import calcReturns, testing
-from modules.prediction import basicPrediction
+from modules.prediction import (basicPrediction, findAllTweets, updateBasicStockInfo)
 from modules.stockAnalysis import (findPageStock, getTopStocks, parseStockData,
                                    shouldParseStock, updateLastMessageTime,
                                    updateLastParsedTime)
 from modules.stockPriceAPI import updateAllCloseOpen
 from modules.userAnalysis import (findPageUser, findUsers, insertUpdateError,
-                                  parseUserData, shouldParseUser)
+                                  parseUserData, shouldParseUser, getStatsPerUser,
+                                  updateUserNotAnalyzed)
 
 
 client = constants['db_client']
@@ -121,8 +122,11 @@ def addOptions(parser):
 
 # Make a prediction for given date
 def makePrediction(date):
-    dates = [datetime.datetime(date.year, date.month, date.day, 9, 30)]
+    dates = [datetime.datetime(date.year, date.month, 16, 9, 30)]
     stocks = getTopStocks(20)
+    stocks.remove('AMZN')
+    stocks.remove('SLS')
+    stocks.remove('CEI')
     # analyzeStocks(date, stocks)
     basicPrediction(dates, stocks, True, True)
 
@@ -134,7 +138,7 @@ def main():
     dateNow = convertToEST(datetime.datetime.now())
 
     if (options.users):
-        analyzeUsers(reAnalyze=True, findNewUsers=False, updateUser=False)
+        analyzeUsers(reAnalyze=False, findNewUsers=False, updateUser=True)
     elif (options.stocks):
         now = convertToEST(datetime.datetime.now())
         date = datetime.datetime(now.year, now.month, now.day)
@@ -151,15 +155,22 @@ def main():
         dates = findTradingDays(date, dateUpTo)
         updateAllCloseOpen(stocks, dates)
     else:
-        date = datetime.datetime(dateNow.year, 7, 22, 9, 30)
-        dateUpTo = datetime.datetime(dateNow.year, 12, 9, 16)
+        date = datetime.datetime(dateNow.year, 11, 22, 9, 30)
+        dateUpTo = datetime.datetime(dateNow.year, 12, 12, 16)
         dates = findTradingDays(date, dateUpTo)
-        stocks = getTopStocks(20)
+        stocks = getTopStocks()
+        # print(dates)
+        # findAllTweets(stocks, dates, True)
         # testing(35)
         # for i in range(5, 20):
         #     testing(i)
-        calcReturns(35)
-        # basicPrediction(dates, stocks, True, True)
+        # calcReturns(35)
+        stocks.remove('AMZN')
+        stocks.remove('SLS')
+        stocks.remove('CEI')
+        # basicPrediction(dates, stocks)
+        getStatsPerUser('Jeffkins')
+        # updateUserNotAnalyzed()
         # (setup, testing) = generateFeatures(dates, stocks, True)
         # basicPrediction(dates, stocks, False, False)
         # neuralnet()

@@ -4,6 +4,7 @@ import datetime
 import hashlib
 import os
 import pickle
+import ast
 from datetime import *
 
 from dateutil.parser import parse
@@ -53,6 +54,8 @@ def calcRatio(bullNum, bearNum):
 
 # Return a pickled object from path
 def readPickleObject(path):
+    if (os.path.exists(path) is False):
+        return {}
     f = open(path, 'rb')
     result = pickle.load(f)
     f.close()
@@ -68,37 +71,55 @@ def writePickleObject(path, result):
 
 
 # Write open close to file if doesn't exist
-def writeOpenClose(path, symbol, date):
-    result = getUpdatedCloseOpen(symbol, date)
-    if (result is None):
-        updateAllCloseOpen([symbol], [date])
-        result = getUpdatedCloseOpen(symbol, date)
-        if (result is None):
-            return None
+def writeCachedCloseOpen(symbol, date, result):
+    path = './cachedCloseOpen/' + symbol + '.csv'
     with open(path, "a") as symbolFile:
         csvWriter = csv.writer(symbolFile, delimiter=',')
         csvWriter.writerows([[date, result[0], result[1], result[2]]])
-    return result
+    return
 
 
-# Return close open for stock from cache
-def cachedCloseOpen(symbol, date):
+# Extracts close open from CSVs
+def readCachedCloseOpen(symbol):
     path = './cachedCloseOpen/' + symbol + '.csv'
-    result = None
-    if (os.path.isfile(path) is False):
-        result = writeOpenClose(path, symbol, date)
-    else:
-        with open(path) as csv_file:
-            csv_reader = csv.reader(csv_file, delimiter=',')
-            found = False
-            for row in csv_reader:
-                cDate = parse(row[0])
-                if (cDate.strftime('%m/%d/%Y') == date.strftime('%m/%d/%Y')):
-                    found = True
-                    result = (float(row[1]), float(row[2]), float(row[3]))
-            if (found is False):
-                result = writeOpenClose(path, symbol, date)
-    return result
+    if (os.path.exists(path) is False):
+        return {}
+    with open(path) as csv_file:
+        csv_reader = csv.reader(csv_file, delimiter=',')
+        result = {}
+        for row in csv_reader:
+            cDate = parse(row[0])
+            res = (float(row[1]), float(row[2]), float(row[3]))
+            result[cDate] = res
+        return result
+
+
+# Extracts tweets from cached tweets from CSVs
+def readCachedTweets(symbol):
+    with open('./cachedTweets/' + symbol + '.csv') as csv_file:
+        csv_reader = csv.reader(csv_file, delimiter=',')
+        result = {}
+        for row in csv_reader:
+            cDate = parse(row[0])
+            d = datetime(cDate.year, cDate.month, cDate.day).strftime('%m/%d/%Y')
+            if (d not in result):
+                result[d] = []
+            tweet = {'time': cDate, 'likeCount': int(row[3]),
+                    'commentCount': int(row[2]), 'isBull': ast.literal_eval(row[1]),
+                    'user': row[4]}
+            result[d].append(tweet)
+        return result
+
+
+# Write tweets to cached CSVs
+def writeCachedTweets(symbol, tweets):
+    tweets = list(map(lambda x: [x['time'], x['isBull'], x['commentCount'],
+                                 x['likeCount'], x['user']], tweets))
+
+    with open('./cachedTweets/' + symbol + '.csv', "a") as f:
+        csvWriter = csv.writer(f, delimiter=',')
+        csvWriter.writerows(tweets)
+    return
 
 
 # Generate all combinations

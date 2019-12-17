@@ -91,9 +91,9 @@ def findUsers(reAnalyze, findNewUsers, updateUser):
     # Find all tweets this user posted again up till last time
     if (updateUser):
         analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
-        # dateStart = datetime.datetime.now() - datetime.timedelta(days=30)
-        query = {"$and": [{'error': {'$ne': ''}}, {'last_updated': {'$exists': False}}]}
-                        #   {'last_updated': {'$lte': dateStart}}]}
+        dateStart = datetime.datetime.now() - datetime.timedelta(days=7)
+        query = {"$and": [{'error': ''},
+                          {'last_updated': {'$lte': dateStart}}]}
         cursor = analyzedUsers.find(query)
     elif (reAnalyze):
         analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
@@ -120,7 +120,6 @@ def findUsers(reAnalyze, findNewUsers, updateUser):
         print(len(newL))
         return newL
 
-
     users = list(map(lambda document: document['_id'], cursor))
     shuffle(users)
     return users
@@ -139,10 +138,10 @@ def findPageUser(username):
         return ('', str(e), 0)
 
     # Hardcoded to the first day we have historical stock data
-    start_date = convertToEST(datetime.datetime(2019, 7, 22))
-    if (cursor.count() != 0 and 'last_updated' in cursor[0] and cursor[0]['error'] == ''):
-        start_date = cursor[0]['last_updated']
-        print('FOUND', start_date)
+    start_date = convertToEST(datetime.datetime(2019, 2, 1))
+    # if (cursor.count() != 0 and 'last_updated' in cursor[0] and cursor[0]['error'] == ''):
+    #     start_date = cursor[0]['last_updated']
+    #     print('FOUND', start_date)
     current_date = convertToEST(datetime.datetime.now())
     date_span = current_date - start_date
     current_span_hours = 24 * date_span.days + int(date_span.seconds/3600)
@@ -386,7 +385,6 @@ def initializeResult(tweets, user):
 
 # Update feature results for a user given close open prices
 def updateUserFeatures(result, time, symbol, isBull, seenTweets):
-
     # edge case
     if (symbol == 'AMRN' and time.month == 11 and time.day == 13 or
         symbol == 'AGRX' and time.month == 10 and time.day == 29):
@@ -441,21 +439,18 @@ def updateUserFeatures(result, time, symbol, isBull, seenTweets):
 # Returns stats from user info for prediction
 def getStatsPerUser(user):
     analyzedUsersDB = constants['db_user_client'].get_database('user_data_db')
-    # userAccuracy = analyzedUsersDB.user_accuracy
-    top100 = getTopStocks(100)
-    userAccuracy = analyzedUsersDB.new_user_accuracy
+    stocks = getTopStocks()
+    userAccuracy = analyzedUsersDB.user_accuracy_v2
     result = userAccuracy.find({'_id': user})
     if (result.count() != 0):
         return result[0]
-    # else:
-    #     return {}
 
     tweetsDB = constants['stocktweets_client'].get_database('tweets_db')
     labeledTweets = tweetsDB.tweets.find({"$and": [{'user': user},
                                          {'symbol': {"$ne": ''}},
                                          {'symbol': {'$ne': None}},
                                          {'symbol': {
-                                             '$in': top100
+                                             '$in': stocks
                                          }},
                                          {"$or": [
                                             {'isBull': True},
@@ -466,6 +461,9 @@ def getStatsPerUser(user):
     result = initializeResult(labeledTweets, user)
     seenTweets = set([])
     print(len(labeledTweets))
+    for t in labeledTweets:
+        print(t['time'], t['symbol'])
+    return
 
     # Loop through all tweets made by user and feature extract per user
     for tweet in labeledTweets:
