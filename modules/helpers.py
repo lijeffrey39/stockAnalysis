@@ -25,6 +25,7 @@ from .stockPriceAPI import (getUpdatedCloseOpen, inTradingDay,
 def insertResults(results):
     collection = constants['stocktweets_client'].get_database('tweets_db').tweets
     count = 0
+    count1 = 0
     total = 0
     for r in results:
         total += 1
@@ -38,7 +39,7 @@ def insertResults(results):
         query['time'] = {'$gte': dateStart, '$lt': dateEnd}
         tweet = list(collection.find(query))
         if (len(tweet) != 0):
-            print(len(tweet), tweet[0]['time'], r['time'])
+            count1 += 1
             continue
 
         try:
@@ -46,7 +47,7 @@ def insertResults(results):
             count += 1
         except Exception:
             continue
-    print(count, total)
+    print(count, count1, total)
 
 
 # Calculate ratio between two values
@@ -247,3 +248,11 @@ def findWeight(date, function):
         return y / yMax
     else:
         return 0
+
+
+# Return number of days since join date
+def findJoinDate(dateString):
+    dateTime = parse(dateString)
+    currTime = convertToEST(datetime.datetime.now())
+    days = (currTime - dateTime).days
+    return days

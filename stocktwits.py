@@ -131,9 +131,9 @@ def makePrediction(date):
     # stocks = ['TSLA']
     # stocks.remove('TSLA')
     # stocks.remove('ROKU')
-    stocks = ['AAPL']
-    analyzeStocks(date, stocks)
-    # basicPrediction(dates, stocks, True, True)
+    # stocks = ['AAPL']
+    # analyzeStocks(date, stocks)
+    basicPrediction(dates, stocks, True, True)
 
 
 def main():
@@ -151,7 +151,7 @@ def main():
         # stocks.remove('OBLN')
         # stocks = ['SPY']
         # for i in range(len(stocks)):
-        #     if (stocks[i] == "AMSC"):
+        #     if (stocks[i] == "CBIO"):
         #         print(i)
         # analyzeStocks(date, stocks)
     elif (options.prediction):
@@ -173,19 +173,19 @@ def main():
         # for i in range(5, 20):
         #     testing(i)
         # calcReturns(35)
-        # stocks.remove('AMZN')
-        # stocks.remove('SLS')
-        # stocks.remove('CEI')
+        stocks.remove('AMZN')
+        stocks.remove('SLS')
+        stocks.remove('CEI')
         # basicPrediction(dates, stocks)
 
         # updateAllCloseOpen(stocks, dates)
         # date = datetime.datetime(2018, 7, 22, 23, 40)
         # print(findWeight(date, 'log(x)'))
 
-        getStatsPerUser('LockStocksandBarrel')
+        # getStatsPerUser('LockStocksandBarrel')
         # updateUserNotAnalyzed()
         # (setup, testing) = generateFeatures(dates, stocks, True)
-        # basicPrediction(dates, stocks, False, False)
+        basicPrediction(dates, stocks, False, False)
         # neuralnet()
         # updateBasicStockInfo(dates, stocks, findAllTweets(stocks, dates))
 

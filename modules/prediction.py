@@ -428,6 +428,7 @@ def generateFeatures(dates, stocks, allTweets, stockInfo,
             sentiment = newCalculateSentiment(tweets, symbol, userInfo)
             for param in sentiment:
                 paramVal = sentiment[param]
+                # print(stockInfo[symbol])
                 paramMean = stockInfo[symbol][param]['mean']
                 paramStd = stockInfo[symbol][param]['stdev']
                 if (stockInfo[symbol][param]['stdev'] == 0.0):

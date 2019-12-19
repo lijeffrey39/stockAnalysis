@@ -9,12 +9,13 @@ from selenium import webdriver
 from bs4 import BeautifulSoup
 
 from . import scroll
-from .fileIO import *
+# from .fileIO import *
 from .helpers import (convertToEST,
                       customHash,
                       endDriver,
                       getActualAllStocks,
-                      findWeight)
+                      findWeight,
+                      findJoinDate)
 from .hyperparameters import constants
 from .messageExtract import *
 from .stockPriceAPI import *
@@ -163,8 +164,8 @@ def findPageUser(username):
 
     try:
         scroll.scrollFor(driver, current_span_hours)
-    except Exception as e:
         endDriver(driver)
+    except Exception as e:
         end = time.time()
         return ('', str(e), end - start)
 
@@ -522,8 +523,9 @@ def getAllUserInfo(username):
     result['followers'] = userInfo['followers']
     result['following'] = userInfo['following']
     result['ideas'] = userInfo['ideas']
-    result['like_count'] = userInfo['like_count']
-    result['user_status'] = userInfo['user_status']
+    result['likeCount'] = userInfo['like_count']
+    result['userStatus'] = userInfo['user_status']
+    result['joinDate'] = findJoinDate(userInfo['join_date'])
     return result
 
 
