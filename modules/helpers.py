@@ -30,6 +30,8 @@ def insertResults(results):
         total += 1
         query = copy.deepcopy(r)
         del query['_id']
+        del query['likeCount']
+        del query['commentCount']
         date = r['time']
         dateStart = datetime.datetime(date.year, date.month, date.day, 0)
         dateEnd = datetime.datetime(date.year, date.month, date.day, 23, 59)
