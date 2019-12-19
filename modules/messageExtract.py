@@ -74,9 +74,18 @@ def findDateFromMessage(message):
 # Find time of a message
 # If the time is greater than the current time, it is from last year
 def findDateTime(dateString):
+    if (dateString == 'now'):
+        currTime = convertToEST(datetime.datetime.now())
+        currTime = datetime.datetime(currTime.year, currTime.month,
+                                     currTime.day, currTime.hour,
+                                     currTime.minute)
+        return (currTime, '')
     if (dateString[-1] == 'm'):
         time = int(dateString[:-1])
-        currTime = datetime.datetime.now()
+        currTime = convertToEST(datetime.datetime.now())
+        currTime = datetime.datetime(currTime.year, currTime.month,
+                                     currTime.day, currTime.hour,
+                                     currTime.minute)
         newTime = currTime - datetime.timedelta(minutes=time)
         return (newTime, '')
 
@@ -85,7 +94,7 @@ def findDateTime(dateString):
         dateTime = convertToEST(dateTime)
     except Exception as e:
         return (None, str(e))
-    currDay = datetime.datetime.now()
+    currDay = convertToEST(datetime.datetime.now())
     nextDay = currDay + datetime.timedelta(1)
     if (dateTime > nextDay):
         return (datetime.datetime(2018, dateTime.month,

@@ -1,16 +1,15 @@
+import ast
 import copy
 import csv
 import datetime
 import hashlib
+import math
 import os
 import pickle
-import ast
-from datetime import *
-
-from dateutil.parser import parse
-from dateutil.tz import *
 
 import pytz
+from dateutil.parser import parse
+from dateutil.tz import *
 
 from .hyperparameters import constants
 from .stockPriceAPI import (getUpdatedCloseOpen, inTradingDay,
@@ -29,6 +28,17 @@ def insertResults(results):
     total = 0
     for r in results:
         total += 1
+        query = copy.deepcopy(r)
+        del query['_id']
+        date = r['time']
+        dateStart = datetime.datetime(date.year, date.month, date.day, 0)
+        dateEnd = datetime.datetime(date.year, date.month, date.day, 23, 59)
+        query['time'] = {'$gte': dateStart, '$lt': dateEnd}
+        tweet = list(collection.find(query))
+        if (len(tweet) != 0):
+            print(len(tweet), tweet[0]['time'], r['time'])
+            continue
+
         try:
             collection.insert_one(r)
             count += 1
@@ -101,7 +111,7 @@ def readCachedTweets(symbol):
         result = {}
         for row in csv_reader:
             cDate = parse(row[0])
-            d = datetime(cDate.year, cDate.month, cDate.day).strftime('%m/%d/%Y')
+            d = datetime.datetime(cDate.year, cDate.month, cDate.day).strftime('%m/%d/%Y')
             if (d not in result):
                 result[d] = []
             tweet = {'time': cDate, 'likeCount': int(row[3]),
@@ -185,7 +195,6 @@ def convertToEST(dateTime):
         dateTime = currTimeZone.localize(dateTime)
         dateTime = dateTime.astimezone(constants['eastern_timezone'])
         dateTime = dateTime.replace(tzinfo=None)
-        return dateTime
     return dateTime
 
 
@@ -205,3 +214,34 @@ def findTradingDays(date, upToDate):
         date += delta
 
     return dates
+
+
+# Find weight between 0-1 based on function
+def findWeight(date, function):
+    functions = constants['functions']
+    if (function not in functions):
+        return 0
+    currTime = datetime.datetime(date.year, date.month, date.day, 16)
+    if (date > currTime):
+        date = date - datetime.timedelta(days=1)
+
+    difference = currTime - date
+    secondsInDay = 86400
+    seconds = difference.seconds
+    x = 1 - (seconds / secondsInDay)
+
+    if (function == '1'):
+        return 1
+    elif (function == 'x'):
+        return x
+    elif (function == 'x^2'):
+        return x * x
+    elif (function == 'x^4'):
+        return x * x * x * x
+    elif (function == 'log(x)'):
+        x = (x * 3) + 0.05
+        y = math.log(x) + 3
+        yMax = math.log(3.05) + 3
+        return y / yMax
+    else:
+        return 0

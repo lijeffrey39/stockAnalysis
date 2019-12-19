@@ -364,7 +364,7 @@ def basicPrediction(dates, stocks, updateObject=False, dayPrediction=False):
                             'UstockBullReturnUnique': 5,
                             'userReturnUniqueRatio': 1,
                             'countRatio': 3,
-                            'numStocks': 3}
+                            'numStocks': 6}
         returns, listReturns = simpleWeightPrediction(date, features,
                                                       closeOpenInfo,
                                                       paramWeightings)
@@ -424,6 +424,7 @@ def generateFeatures(dates, stocks, allTweets, stockInfo,
                 continue
             features[symbol][date] = {}
             tweets = allTweets[symbol][date.strftime('%m/%d/%Y')]
+            print(len(tweets))
             sentiment = newCalculateSentiment(tweets, symbol, userInfo)
             for param in sentiment:
                 paramVal = sentiment[param]

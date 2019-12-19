@@ -70,7 +70,7 @@ def findPageStock(symbol, date, hoursBack):
     #     if button.text == symbol:
     #         button.click()
     #         break
-    # hoursBack = 40
+    # hoursBack = 2
     try:
         scroll.scrollFor(driver, hoursBack)
     except Exception as e:
@@ -109,7 +109,7 @@ def shouldParseStock(symbol, dateString):
 
     lastTime = tweetsMapped[0]['time']
     totalHoursBack = (currTime - lastTime).total_seconds() / 3600.0
-    print(lastTime, currTime, totalHoursBack)
+    print(currTime, lastTime, totalHoursBack)
 
     # need to continue to parse if data is more than 3 hours old
     if (totalHoursBack > constants['hoursBackToAnalyze']):
@@ -210,7 +210,6 @@ def parseStockData(symbol, soup):
         cur_res['likeCount'] = likeCnt
         cur_res['commentCount'] = commentCnt
         cur_res['messageText'] = textFound
-
         res.append(cur_res)
     return res
 

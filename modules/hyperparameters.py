@@ -37,7 +37,7 @@ if (timeZoneName == 'PST'):
 constants = {
     'min_idea_threshold': 200,
     'max_tweets': 10000,
-    'hoursBackToAnalyze': 0.1,
+    'hoursBackToAnalyze': 0.001,
     'project_root': project_root,
     'driver_bin': driver_bin,
     'chrome_options': chrome_options,
@@ -73,5 +73,6 @@ constants = {
     'html_class_user_info': 'st_21r0FbC st_2fTou_q',
     'html_class_plus': 'st_2ceteac st_8u0ePN3',
     'html_class_official': 'st_15f6hU9 st_2Y5n_y3',
-    'html_class_premium_room': 'st_3ZUModE st_2fTou_q'
+    'html_class_premium_room': 'st_3ZUModE st_2fTou_q',
+    'functions': ['1', 'x', 'x^2', 'x^4', 'log(x)']
 }

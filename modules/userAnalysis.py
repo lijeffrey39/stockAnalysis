@@ -91,7 +91,7 @@ def findUsers(reAnalyze, findNewUsers, updateUser):
     # Find all tweets this user posted again up till last time
     if (updateUser):
         analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
-        dateStart = datetime.datetime.now() - datetime.timedelta(days=7)
+        dateStart = convertToEST(datetime.datetime.now()) - datetime.timedelta(days=7)
         query = {"$and": [{'error': ''},
                           {'last_updated': {'$lte': dateStart}}]}
         cursor = analyzedUsers.find(query)
@@ -360,26 +360,37 @@ def updateUserNotAnalyzed():
 
 
 # Initialize user info result for predicting
+# For weighted features, weighted based on x^4 curve
+# As it gets close to the 4pm, tweets are weigted more
+# Ex. 2.4 hours before 4pm, or around 1:30, tweet worth 67%
 def initializeResult(tweets, user):
     result = {}
     result['_id'] = user
     result['totalTweets'] = len(tweets)
+    functions = constants['functions']
 
-    keys = ['ReturnCloseOpen', 'ReturnTimePrice', 'NumCloseOpen', 
-            'NumTimePrice', 'Predictions', 'ReturnUnique', 'NumUnique']
-    allKeys = list(map(lambda key: 'bull' + key, keys))
-    bearKeys = list(map(lambda key: 'bear' + key, keys))
-    allKeys.extend(bearKeys)
-
+    keys = ['returnCloseOpen', 'returnTimePrice', 'numCloseOpen', 
+            'numTimePrice', 'numPredictions', 'returnUnique',
+            'numUnique', 'totalLikes', 'totalComments']
+    
     for k in allKeys:
-        result[k] = 0
+        result[k] = {}
+        for f in functions:
+            result[k][f] = {}
+            result[k][f]['bull'] = 0
+            result[k][f]['bear'] = 0
 
     result['perStock'] = {}
     uniqueSymbols = set(list(map(lambda tweet: tweet['symbol'], tweets)))
     for symbol in uniqueSymbols:
         result['perStock'][symbol] = {}
         for k in allKeys:
-            result['perStock'][symbol][k] = 0
+            result['perStock'][symbol][k] = {}
+            for f in functions:
+                result['perStock'][symbol][k][f] = {}
+                result['perStock'][symbol][k][f]['bull'] = 0
+                result['perStock'][symbol][k][f]['bear'] = 0
+
     return result
 
 
@@ -461,9 +472,9 @@ def getStatsPerUser(user):
     result = initializeResult(labeledTweets, user)
     seenTweets = set([])
     print(len(labeledTweets))
-    for t in labeledTweets:
-        print(t['time'], t['symbol'])
-    return
+    # for t in labeledTweets:
+    #     print(t['time'], t['symbol'])
+    # return
 
     # Loop through all tweets made by user and feature extract per user
     for tweet in labeledTweets:

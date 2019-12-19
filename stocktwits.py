@@ -2,7 +2,7 @@ import datetime
 import optparse
 
 from modules.helpers import (convertToEST, findTradingDays, getAllStocks,
-                             insertResults)
+                             insertResults, findWeight)
 from modules.hyperparameters import constants
 from modules.nn import calcReturns, testing
 from modules.prediction import (basicPrediction, findAllTweets, updateBasicStockInfo)
@@ -56,11 +56,12 @@ def analyzeStocks(date, stocks):
             continue
 
         results = updateLastMessageTime(db, symbol, result)
-        updateLastParsedTime(db, symbol)
 
         # No new messages
         if (len(results) != 0):
             insertResults(results)
+
+        updateLastParsedTime(db, symbol)
 
 
 # ------------------------------------------------------------------------
@@ -122,19 +123,23 @@ def addOptions(parser):
 
 # Make a prediction for given date
 def makePrediction(date):
-    dates = [datetime.datetime(date.year, date.month, 16, 9, 30)]
+    dates = [datetime.datetime(date.year, date.month, date.day, 9, 30)]
     stocks = getTopStocks(20)
     stocks.remove('AMZN')
     stocks.remove('SLS')
     stocks.remove('CEI')
-    # analyzeStocks(date, stocks)
-    basicPrediction(dates, stocks, True, True)
+    # stocks = ['TSLA']
+    # stocks.remove('TSLA')
+    # stocks.remove('ROKU')
+    stocks = ['AAPL']
+    analyzeStocks(date, stocks)
+    # basicPrediction(dates, stocks, True, True)
 
 
 def main():
     opt_parser = optparse.OptionParser()
     addOptions(opt_parser)
-    options, args = opt_parser.parse_args()
+    options, _ = opt_parser.parse_args()
     dateNow = convertToEST(datetime.datetime.now())
 
     if (options.users):
@@ -155,21 +160,26 @@ def main():
         dates = findTradingDays(date, dateUpTo)
         updateAllCloseOpen(stocks, dates)
     else:
-        date = datetime.datetime(dateNow.year, 11, 22, 9, 30)
+        date = datetime.datetime(2018, 7, 22, 9, 30)
         dateUpTo = datetime.datetime(dateNow.year, 12, 12, 16)
         dates = findTradingDays(date, dateUpTo)
-        stocks = getTopStocks()
+        stocks = getTopStocks(20)
         # print(dates)
         # findAllTweets(stocks, dates, True)
         # testing(35)
         # for i in range(5, 20):
         #     testing(i)
         # calcReturns(35)
-        stocks.remove('AMZN')
-        stocks.remove('SLS')
-        stocks.remove('CEI')
+        # stocks.remove('AMZN')
+        # stocks.remove('SLS')
+        # stocks.remove('CEI')
         # basicPrediction(dates, stocks)
-        getStatsPerUser('LockStocksandBarrel')
+
+        # updateAllCloseOpen(stocks, dates)
+        date = datetime.datetime(2018, 7, 22, 23, 40)
+        print(findWeight(date, 'log(x)'))
+
+        # getStatsPerUser('LockStocksandBarrel')
         # updateUserNotAnalyzed()
         # (setup, testing) = generateFeatures(dates, stocks, True)
         # basicPrediction(dates, stocks, False, False)
