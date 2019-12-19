@@ -202,7 +202,7 @@ def convertToEST(dateTime):
 
 # Return list of valid trading days from date on
 def findTradingDays(date, upToDate):
-    delta = timedelta(1)
+    delta = datetime.timedelta(1)
     dates = []
 
     while (date < upToDate):

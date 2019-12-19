@@ -148,9 +148,12 @@ def main():
         now = convertToEST(datetime.datetime.now())
         date = datetime.datetime(now.year, now.month, now.day)
         stocks = getAllStocks()
-        stocks.remove('SPY')
-        stocks.remove('OBLN')
-        analyzeStocks(date, stocks)
+        # stocks.remove('OBLN')
+        # stocks = ['SPY']
+        # for i in range(len(stocks)):
+        #     if (stocks[i] == "AMSC"):
+        #         print(i)
+        # analyzeStocks(date, stocks)
     elif (options.prediction):
         makePrediction(dateNow)
     elif (options.updateCloseOpens):
@@ -176,10 +179,10 @@ def main():
         # basicPrediction(dates, stocks)
 
         # updateAllCloseOpen(stocks, dates)
-        date = datetime.datetime(2018, 7, 22, 23, 40)
-        print(findWeight(date, 'log(x)'))
+        # date = datetime.datetime(2018, 7, 22, 23, 40)
+        # print(findWeight(date, 'log(x)'))
 
-        # getStatsPerUser('LockStocksandBarrel')
+        getStatsPerUser('LockStocksandBarrel')
         # updateUserNotAnalyzed()
         # (setup, testing) = generateFeatures(dates, stocks, True)
         # basicPrediction(dates, stocks, False, False)

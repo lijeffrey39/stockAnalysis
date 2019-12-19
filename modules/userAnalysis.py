@@ -13,7 +13,8 @@ from .fileIO import *
 from .helpers import (convertToEST,
                       customHash,
                       endDriver,
-                      getActualAllStocks)
+                      getActualAllStocks,
+                      findWeight)
 from .hyperparameters import constants
 from .messageExtract import *
 from .stockPriceAPI import *
@@ -171,7 +172,10 @@ def findPageUser(username):
     soup = BeautifulSoup(html, 'html.parser')
     end = time.time()
     print('Parsing user took %d seconds' % (end - start))
-    endDriver(driver)
+    try:
+        endDriver(driver)
+    except Exception as e:
+        return ('', str(e), end - start)
     return (soup, '', (end - start))
 
 
@@ -369,11 +373,11 @@ def initializeResult(tweets, user):
     result['totalTweets'] = len(tweets)
     functions = constants['functions']
 
-    keys = ['returnCloseOpen', 'returnTimePrice', 'numCloseOpen', 
-            'numTimePrice', 'numPredictions', 'returnUnique',
-            'numUnique', 'totalLikes', 'totalComments']
+    keys = ['returnCloseOpen', 'numCloseOpen', 'numPredictions',
+            'returnUnique', 'numUnique',
+            'totalLikes', 'totalComments']
     
-    for k in allKeys:
+    for k in keys:
         result[k] = {}
         for f in functions:
             result[k][f] = {}
@@ -384,7 +388,7 @@ def initializeResult(tweets, user):
     uniqueSymbols = set(list(map(lambda tweet: tweet['symbol'], tweets)))
     for symbol in uniqueSymbols:
         result['perStock'][symbol] = {}
-        for k in allKeys:
+        for k in keys:
             result['perStock'][symbol][k] = {}
             for f in functions:
                 result['perStock'][symbol][k][f] = {}
@@ -395,39 +399,29 @@ def initializeResult(tweets, user):
 
 
 # Update feature results for a user given close open prices
-def updateUserFeatures(result, time, symbol, isBull, seenTweets):
+def updateUserFeatures(result, tweet, seenTweets):
+    functions = constants['functions']
     # edge case
-    if (symbol == 'AMRN' and time.month == 11 and time.day == 13 or
-        symbol == 'AGRX' and time.month == 10 and time.day == 29):
-        return
+    # if (symbol == 'AMRN' and time.month == 11 and time.day == 13 or
+    #     symbol == 'AGRX' and time.month == 10 and time.day == 29):
+    #     return
 
+    time = tweet['time']
+    symbol = tweet['symbol']
+    isBull = tweet['isBull']
     if (inTradingDay(time) is False):
         return
 
-    timePrice = getPrice(symbol, time)
-    if (timePrice is None):
-        return
-
-    closeOpen = averagedOpenClose(symbol, time)
-    allTop = getTopStocks(100)
-    if (symbol not in allTop):
-        closeOpen = getUpdatedCloseOpen(symbol, time)
-    # print(symbol, isBull, closeOpen, time, timePrice)
+    closeOpen = getUpdatedCloseOpen(symbol, time)
     if (closeOpen is None):
         return
-
+    print(symbol, isBull, closeOpen, time)
     pChangeCloseOpen = closeOpen[2]
-    pChangeTimePrice = round(((closeOpen[1] - timePrice) / timePrice) * 100, 3)
-    correctPredCloseOpen = (isBull and pChangeCloseOpen >= 0) or (isBull is False and pChangeCloseOpen < 0)
-    correctPredTimePrice = (isBull and pChangeTimePrice >= 0) or (isBull is False and pChangeTimePrice < 0)
-    correctNumCloseOpen = 1 if correctPredCloseOpen else 0
-    correctNumTimePrice = 1 if correctPredTimePrice else 0
-    pReturnCloseOpen = abs(pChangeCloseOpen) if correctPredCloseOpen else -abs(pChangeCloseOpen)
-    pReturnTimePrice = abs(pChangeTimePrice) if correctNumTimePrice else -abs(pChangeTimePrice)
-    values = [pReturnCloseOpen, pReturnTimePrice, correctNumCloseOpen, correctNumTimePrice, 1]
 
-    if (abs(pReturnTimePrice) > 50):
-        print(symbol, isBull, closeOpen, time, timePrice)
+    correctPredCloseOpen = (isBull and pChangeCloseOpen >= 0) or (isBull is False and pChangeCloseOpen < 0)
+    correctNumCloseOpen = 1 if correctPredCloseOpen else 0
+    pReturnCloseOpen = abs(pChangeCloseOpen) if correctPredCloseOpen else -abs(pChangeCloseOpen)
+    values = [pReturnCloseOpen, correctNumCloseOpen, 1]
 
     seenTweetString = time.strftime("%Y-%m-%d ") + symbol
     if (seenTweetString not in seenTweets):
@@ -435,15 +429,19 @@ def updateUserFeatures(result, time, symbol, isBull, seenTweets):
         values.extend([pReturnCloseOpen, correctNumCloseOpen])
     else:
         values.extend([0, 0])
+    values.extend([tweet['likeCount'], tweet['commentCount']])
 
-    keys = ['ReturnCloseOpen', 'ReturnTimePrice', 'NumCloseOpen',
-            'NumTimePrice', 'Predictions', 'ReturnUnique', 'NumUnique']
-    mappedKeys = list(map(lambda key: ('bull' if (isBull) else 'bear') + key, keys))
-
+    keys = ['returnCloseOpen', 'numCloseOpen', 
+            'numPredictions', 'returnUnique', 'numUnique',
+            'totalLikes', 'totalComments']
+    label = 'bull' if (isBull) else 'bear'
     count = 0
-    for k in mappedKeys:
-        result[k] += values[count]
-        result['perStock'][symbol][k] += values[count]
+    for k in keys:
+        for f in functions:
+            w = findWeight(time, f)
+            val = w * values[count]
+            result[k][f][label] += val
+            result['perStock'][symbol][k][f][label] += val
         count += 1
 
 
@@ -478,16 +476,13 @@ def getStatsPerUser(user):
 
     # Loop through all tweets made by user and feature extract per user
     for tweet in labeledTweets:
-        time = tweet['time']
-        symbol = tweet['symbol']
-        isBull = tweet['isBull']
-        if (symbol in top100):
-            updateUserFeatures(result, time, symbol, isBull, seenTweets)
+        if (tweet['symbol'] in stocks):
+            updateUserFeatures(result, tweet, seenTweets)
 
     # Remove symbols that user didn't have valid tweets about
     for symbol in list(result['perStock'].keys()):
-        if (result['perStock'][symbol]['bullPredictions'] == 0 and
-           result['perStock'][symbol]['bearPredictions'] == 0):
+        if (result['perStock'][symbol]['numUnique']['x']['bull'] == 0 and
+           result['perStock'][symbol]['numUnique']['x']['bear'] == 0):
             del result['perStock'][symbol]
 
     userAccuracy.insert_one(result)
