@@ -164,8 +164,12 @@ def findPageUser(username):
 
     try:
         scroll.scrollFor(driver, current_span_hours)
-        endDriver(driver)
     except Exception as e:
+        try:
+            endDriver(driver)
+        except Exception as e1:
+            end = time.time()
+            return ('', str(e1), end - start)
         end = time.time()
         return ('', str(e), end - start)
 

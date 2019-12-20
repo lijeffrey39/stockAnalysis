@@ -149,11 +149,11 @@ def main():
         date = datetime.datetime(now.year, now.month, now.day)
         stocks = getAllStocks()
         # stocks.remove('OBLN')
-        # stocks = ['SPY']
+        stocks = ['SPY']
         # for i in range(len(stocks)):
         #     if (stocks[i] == "CBIO"):
         #         print(i)
-        # analyzeStocks(date, stocks)
+        analyzeStocks(date, stocks)
     elif (options.prediction):
         makePrediction(dateNow)
     elif (options.updateCloseOpens):
