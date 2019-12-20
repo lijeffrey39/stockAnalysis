@@ -24,6 +24,55 @@ currDateTimeStr = ""
 # ------------------------------------------------------------------------
 
 
+# Find close open for date. Anytime before 4pm is
+def findCloseOpen(symbol, time):
+    db = constants['db_client'].get_database('stocks_data_db').updated_close_open
+    dayIncrement = datetime.timedelta(days=1)
+    nextDay = None
+    count = 0
+
+    # Find first trading day from this date
+    # If saturday, sunday or holiday, find first day to start
+    testDay = db.find_one({'_id': 'AAPL ' + time.strftime("%Y-%m-%d")})
+    while (testDay.count() == 0 and count != 10):
+        time += dayIncrement
+        testDay = db.find_one({'_id': 'AAPL ' + time.strftime("%Y-%m-%d")})
+        count += 1
+
+    # Find first day if tweeted after 4pm
+    # If 4:30 on Wed, first day is Thursday
+    # If 4:30 on Friday, first day is Monday
+    if (time.hour >= 16):
+        time += dayIncrement
+        testDay = db.find_one({'_id': 'AAPL ' + time.strftime("%Y-%m-%d")})
+        while (testDay.count() == 0 and count != 10):
+            time += dayIncrement
+            testDay = db.find_one({'_id': 'AAPL ' + time.strftime("%Y-%m-%d")})
+            count += 1
+
+    # Find next day based on the picked first day
+    nextDay = time + dayIncrement
+    testDay = db.find_one({'_id': 'AAPL ' + nextDay.strftime("%Y-%m-%d")})
+    while (testDay.count() == 0 and count != 10):
+        nextDay += dayIncrement
+        testDay = db.find_one({'_id': 'AAPL ' + nextDay.strftime("%Y-%m-%d")})
+        count += 1
+
+    if (count == 10):
+        return None
+
+    start = db.find_one({'_id': symbol + ' ' + time.strftime("%Y-%m-%d")})
+    end = db.find_one({'_id': symbol + ' ' + nextDay.strftime("%Y-%m-%d")})
+
+    if (end is None) or (start is None) or start == 0 or end == 0:
+        print(start, end)
+        return None
+    else:
+        closePrice = start['close']
+        openPrice = end['open']
+        return (closePrice, openPrice, round(((openPrice - closePrice) / closePrice) * 100, 3))
+
+
 def averagedOpenClose(symbol, date):
     updatedOpenClose = getUpdatedCloseOpen(symbol, date)
     ogOpenClose = closeToOpen(symbol, date)
@@ -157,3 +206,25 @@ def getPriceAtEndOfDay(ticker, time):
 def getPriceAtBeginningOfDay(ticker, time):
     market_open = datetime.datetime(time.year, time.month, time.day, 9, 40)
     return getPrice(ticker, market_open)
+
+
+# Transfer non labeled tweets to new database (about 50% are unlabled)
+def transferNonLabeled(stocks):
+    unlabledDB = constants['db_user_client'].get_database('tweets').tweets_unlabeled
+    tweetsDB = constants['stocktweets_client'].get_database('tweets_db').tweets
+
+    for s in stocks:
+        tweets = tweetsDB.find({'$and': [{'symbol': s}, {'isBull': None}]})
+        mappedTweets = list(map(lambda doc: doc, tweets))
+        mappedTweets.sort(key=lambda x: x['time'], reverse=True)
+        count = 0
+        print(len(mappedTweets))
+        for t in mappedTweets:
+            count += 1
+            try:
+                unlabledDB.insert_one(t)
+            except Exception as e:
+                print(e)
+            tweetsDB.delete_one({'_id': t['_id']})
+            if (count % 100 == 0):
+                print(count)

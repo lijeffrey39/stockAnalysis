@@ -9,10 +9,10 @@ from modules.prediction import (basicPrediction, findAllTweets, updateBasicStock
 from modules.stockAnalysis import (findPageStock, getTopStocks, parseStockData,
                                    shouldParseStock, updateLastMessageTime,
                                    updateLastParsedTime)
-from modules.stockPriceAPI import updateAllCloseOpen
+from modules.stockPriceAPI import (updateAllCloseOpen, transferNonLabeled)
 from modules.userAnalysis import (findPageUser, findUsers, insertUpdateError,
                                   parseUserData, shouldParseUser, getStatsPerUser,
-                                  updateUserNotAnalyzed)
+                                  updateUserNotAnalyzed, getAllUserInfo)
 
 
 client = constants['db_client']
@@ -183,9 +183,13 @@ def main():
         # print(findWeight(date, 'log(x)'))
 
         # getStatsPerUser('LockStocksandBarrel')
+        # getAllUserInfo('LockStocksandBarrel')
+
+        transferNonLabeled(['CEI'])
+
         # updateUserNotAnalyzed()
         # (setup, testing) = generateFeatures(dates, stocks, True)
-        basicPrediction(dates, stocks, False, False)
+        # basicPrediction(dates, stocks, False, False)
         # neuralnet()
         # updateBasicStockInfo(dates, stocks, findAllTweets(stocks, dates))
 

@@ -414,6 +414,7 @@ def updateUserFeatures(result, tweet, seenTweets):
     time = tweet['time']
     symbol = tweet['symbol']
     isBull = tweet['isBull']
+    closeOpen = findCloseOpen(symbol, time)
     if (inTradingDay(time) is False):
         return
 
