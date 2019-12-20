@@ -218,13 +218,17 @@ def transferNonLabeled(stocks):
         mappedTweets = list(map(lambda doc: doc, tweets))
         mappedTweets.sort(key=lambda x: x['time'], reverse=True)
         count = 0
+        realCount = 0
         print(len(mappedTweets))
         for t in mappedTweets:
             count += 1
+            # print(t)
             try:
                 unlabledDB.insert_one(t)
-            except Exception as e:
-                print(e)
+                realCount += 1
+            except:
+                pass
             tweetsDB.delete_one({'_id': t['_id']})
             if (count % 100 == 0):
                 print(count)
+        print(realCount, count)

@@ -132,8 +132,8 @@ def makePrediction(date):
     # stocks.remove('TSLA')
     # stocks.remove('ROKU')
     # stocks = ['AAPL']
-    # analyzeStocks(date, stocks)
-    basicPrediction(dates, stocks, True, True)
+    analyzeStocks(date, stocks)
+    # basicPrediction(dates, stocks, True, True)
 
 
 def main():
@@ -149,11 +149,11 @@ def main():
         date = datetime.datetime(now.year, now.month, now.day)
         stocks = getAllStocks()
         # stocks.remove('OBLN')
-        stocks = ['SPY']
-        # for i in range(len(stocks)):
-        #     if (stocks[i] == "CBIO"):
-        #         print(i)
-        analyzeStocks(date, stocks)
+        # stocks = ['SPY']
+        for i in range(len(stocks)):
+            if (stocks[i] == "QRVO"):
+                print(i)
+        # analyzeStocks(date, stocks)
     elif (options.prediction):
         makePrediction(dateNow)
     elif (options.updateCloseOpens):
@@ -166,16 +166,16 @@ def main():
         date = datetime.datetime(2018, 7, 22, 9, 30)
         dateUpTo = datetime.datetime(dateNow.year, 12, 12, 16)
         dates = findTradingDays(date, dateUpTo)
-        stocks = getTopStocks(20)
+        stocks = getTopStocks()
         # print(dates)
         # findAllTweets(stocks, dates, True)
         # testing(35)
         # for i in range(5, 20):
         #     testing(i)
         # calcReturns(35)
-        stocks.remove('AMZN')
-        stocks.remove('SLS')
-        stocks.remove('CEI')
+        # stocks.remove('AMZN')
+        # stocks.remove('SLS')
+        # stocks.remove('CEI')
         # basicPrediction(dates, stocks)
 
         # updateAllCloseOpen(stocks, dates)
@@ -185,7 +185,7 @@ def main():
         # getStatsPerUser('LockStocksandBarrel')
         # getAllUserInfo('LockStocksandBarrel')
 
-        transferNonLabeled(['CEI'])
+        transferNonLabeled(stocks)
 
         # updateUserNotAnalyzed()
         # (setup, testing) = generateFeatures(dates, stocks, True)
