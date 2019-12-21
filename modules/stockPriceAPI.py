@@ -73,6 +73,7 @@ def findCloseOpen(symbol, time):
         return (closePrice, openPrice, round(((openPrice - closePrice) / closePrice) * 100, 3))
 
 
+# Close open averaged between 2 sources
 def averagedOpenClose(symbol, date):
     updatedOpenClose = getUpdatedCloseOpen(symbol, date)
     ogOpenClose = closeToOpen(symbol, date)
@@ -91,6 +92,7 @@ def averagedOpenClose(symbol, date):
 
 def updateAllCloseOpen(stocks, dates):
     for symbol in stocks:
+        print(symbol)
         for date in dates:
             dateString = date.strftime("%Y-%m-%d")
             idString = symbol + ' ' + dateString
@@ -98,13 +100,14 @@ def updateAllCloseOpen(stocks, dates):
             found = db.find_one({'_id': idString})
             if (found is None):
                 updateCloseOpen(symbol, date, db)
+            # else:
+            #     print('found', found)
 
 
 def updateCloseOpen(symbol, date, db):
     dateString = date.strftime("%Y%m%d")
     baseURL = "https://cloud.iexapis.com/stable/stock/" + symbol + "/chart/date/"
-    # restURL = "?chartByDay=True&token=sk_f993e71175fc4213a0cea1515436270e"
-    restURL = "?chartByDay=True&token=sk_31fec4877d97447ebad6b06db1e19410"
+    restURL = "?chartByDay=True&token=sk_63da34a91b164aeb943b44a8c5861e91"
     URL = baseURL + dateString + restURL
     r = requests.get(url=URL)
     data = r.json()

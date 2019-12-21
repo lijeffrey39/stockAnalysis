@@ -221,17 +221,32 @@ def findTradingDays(date, upToDate):
 
 # Find weight between 0-1 based on function
 def findWeight(date, function):
+    time = date
     functions = constants['functions']
     if (function not in functions):
         return 0
+
+    # If on a weekday between Monday 4:00 and Friday 4:00
     currTime = datetime.datetime(date.year, date.month, date.day, 16)
     if (date > currTime):
-        date = date - datetime.timedelta(days=1)
+        date -= datetime.timedelta(days=1)
 
     difference = currTime - date
     secondsInDay = 86400
     seconds = difference.seconds
     x = 1 - (seconds / secondsInDay)
+
+    dayOfWeek = time.weekday()
+    # If it is after Friday 4pm and before Monday 4pm
+    if ((dayOfWeek == 4 and time.hour > 16) or
+        (dayOfWeek == 5) or (dayOfWeek == 6) or
+        (dayOfWeek == 0 and time.hour <= 16)):
+        # Move currTime to 4 pm on Monday
+        while (currTime.weekday() != 0):
+            currTime += datetime.timedelta(days=1)
+        difference = (currTime - time).seconds
+        secondsInDay *= 3
+        x = 1 - (difference / secondsInDay)
 
     if (function == '1'):
         return 1

@@ -132,8 +132,8 @@ def makePrediction(date):
     # stocks.remove('TSLA')
     # stocks.remove('ROKU')
     # stocks = ['AAPL']
-    analyzeStocks(date, stocks)
-    # basicPrediction(dates, stocks, True, True)
+    # analyzeStocks(date, stocks)
+    basicPrediction(dates, stocks, True, True)
 
 
 def main():
@@ -149,11 +149,12 @@ def main():
         date = datetime.datetime(now.year, now.month, now.day)
         stocks = getAllStocks()
         # stocks.remove('OBLN')
-        # stocks = ['SPY']
-        for i in range(len(stocks)):
-            if (stocks[i] == "QRVO"):
-                print(i)
-        # analyzeStocks(date, stocks)
+        stocks = ['SPY']
+        # print(len(stocks))
+        # for i in range(len(stocks)):
+        #     if (stocks[i] == "SESN"):
+        #         print(i)
+        analyzeStocks(date, stocks)
     elif (options.prediction):
         makePrediction(dateNow)
     elif (options.updateCloseOpens):
@@ -164,9 +165,10 @@ def main():
         updateAllCloseOpen(stocks, dates)
     else:
         date = datetime.datetime(2018, 7, 22, 9, 30)
-        dateUpTo = datetime.datetime(dateNow.year, 12, 12, 16)
+        dateUpTo = datetime.datetime(dateNow.year, 12, 21, 16)
         dates = findTradingDays(date, dateUpTo)
         stocks = getTopStocks()
+        stocks = getAllStocks()
         # print(dates)
         # findAllTweets(stocks, dates, True)
         # testing(35)
@@ -178,14 +180,15 @@ def main():
         # stocks.remove('CEI')
         # basicPrediction(dates, stocks)
 
-        # updateAllCloseOpen(stocks, dates)
-        # date = datetime.datetime(2018, 7, 22, 23, 40)
-        # print(findWeight(date, 'log(x)'))
+        updateAllCloseOpen(stocks, dates)
+        # for i in range(13, 20):
+        # date = datetime.datetime(2019, 12, 14, 15)
+        # print(findWeight(date, 'x'))
 
         # getStatsPerUser('LockStocksandBarrel')
         # getAllUserInfo('LockStocksandBarrel')
 
-        transferNonLabeled(stocks)
+        # transferNonLabeled(stocks)
 
         # updateUserNotAnalyzed()
         # (setup, testing) = generateFeatures(dates, stocks, True)
