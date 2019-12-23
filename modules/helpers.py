@@ -163,6 +163,7 @@ def getAllStocks():
     cursor = allStocks.find()
     stocks = list(map(lambda document: document['_id'], cursor))
     stocks.sort()
+    stocks.remove('NAKD')
     return stocks
 
 

@@ -14,6 +14,7 @@ from modules.userAnalysis import (findPageUser, findUsers, insertUpdateError,
                                   parseUserData, shouldParseUser, getStatsPerUser,
                                   updateUserNotAnalyzed, getAllUserInfo,
                                   calculateAllUserInfo)
+from modules.tests import findBadMessages
 
 
 client = constants['db_client']
@@ -195,11 +196,13 @@ def main():
         #         print(date, findCloseOpen('AAPL', date))
         #         # print(date, round(findWeight(date, 'x'), 1))
 
-        calculateAllUserInfo()
+        # calculateAllUserInfo()
         # getStatsPerUser('DaoofDow')
         # print(getAllUserInfo('sjs7'))
 
         # transferNonLabeled(stocks)
+
+        findBadMessages()
 
         # updateUserNotAnalyzed()
         # (setup, testing) = generateFeatures(dates, stocks, True)
