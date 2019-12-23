@@ -479,8 +479,9 @@ def getStatsPerUser(user):
 
     # Remove symbols that user didn't have valid tweets about
     for symbol in list(result['perStock'].keys()):
-        if (result['perStock'][symbol]['x']['numUnique']['bull'] == 0 and
-           result['perStock'][symbol]['x']['numUnique']['bear'] == 0):
+        if (result['perStock'][symbol]['x']['numPredictions']['bull'] == 0 and
+            result['perStock'][symbol]['x']['numPredictions']['bear'] == 0):
+            print(symbol)
             del result['perStock'][symbol]
 
     userAccuracy.insert_one(result)

@@ -196,13 +196,13 @@ def main():
         #         print(date, findCloseOpen('AAPL', date))
         #         # print(date, round(findWeight(date, 'x'), 1))
 
-        # calculateAllUserInfo()
+        calculateAllUserInfo()
         # getStatsPerUser('DaoofDow')
         # print(getAllUserInfo('sjs7'))
 
         # transferNonLabeled(stocks)
 
-        findBadMessages()
+        # findBadMessages()
 
         # updateUserNotAnalyzed()
         # (setup, testing) = generateFeatures(dates, stocks, True)
