@@ -251,7 +251,6 @@ def findAllTweets(stocks, dates, updateObject=False, dayPrediction=False):
                 if (d in cachedTweets):
                     result[symbol][d] = cachedTweets[d]
                     continue
-
                 result[symbol][d] = []
                 dateStart = datetime.datetime(date.year,
                                               date.month, date.day, 9, 30)
@@ -320,8 +319,8 @@ def simpleWeightPrediction(date, features, closeOpenInfo, paramWeightings):
 # Basic prediction algo
 def basicPrediction(dates, stocks, updateObject=False, dayPrediction=False):
     userInfo = setupUserInfos(stocks)
-    stockInfo = setupStockInfos(stocks)
-    closeOpenInfo = setupCloseOpen(dates, stocks)
+    stockInfo = setupStockInfos(stocks, True)
+    closeOpenInfo = setupCloseOpen(dates, stocks, updateObject)
     allTweets = findAllTweets(stocks, dates, updateObject, dayPrediction)
     features = generateFeatures(dates, stocks, allTweets,
                                 stockInfo, userInfo,
@@ -425,7 +424,7 @@ def generateFeatures(dates, stocks, allTweets, stockInfo,
             features[symbol][date] = {}
             tweets = allTweets[symbol][date.strftime('%m/%d/%Y')]
             print(len(tweets))
-            sentiment = newCalculateSentiment(tweets, symbol, userInfo)
+            sentiment = calculateSentiment(tweets, symbol, userInfo)
             for param in sentiment:
                 paramVal = sentiment[param]
                 # print(stockInfo[symbol])
@@ -449,7 +448,7 @@ def updateBasicStockInfo(dates, stocks, allTweets):
     basicStockInfo = constants['stocktweets_client'].get_database('stocks_data_db').training_stock_info_1216
 
     for symbol in stocks:
-        accuracy = constants['db_user_client'].get_database('user_data_db').new_user_accuracy
+        accuracy = constants['db_user_client'].get_database('user_data_db').user_accuracy
         allUsersAccs = accuracy.find({'perStock.' + symbol: {'$exists': True}})
         userAccDict = {}
         print(symbol, allUsersAccs.count())
@@ -466,7 +465,7 @@ def updateBasicStockInfo(dates, stocks, allTweets):
             if (date.strftime('%m/%d/%Y') not in allTweets[symbol]):
                 continue
             tweets = allTweets[symbol][date.strftime('%m/%d/%Y')]
-            sentiment = newCalculateSentiment(tweets, symbol, userAccDict)
+            sentiment = calculateSentiment(tweets, symbol, userAccDict)
             if ('countRatio' not in symbolInfo):
                 for k in sentiment:
                     symbolInfo[k] = [sentiment[k]]

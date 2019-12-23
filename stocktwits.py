@@ -9,10 +9,11 @@ from modules.prediction import (basicPrediction, findAllTweets, updateBasicStock
 from modules.stockAnalysis import (findPageStock, getTopStocks, parseStockData,
                                    shouldParseStock, updateLastMessageTime,
                                    updateLastParsedTime)
-from modules.stockPriceAPI import (updateAllCloseOpen, transferNonLabeled)
+from modules.stockPriceAPI import (updateAllCloseOpen, transferNonLabeled, findCloseOpen)
 from modules.userAnalysis import (findPageUser, findUsers, insertUpdateError,
                                   parseUserData, shouldParseUser, getStatsPerUser,
-                                  updateUserNotAnalyzed, getAllUserInfo)
+                                  updateUserNotAnalyzed, getAllUserInfo,
+                                  calculateAllUserInfo)
 
 
 client = constants['db_client']
@@ -128,10 +129,6 @@ def makePrediction(date):
     stocks.remove('AMZN')
     stocks.remove('SLS')
     stocks.remove('CEI')
-    # stocks = ['TSLA']
-    # stocks.remove('TSLA')
-    # stocks.remove('ROKU')
-    # stocks = ['AAPL']
     # analyzeStocks(date, stocks)
     basicPrediction(dates, stocks, True, True)
 
@@ -148,7 +145,6 @@ def main():
         now = convertToEST(datetime.datetime.now())
         date = datetime.datetime(now.year, now.month, now.day)
         stocks = getAllStocks()
-        # stocks.remove('OBLN')
         stocks = ['SPY']
         # print(len(stocks))
         # for i in range(len(stocks)):
@@ -165,10 +161,11 @@ def main():
         updateAllCloseOpen(stocks, dates)
     else:
         date = datetime.datetime(2018, 7, 22, 9, 30)
-        dateUpTo = datetime.datetime(dateNow.year, 12, 21, 16)
+        date = datetime.datetime(2019, 7, 22, 9, 30)
+        dateUpTo = datetime.datetime(dateNow.year, 12, 20, 16)
         dates = findTradingDays(date, dateUpTo)
-        stocks = getTopStocks()
-        stocks = getAllStocks()
+        stocks = getTopStocks(20)
+        # stocks = getAllStocks()
         # print(dates)
         # findAllTweets(stocks, dates, True)
         # testing(35)
@@ -178,15 +175,29 @@ def main():
         # stocks.remove('AMZN')
         # stocks.remove('SLS')
         # stocks.remove('CEI')
-        # basicPrediction(dates, stocks)
 
-        updateAllCloseOpen(stocks, dates)
-        # for i in range(13, 20):
-        # date = datetime.datetime(2019, 12, 14, 15)
-        # print(findWeight(date, 'x'))
+        # tweets = findAllTweets(stocks, dates)
+        # updateBasicStockInfo(dates, stocks, tweets)
+        # return
+        # basicPrediction(dates, stocks, True)
 
-        # getStatsPerUser('LockStocksandBarrel')
-        # getAllUserInfo('LockStocksandBarrel')
+        # time = datetime.datetime(2019, 12, 12, 16, 3)
+        # print(findCloseOpen('AAPL', time))
+
+        # updateAllCloseOpen(stocks, dates)
+        # date = datetime.datetime(2019, 12, 16, 16, 10) - datetime.datetime(2019, 12, 16)
+        # print(16 * 60 * 60)
+        # print(date.total_seconds())
+        # for i in range(11, 25):
+        #     for j in range(0, 23):
+        #         date = datetime.datetime(2019, 12, i, j, 10)
+        #         # findCloseOpen('AAPL', date)
+        #         print(date, findCloseOpen('AAPL', date))
+        #         # print(date, round(findWeight(date, 'x'), 1))
+
+        calculateAllUserInfo()
+        # getStatsPerUser('DaoofDow')
+        # print(getAllUserInfo('sjs7'))
 
         # transferNonLabeled(stocks)
 

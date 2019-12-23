@@ -15,11 +15,14 @@ from .helpers import (convertToEST,
                       endDriver,
                       getActualAllStocks,
                       findWeight,
-                      findJoinDate)
+                      findJoinDate,
+                      getAllStocks)
 from .hyperparameters import constants
 from .messageExtract import *
-from .stockPriceAPI import *
-from .stockAnalysis import getTopStocks
+from .stockPriceAPI import (findCloseOpen,
+                            inTradingDay,
+                            getUpdatedCloseOpen)
+from .stockAnalysis import (getTopStocks)
 
 
 # ------------------------------------------------------------------------
@@ -375,30 +378,30 @@ def updateUserNotAnalyzed():
 def initializeResult(tweets, user):
     result = {}
     result['_id'] = user
-    result['totalTweets'] = len(tweets)
     functions = constants['functions']
 
-    keys = ['returnCloseOpen', 'numCloseOpen', 'numPredictions',
-            'returnUnique', 'numUnique',
-            'totalLikes', 'totalComments']
-    
-    for k in keys:
-        result[k] = {}
-        for f in functions:
-            result[k][f] = {}
-            result[k][f]['bull'] = 0
-            result[k][f]['bear'] = 0
+    keys = ['returnCloseOpen', 'numCloseOpen', 
+            'numPredictions', 'totalLikes',
+            'totalComments', 'returnUnique',
+            'numUnique', 'numUniquePredictions']
+
+    for f in functions:
+        result[f] = {}
+        for k in keys:
+            result[f][k] = {}
+            result[f][k]['bull'] = 0
+            result[f][k]['bear'] = 0
 
     result['perStock'] = {}
     uniqueSymbols = set(list(map(lambda tweet: tweet['symbol'], tweets)))
     for symbol in uniqueSymbols:
         result['perStock'][symbol] = {}
-        for k in keys:
-            result['perStock'][symbol][k] = {}
-            for f in functions:
-                result['perStock'][symbol][k][f] = {}
-                result['perStock'][symbol][k][f]['bull'] = 0
-                result['perStock'][symbol][k][f]['bear'] = 0
+        for f in functions:
+            result['perStock'][symbol][f] = {}
+            for k in keys:
+                result['perStock'][symbol][f][k] = {}
+                result['perStock'][symbol][f][k]['bull'] = 0
+                result['perStock'][symbol][f][k]['bear'] = 0
 
     return result
 
@@ -406,79 +409,68 @@ def initializeResult(tweets, user):
 # Update feature results for a user given close open prices
 def updateUserFeatures(result, tweet, seenTweets):
     functions = constants['functions']
-    # edge case
-    # if (symbol == 'AMRN' and time.month == 11 and time.day == 13 or
-    #     symbol == 'AGRX' and time.month == 10 and time.day == 29):
-    #     return
-
     time = tweet['time']
     symbol = tweet['symbol']
     isBull = tweet['isBull']
     closeOpen = findCloseOpen(symbol, time)
-    if (inTradingDay(time) is False):
-        return
-
-    closeOpen = getUpdatedCloseOpen(symbol, time)
     if (closeOpen is None):
         return
-    print(symbol, isBull, closeOpen, time)
+
     pChangeCloseOpen = closeOpen[2]
 
-    correctPredCloseOpen = (isBull and pChangeCloseOpen >= 0) or (isBull is False and pChangeCloseOpen < 0)
+    correctPredCloseOpen = (isBull and pChangeCloseOpen >= 0) or (isBull is False and pChangeCloseOpen <= 0)
     correctNumCloseOpen = 1 if correctPredCloseOpen else 0
     pReturnCloseOpen = abs(pChangeCloseOpen) if correctPredCloseOpen else -abs(pChangeCloseOpen)
-    values = [pReturnCloseOpen, correctNumCloseOpen, 1]
+    values = [pReturnCloseOpen, correctNumCloseOpen, 1, tweet['likeCount'], tweet['commentCount']]
 
-    seenTweetString = time.strftime("%Y-%m-%d ") + symbol
+    seenTweetString = symbol + ' ' + str(closeOpen)
     if (seenTweetString not in seenTweets):
         seenTweets.add(seenTweetString)
-        values.extend([pReturnCloseOpen, correctNumCloseOpen])
+        values.extend([pReturnCloseOpen, correctNumCloseOpen, 1])
     else:
-        values.extend([0, 0])
-    values.extend([tweet['likeCount'], tweet['commentCount']])
+        values.extend([0, 0, 0])
 
     keys = ['returnCloseOpen', 'numCloseOpen', 
-            'numPredictions', 'returnUnique', 'numUnique',
-            'totalLikes', 'totalComments']
+            'numPredictions', 'totalLikes',
+            'totalComments', 'returnUnique',
+            'numUnique', 'numUniquePredictions']
     label = 'bull' if (isBull) else 'bear'
     count = 0
     for k in keys:
         for f in functions:
             w = findWeight(time, f)
             val = w * values[count]
-            result[k][f][label] += val
-            result['perStock'][symbol][k][f][label] += val
+            result[f][k][label] += val
+            result['perStock'][symbol][f][k][label] += val
         count += 1
+    # print(time, symbol, isBull, closeOpen, result['1']['returnCloseOpen'])
 
 
 # Returns stats from user info for prediction
 def getStatsPerUser(user):
     analyzedUsersDB = constants['db_user_client'].get_database('user_data_db')
-    stocks = getTopStocks()
+    stocks = getAllStocks()
     userAccuracy = analyzedUsersDB.user_accuracy_v2
     result = userAccuracy.find({'_id': user})
     if (result.count() != 0):
         return result[0]
 
-    tweetsDB = constants['stocktweets_client'].get_database('tweets_db')
-    labeledTweets = tweetsDB.tweets.find({"$and": [{'user': user},
-                                         {'symbol': {"$ne": ''}},
-                                         {'symbol': {'$ne': None}},
-                                         {'symbol': {
-                                             '$in': stocks
-                                         }},
-                                         {"$or": [
-                                            {'isBull': True},
-                                            {'isBull': False}
-                                         ]}]})
+    tweetsDB = constants['stocktweets_client'].get_database('tweets_db').tweets
+    labeledTweets = tweetsDB.find({"$and": [{'user': user},
+                                            {'symbol': {"$ne": ''}},
+                                            {'symbol': {'$ne': None}},
+                                            {'symbol': {
+                                                '$in': stocks
+                                            }},
+                                            {"$or": [
+                                                {'isBull': True},
+                                                {'isBull': False}
+                                            ]}]})
 
     labeledTweets = list(map(lambda tweet: tweet, labeledTweets))
+    labeledTweets.sort(key=lambda x: x['time'], reverse=True)
     result = initializeResult(labeledTweets, user)
     seenTweets = set([])
-    print(len(labeledTweets))
-    # for t in labeledTweets:
-    #     print(t['time'], t['symbol'])
-    # return
 
     # Loop through all tweets made by user and feature extract per user
     for tweet in labeledTweets:
@@ -487,8 +479,8 @@ def getStatsPerUser(user):
 
     # Remove symbols that user didn't have valid tweets about
     for symbol in list(result['perStock'].keys()):
-        if (result['perStock'][symbol]['numUnique']['x']['bull'] == 0 and
-           result['perStock'][symbol]['numUnique']['x']['bear'] == 0):
+        if (result['perStock'][symbol]['x']['numUnique']['bull'] == 0 and
+           result['perStock'][symbol]['x']['numUnique']['bear'] == 0):
             del result['perStock'][symbol]
 
     userAccuracy.insert_one(result)
@@ -518,13 +510,19 @@ def getAllUserInfo(username):
     if (len(result) == 0):
         return {}
 
-    totalPredictions = result['bullPredictions'] + result['bearPredictions']
-    totalCorrect = result['bullNumCloseOpen'] + result['bearNumCloseOpen']
-    if (totalPredictions == 0):
+    totalCorrect = result['1']['numCloseOpen']['bull'] + result['1']['numCloseOpen']['bear']
+    totalPreds = result['1']['numPredictions']['bull'] + result['1']['numPredictions']['bear']
+    totalUniqueCorrect = result['1']['numUnique']['bull'] + result['1']['numUnique']['bear']
+    totalUniquePreds = result['1']['numUniquePredictions']['bull'] + result['1']['numUniquePredictions']['bear']
+    totalReturn = result['1']['returnCloseOpen']['bull'] + result['1']['returnCloseOpen']['bear']
+    totalReturnUnique = result['1']['returnUnique']['bull'] + result['1']['returnUnique']['bear']
+    if (totalPreds == 0 or totalUniquePreds == 0):
         return {}
 
-    result['accuracy'] = totalCorrect * 1.0 / totalPredictions
-    result['totalReturn'] = result['bullReturnCloseOpen'] + result['bearReturnCloseOpen']
+    result['accuracy'] = totalCorrect * 1.0 / totalPreds
+    result['accuracyUnique'] = totalUniqueCorrect * 1.0 / totalUniquePreds
+    result['totalReturn'] = totalReturn
+    result['totalReturnUnique'] = totalReturnUnique
     result['followers'] = userInfo['followers']
     result['following'] = userInfo['following']
     result['ideas'] = userInfo['ideas']
@@ -535,13 +533,18 @@ def getAllUserInfo(username):
 
 
 # Finds users that haven't been calculated yet
-def calculateNewUserInfo():
+def calculateAllUserInfo():
     analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
-    query = {"$and": [{'error': ''}, {'last_updated': {'$exists': True}}]}
+    time = datetime.datetime(2019, 12, 8)
+    query = {"$and": [{'error': ''}, 
+                      {'last_updated': {'$exists': True}},
+                      {'last_updated': {'$gte': time}}]}
     cursor = analyzedUsers.find(query)
     users = list(map(lambda document: document['_id'], cursor))
     print(len(users))
     shuffle(users)
     for u in users:
-        print(u)
-        getAllUserInfo(u)
+        result = getAllUserInfo(u)
+        if (len(result) == 0):
+            continue
+        print(u, result['accuracyUnique'], result['totalReturnUnique'])

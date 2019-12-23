@@ -31,21 +31,22 @@ def findCloseOpen(symbol, time):
     nextDay = None
     count = 0
 
-    # Find first trading day from this date
-    # If saturday, sunday or holiday, find first day to start
+    # If saturday, sunday or holiday, find first trading day to start from time
     testDay = db.find_one({'_id': 'AAPL ' + time.strftime("%Y-%m-%d")})
-    while (testDay.count() == 0 and count != 10):
+    while (testDay is None and count != 10):
+        time = datetime.datetime(time.year, time.month, time.day)
         time += dayIncrement
         testDay = db.find_one({'_id': 'AAPL ' + time.strftime("%Y-%m-%d")})
         count += 1
 
     # Find first day if tweeted after 4pm
-    # If 4:30 on Wed, first day is Thursday
-    # If 4:30 on Friday, first day is Monday
-    if (time.hour >= 16):
+    # If 4:00 on Wed, first day is Thursday
+    # If 4:00 on Friday, first day is Monday
+    timeDiff = time - datetime.datetime(time.year, time.month, time.day)
+    if (timeDiff.total_seconds() >= (16 * 60 * 60)):
         time += dayIncrement
         testDay = db.find_one({'_id': 'AAPL ' + time.strftime("%Y-%m-%d")})
-        while (testDay.count() == 0 and count != 10):
+        while (testDay is None and count != 10):
             time += dayIncrement
             testDay = db.find_one({'_id': 'AAPL ' + time.strftime("%Y-%m-%d")})
             count += 1
@@ -53,19 +54,19 @@ def findCloseOpen(symbol, time):
     # Find next day based on the picked first day
     nextDay = time + dayIncrement
     testDay = db.find_one({'_id': 'AAPL ' + nextDay.strftime("%Y-%m-%d")})
-    while (testDay.count() == 0 and count != 10):
+    while (testDay is None and count != 10):
         nextDay += dayIncrement
         testDay = db.find_one({'_id': 'AAPL ' + nextDay.strftime("%Y-%m-%d")})
         count += 1
 
-    if (count == 10):
+    if (count >= 10):
         return None
 
     start = db.find_one({'_id': symbol + ' ' + time.strftime("%Y-%m-%d")})
     end = db.find_one({'_id': symbol + ' ' + nextDay.strftime("%Y-%m-%d")})
 
-    if (end is None) or (start is None) or start == 0 or end == 0:
-        print(start, end)
+    # print(start, end)
+    if (end is None) or (start is None):
         return None
     else:
         closePrice = start['close']

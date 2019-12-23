@@ -237,14 +237,17 @@ def findWeight(date, function):
     x = 1 - (seconds / secondsInDay)
 
     dayOfWeek = time.weekday()
+    timeDiff = (time - datetime.datetime(time.year, time.month, time.day)).total_seconds()
+    fourPM = 16 * 60 * 60
     # If it is after Friday 4pm and before Monday 4pm
-    if ((dayOfWeek == 4 and time.hour > 16) or
+    if ((dayOfWeek == 4 and timeDiff > fourPM) or
         (dayOfWeek == 5) or (dayOfWeek == 6) or
-        (dayOfWeek == 0 and time.hour <= 16)):
+        (dayOfWeek == 0 and timeDiff < fourPM)):
         # Move currTime to 4 pm on Monday
         while (currTime.weekday() != 0):
             currTime += datetime.timedelta(days=1)
-        difference = (currTime - time).seconds
+
+        difference = (currTime - time).total_seconds()
         secondsInDay *= 3
         x = 1 - (difference / secondsInDay)
 
