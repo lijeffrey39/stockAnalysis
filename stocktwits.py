@@ -14,7 +14,7 @@ from modules.userAnalysis import (findPageUser, findUsers, insertUpdateError,
                                   parseUserData, shouldParseUser, getStatsPerUser,
                                   updateUserNotAnalyzed, getAllUserInfo,
                                   calculateAllUserInfo)
-from modules.tests import findBadMessages
+from modules.tests import (findBadMessages, removeMessagesWithStock)
 
 
 client = constants['db_client']
@@ -128,10 +128,9 @@ def makePrediction(date):
     dates = [datetime.datetime(date.year, date.month, date.day, 9, 30)]
     stocks = getTopStocks(20)
     stocks.remove('AMZN')
-    stocks.remove('SLS')
-    stocks.remove('CEI')
-    # analyzeStocks(date, stocks)
-    basicPrediction(dates, stocks, True, True)
+    stocks = ['TSLA']
+    analyzeStocks(date, stocks)
+    # basicPrediction(dates, stocks, True, True)
 
 
 def main():
@@ -146,7 +145,6 @@ def main():
         now = convertToEST(datetime.datetime.now())
         date = datetime.datetime(now.year, now.month, now.day)
         stocks = getAllStocks()
-        stocks = ['SPY']
         # print(len(stocks))
         # for i in range(len(stocks)):
         #     if (stocks[i] == "SESN"):
@@ -162,7 +160,7 @@ def main():
         updateAllCloseOpen(stocks, dates)
     else:
         date = datetime.datetime(2018, 7, 22, 9, 30)
-        # date = datetime.datetime(2019, 7, 22, 9, 30)
+        date = datetime.datetime(2019, 7, 22, 9, 30)
         dateUpTo = datetime.datetime(dateNow.year, 12, 20, 16)
         dates = findTradingDays(date, dateUpTo)
         stocks = getTopStocks(20)
@@ -185,7 +183,7 @@ def main():
         # time = datetime.datetime(2019, 12, 12, 16, 3)
         # print(findCloseOpen('AAPL', time))
 
-        # updateAllCloseOpen(['GNCA'], dates)
+        # updateAllCloseOpen(['TRXC'], dates)
         # for d in dates:
         #     print(d, closeToOpen('SES', d))
         # date = datetime.datetime(2019, 12, 16, 16, 10) - datetime.datetime(2019, 12, 16)
@@ -204,7 +202,8 @@ def main():
 
         # transferNonLabeled(stocks)
 
-        findBadMessages()
+        # findBadMessages()
+        removeMessagesWithStock('PLX')
 
         # updateUserNotAnalyzed()
         # (setup, testing) = generateFeatures(dates, stocks, True)

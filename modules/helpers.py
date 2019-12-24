@@ -167,6 +167,10 @@ def getAllStocks():
     stocks.remove('CEI')
     stocks.remove('SLS')
     stocks.remove('SES')
+    stocks.remove('AKER')
+    stocks.remove('ASNA')
+    stocks.remove('TRXC')
+    stocks.remove('MTSI')
     return stocks
 
 

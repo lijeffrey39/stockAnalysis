@@ -443,8 +443,7 @@ def updateUserFeatures(result, tweet, seenTweets):
             result[f][k][label] += val
             result['perStock'][symbol][f][k][label] += val
         count += 1
-    # if (symbol == 'GNCA'):
-    #     print(time, symbol, isBull, closeOpen, result['1']['returnCloseOpen'])
+    # print(time, symbol, isBull, closeOpen, result['1']['returnCloseOpen'])
 
 
 # Returns stats from user info for prediction
@@ -482,7 +481,6 @@ def getStatsPerUser(user):
     for symbol in list(result['perStock'].keys()):
         if (result['perStock'][symbol]['x']['numPredictions']['bull'] == 0 and
             result['perStock'][symbol]['x']['numPredictions']['bear'] == 0):
-            print(symbol)
             del result['perStock'][symbol]
 
     userAccuracy.insert_one(result)
