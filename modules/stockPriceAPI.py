@@ -101,8 +101,8 @@ def updateAllCloseOpen(stocks, dates):
             found = db.find_one({'_id': idString})
             if (found is None):
                 updateCloseOpen(symbol, date, db)
-            # else:
-            #     print('found', found)
+            else:
+                print('found', found)
 
 
 def updateCloseOpen(symbol, date, db):
@@ -223,7 +223,7 @@ def transferNonLabeled(stocks):
         mappedTweets.sort(key=lambda x: x['time'], reverse=True)
         count = 0
         realCount = 0
-        print(len(mappedTweets))
+        print(s, len(mappedTweets))
         for t in mappedTweets:
             count += 1
             # print(t)
@@ -234,5 +234,5 @@ def transferNonLabeled(stocks):
                 pass
             tweetsDB.delete_one({'_id': t['_id']})
             if (count % 100 == 0):
-                print(count)
-        print(realCount, count)
+                print(s, count, len(mappedTweets))
+        print(s, realCount, count)

@@ -164,6 +164,9 @@ def getAllStocks():
     stocks = list(map(lambda document: document['_id'], cursor))
     stocks.sort()
     stocks.remove('NAKD')
+    stocks.remove('CEI')
+    stocks.remove('SLS')
+    stocks.remove('SES')
     return stocks
 
 

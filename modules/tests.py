@@ -27,33 +27,31 @@ def findBadMessages():
     #     print(x[0], x[1])
 
     # return
-    # allAccs = userAccuracy.find({'perStock.NAKD': { '$exists': True }})
-    # mappedTweets = list(map(lambda doc: [doc['_id'], doc['perStock']['NAKD']['1']['returnCloseOpen']['bull'] 
-    #                                      + doc['perStock']['NAKD']['1']['returnCloseOpen']['bear']], allAccs))
-    # mappedTweets.sort(key=lambda x: x[1], reverse=True)
-    # print(len(mappedTweets))
+    allAccs = userAccuracy.find({'perStock.SLS': { '$exists': True }})
+    mappedTweets = list(map(lambda doc: [doc['_id'], doc['perStock']['SLS']['1']['returnCloseOpen']['bull']], allAccs))
+    mappedTweets.sort(key=lambda x: x[1], reverse=True)
+    print(len(mappedTweets))
     # shuffle(mappedTweets)
-    # for x in mappedTweets:
-    #     user = x[0]
-    #     userAccuracy.delete_one({'_id': user})
-    #     result = getAllUserInfo(user)
-    #     print(user, result['accuracyUnique'], result['totalReturnUnique'])
-    # return
+    for x in mappedTweets[:10]:
+        user = x[0]
+        userAccuracy.delete_one({'_id': user})
+        result = getAllUserInfo(user)
+        print(user, result['perStock']['SLS']['1']['returnCloseOpen']['bull'])
+    return
 
-    user = 'mbarelorenzo'
+    user = 'Travisten'
     # userAccuracy.delete_one({'_id': user})
     userInfo = getAllUserInfo(user)
     perStock = list(userInfo['perStock'].keys())
     print(perStock)
     res = {}
     s1 = 0
-    print(userInfo['1']['returnCloseOpen']['bear'])
+    print(userInfo['1']['returnCloseOpen']['bull'])
     for s in perStock:
-        res[s] = userInfo['perStock'][s]['1']['returnCloseOpen']['bear']
-        s1 += userInfo['perStock'][s]['1']['returnCloseOpen']['bear']
+        res[s] = userInfo['perStock'][s]['1']['returnCloseOpen']['bull']
+        s1 += userInfo['perStock'][s]['1']['returnCloseOpen']['bull']
     print(s1)
     bestParams = list(res.items())
     bestParams.sort(key=lambda x: x[1], reverse=False)
     for x in bestParams:
         print(x)
-    

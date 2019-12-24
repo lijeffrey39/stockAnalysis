@@ -25,9 +25,9 @@ def getTopStocks(numStocks=100):
     stocks = ['TSLA', 'AMD', 'ROKU', 'WKHS', 'AAPL', 'FCEL', 'ACB', 'TEUM', 'AMZN', 'NIO', 'NFLX', 'UGAZ', 'TVIX', 'OSTK', 'NAKD', 'FB', 'ADXS', 'YRIV', 'AMRN', 'DIS', 'BB', 'CHK', 'SHOP', 'SQ', 'ENPH', 'SNAP', 'BA', 'BABA', 'TRXC', 'MSFT', 'AGRX', 'GE', 'MDR', 'JAGX', 'MNKD', 'HSGX', 'RKDA', 'NAK', 'MU', 'ADMP', 'PCG', 'NBEV', 'QQQ', 'PRPO', 'TBLT', 'TEVA', 'TWTR', 'NVCN', 'CGC', 'MNK', 'FIT', 'TTNP', 'ATVI', 'NVDA', 'CRMD', 'CRON', 'IQ', 'NBRV', 'JNUG', 'TNDM', 'X', 'SESN', 'NTEC', 'PTN', 'XXII', 'AUPH', 'SES', 'RBZ', 'INPX', 'XBIO', 'IBIO', 'ULTA', 'APHA', 'RAD', 'TXMD', 'BAC', 'YUMA', 'CLF', 'AVEO', 'ADMA', 'AWSM', 'JD', 'MCD', 'DWT', 'PLUG', 'ENDP', 'GLD', 'TWLO', 'BZUN', 'JCP', 'TRVN', 'TLRY', 'DGAZ']
     stocks.remove('HSGX')
     stocks.remove('AMZN')
-    stocks = ['ROKU', 'TSLA', 'AMD', 'FCEL', 'WKHS', 'ADXS', 'SLS',
+    stocks = ['ROKU', 'TSLA', 'AMD', 'FCEL', 'WKHS', 'ADXS',
               'AAPL', 'ACB', 'NIO', 'AMZN', 'NFLX', 'DIS', 'NAKD',
-              'CEI', 'TEUM', 'UGAZ', 'ENPH', 'AMRN', 'SHOP', 'SNAP',
+              'TEUM', 'UGAZ', 'ENPH', 'AMRN', 'SHOP', 'SNAP',
               'TOPS', 'SQ', 'FB', 'BA', 'CHK', 'BABA', 'BB', 'CRMD',
               'CGC', 'TVIX', 'MSFT', 'GE', 'MNK', 'NAK', 'AUPH',
               'TEVA', 'CRON', 'TWTR', 'TNDM', 'TRXC', 'ADMA', 'IQ',
