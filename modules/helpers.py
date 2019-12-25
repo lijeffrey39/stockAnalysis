@@ -163,14 +163,18 @@ def getAllStocks():
     cursor = allStocks.find()
     stocks = list(map(lambda document: document['_id'], cursor))
     stocks.sort()
-    stocks.remove('NAKD')
-    stocks.remove('CEI')
-    stocks.remove('SLS')
-    stocks.remove('SES')
-    stocks.remove('AKER')
-    stocks.remove('ASNA')
-    stocks.remove('TRXC')
-    stocks.remove('MTSI')
+    # stocks.remove('NAKD') # fixed
+    # stocks.remove('CEI') # fixed
+    # stocks.remove('SLS') # fixed
+    # stocks.remove('SES') # fixed ?
+    # stocks.remove('AKER') # fixed
+    # stocks.remove('ASNA') # fixed
+    # stocks.remove('TRXC') # fixed
+    # stocks.remove('TVIX') # fixed
+    # stocks.remove('GUSH') # fixed
+    # stocks.remove('PLX') # fixed
+    # stocks.remove('AMRH') # fixed
+    # stocks.remove('LODE') # fixed
     return stocks
 
 

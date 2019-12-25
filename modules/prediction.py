@@ -21,7 +21,6 @@ from .helpers import (readPickleObject,
 from .hyperparameters import constants
 from .messageExtract import *
 from .stockPriceAPI import (getUpdatedCloseOpen,
-                            updateCloseOpen,
                             updateAllCloseOpen)
 
 

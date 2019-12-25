@@ -14,7 +14,7 @@ from modules.userAnalysis import (findPageUser, findUsers, insertUpdateError,
                                   parseUserData, shouldParseUser, getStatsPerUser,
                                   updateUserNotAnalyzed, getAllUserInfo,
                                   calculateAllUserInfo)
-from modules.tests import (findBadMessages, removeMessagesWithStock)
+from modules.tests import (findBadMessages, removeMessagesWithStock, findTopUsers)
 
 
 client = constants['db_client']
@@ -160,7 +160,7 @@ def main():
         updateAllCloseOpen(stocks, dates)
     else:
         date = datetime.datetime(2018, 7, 22, 9, 30)
-        date = datetime.datetime(2019, 7, 22, 9, 30)
+        # date = datetime.datetime(2019, 7, 22, 9, 30)
         dateUpTo = datetime.datetime(dateNow.year, 12, 20, 16)
         dates = findTradingDays(date, dateUpTo)
         stocks = getTopStocks(20)
@@ -183,9 +183,9 @@ def main():
         # time = datetime.datetime(2019, 12, 12, 16, 3)
         # print(findCloseOpen('AAPL', time))
 
-        # updateAllCloseOpen(['TRXC'], dates)
+        # updateAllCloseOpen(['AGRX'], dates)
         # for d in dates:
-        #     print(d, closeToOpen('SES', d))
+        #     print(d, closeToOpen('TVIX', d))
         # date = datetime.datetime(2019, 12, 16, 16, 10) - datetime.datetime(2019, 12, 16)
         # print(16 * 60 * 60)
         # print(date.total_seconds())
@@ -196,14 +196,15 @@ def main():
         #         print(date, findCloseOpen('AAPL', date))
         #         # print(date, round(findWeight(date, 'x'), 1))
 
-        # calculateAllUserInfo()
+        calculateAllUserInfo()
         # getStatsPerUser('DaoofDow')
         # print(getAllUserInfo('sjs7'))
 
         # transferNonLabeled(stocks)
 
-        # findBadMessages()
-        removeMessagesWithStock('PLX')
+        # findBadMessages('Always_A_Pleasure91')
+        # findTopUsers()
+        # removeMessagesWithStock('TVIX')
 
         # updateUserNotAnalyzed()
         # (setup, testing) = generateFeatures(dates, stocks, True)

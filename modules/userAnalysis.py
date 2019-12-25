@@ -443,7 +443,8 @@ def updateUserFeatures(result, tweet, seenTweets):
             result[f][k][label] += val
             result['perStock'][symbol][f][k][label] += val
         count += 1
-    # print(time, symbol, isBull, closeOpen, result['1']['returnCloseOpen'])
+    # if (symbol == 'MYSZ'):
+    #     print(time, symbol, isBull, closeOpen, result['1']['returnCloseOpen'])
 
 
 # Returns stats from user info for prediction

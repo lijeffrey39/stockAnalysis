@@ -65,8 +65,8 @@ def findCloseOpen(symbol, time):
     start = db.find_one({'_id': symbol + ' ' + time.strftime("%Y-%m-%d")})
     end = db.find_one({'_id': symbol + ' ' + nextDay.strftime("%Y-%m-%d")})
 
-    # print(start, end)
-    if (end is None) or (start is None):
+    # If either start or end are 0, don't allow it (fixes TTNP)
+    if (end is None) or (start is None) or (end['open'] == 0) or (start['close'] == 0):
         return None
     else:
         closePrice = start['close']
@@ -91,7 +91,7 @@ def averagedOpenClose(symbol, date):
         return (closePrice, openPrice, round(((openPrice - closePrice) / closePrice) * 100, 3))
 
 
-def updateAllCloseOpen(stocks, dates):
+def updateAllCloseOpen(stocks, dates, replace=False):
     for symbol in stocks:
         print(symbol)
         for date in dates:
@@ -99,13 +99,19 @@ def updateAllCloseOpen(stocks, dates):
             idString = symbol + ' ' + dateString
             db = constants['db_client'].get_database('stocks_data_db').updated_close_open
             found = db.find_one({'_id': idString})
-            if (found is None):
-                updateCloseOpen(symbol, date, db)
+            if (found is None or replace):
+                result = updatedCloseOpen(symbol, date)
+                if (len(result) == 0):
+                    continue
+                print(result)
+                if (found is not None):
+                    db.delete_one({'_id': result['_id']})
+                db.insert_one(result)
             else:
                 print('found', found)
 
 
-def updateCloseOpen(symbol, date, db):
+def updatedCloseOpen(symbol, date):
     dateString = date.strftime("%Y%m%d")
     baseURL = "https://cloud.iexapis.com/stable/stock/" + symbol + "/chart/date/"
     restURL = "?chartByDay=True&token=sk_63da34a91b164aeb943b44a8c5861e91"
@@ -113,13 +119,11 @@ def updateCloseOpen(symbol, date, db):
     r = requests.get(url=URL)
     data = r.json()
     if (len(data) == 0):
-        return
+        return {}
     data = data[0]
-
     _id = symbol + ' ' + data['date']
     result = {'_id': _id, 'open': data['open'], 'close': data['close']}
-    db.insert_one(result)
-    print(result)
+    return result
 
 
 def getUpdatedCloseOpen(symbol, date):

@@ -26,29 +26,31 @@ def removeMessagesWithStock(stock):
     # shuffle(mappedTweets)
     for x in mappedTweets:
         user = x[0]
-        userAccuracy.delete_one({'_id': user})
+        # userAccuracy.delete_one({'_id': user})
         result = getAllUserInfo(user)
         if (len(result) != 0):
-            print(user, result['accuracyUnique'])
+            print(user, result['accuracyUnique'], result['perStock'][stock]['1']['returnCloseOpen']['bull'])
 
 
-def findBadMessages():
+def findTopUsers():
     analyzedUsersDB = constants['db_user_client'].get_database('user_data_db')
     userAccuracy = analyzedUsersDB.user_accuracy_v2
+    allAccs = userAccuracy.find()
+    mappedTweets = list(map(lambda doc: [doc['_id'], doc['1']['returnUnique']['bull']], allAccs))
+    mappedTweets.sort(key=lambda x: x[1], reverse=True)
+
+    for x in mappedTweets[:60]:
+        print(x[0], x[1])
+        findBadMessages(x[0])
 
 
-    # allAccs = userAccuracy.find()
-    # mappedTweets = list(map(lambda doc: [doc['_id'], doc['1']['returnUnique']['bull']], allAccs))
-    # mappedTweets.sort(key=lambda x: x[1], reverse=True)
-
-    # for x in mappedTweets[:30]:
-    #     print(x[0], x[1])
-
-    # return
-
-    user = 'cantrder72'
+def findBadMessages(user):
+    analyzedUsersDB = constants['db_user_client'].get_database('user_data_db')
+    userAccuracy = analyzedUsersDB.user_accuracy_v2
     # userAccuracy.delete_one({'_id': user})
     userInfo = getAllUserInfo(user)
+    if (len(userInfo) == 0):
+        return
     perStock = list(userInfo['perStock'].keys())
     print(perStock)
     res = {}
