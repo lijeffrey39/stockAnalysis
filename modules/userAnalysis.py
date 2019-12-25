@@ -96,7 +96,7 @@ def findUsers(reAnalyze, findNewUsers, updateUser):
     # Find all tweets this user posted again up till last time
     if (updateUser):
         analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
-        dateStart = convertToEST(datetime.datetime.now()) - datetime.timedelta(days=7)
+        dateStart = convertToEST(datetime.datetime.now()) - datetime.timedelta(days=14)
         query = {"$and": [{'error': ''},
                           {'last_updated': {'$lte': dateStart}}]}
         cursor = analyzedUsers.find(query)
