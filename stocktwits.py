@@ -15,7 +15,7 @@ from modules.userAnalysis import (findPageUser, findUsers, insertUpdateError,
                                   updateUserNotAnalyzed, getAllUserInfo,
                                   calculateAllUserInfo)
 from modules.tests import (findBadMessages, removeMessagesWithStock, 
-                           findTopUsers, findOutliers, findAllUsers)
+                           findTopUsers, findOutliers, findAllUsers, findErrorUsers)
 
 
 client = constants['db_client']
@@ -141,7 +141,7 @@ def main():
     dateNow = convertToEST(datetime.datetime.now())
 
     if (options.users):
-        analyzeUsers(reAnalyze=False, findNewUsers=False, updateUser=True)
+        analyzeUsers(reAnalyze=True, findNewUsers=False, updateUser=False)
     elif (options.stocks):
         now = convertToEST(datetime.datetime.now())
         date = datetime.datetime(now.year, now.month, now.day)
@@ -213,6 +213,8 @@ def main():
         # setupUserInfos(updateObject=True)
         # findAllUsers()
         
+        # findErrorUsers()
+
         # updateUserNotAnalyzed()
         # (setup, testing) = generateFeatures(dates, stocks, True)
         # basicPrediction(dates, stocks, False, False)

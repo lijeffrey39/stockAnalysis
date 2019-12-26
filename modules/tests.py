@@ -120,3 +120,19 @@ def findOutliers(stock):
         stdDev = (r - mean) / std
         if (stdDev > 3):
             print(users[i], r, stdDev)
+
+
+def findErrorUsers():
+    analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
+    dateStart = convertToEST(datetime.datetime.now()) - datetime.timedelta(days=20)
+    query = {"$and": [{'error': {'$ne': 'Not enough ideas'}},
+                      {'error': {'$ne': "User doesn't exist"}},
+                      {'error': {'$ne': ""}},
+                      {'error': {'$ne': "User doesn't exist / API down"}},
+                      {'error': {'$ne': 'User has no tweets'}},
+                      {'error': {'$ne': "Empty result list"}}]}
+    cursor = analyzedUsers.find(query)
+    print(cursor.count())
+
+    # for x in cursor[:100]:
+    #     print(x['_id'], x['error'])

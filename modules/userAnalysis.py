@@ -112,12 +112,12 @@ def findUsers(reAnalyze, findNewUsers, updateUser):
         cursor = analyzedUsers.find(query)
     elif (reAnalyze):
         analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
-        query = {"$and": [{'error': {'$ne': ''}}, 
-                          {'error': {'$ne': 'Not enough ideas'}},
-                        #   {'error': {'$ne': "'user'"}},
+        query = {"$and": [{'error': {'$ne': 'Not enough ideas'}},
                           {'error': {'$ne': "User doesn't exist"}},
-                          {'error': {'$ne': "User has no tweets"}}]}
-                        #   {'error': {'$ne': "Scroll for too long"}},]}
+                          {'error': {'$ne': ""}},
+                          {'error': {'$ne': "User doesn't exist / API down"}},
+                          {'error': {'$ne': 'User has no tweets'}},
+                          {'error': {'$ne': "Empty result list"}}]}
         cursor = analyzedUsers.find(query)
     else:
         analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
