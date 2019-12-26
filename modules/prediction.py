@@ -22,6 +22,7 @@ from .hyperparameters import constants
 from .messageExtract import *
 from .stockPriceAPI import (getUpdatedCloseOpen,
                             updateAllCloseOpen)
+from .userAnalysis import getAllUserInfo
 
 
 # ------------------------------------------------------------------------
@@ -177,20 +178,47 @@ def setupCloseOpen(dates, stocks, updateObject=False):
 
 
 # User Infos from saved file
-def setupUserInfos(stocks, updateObject=False):
+def setupUserInfos(updateObject=False):
     print("Setup User Info")
-    path = 'pickledObjects/userInfos.pkl'
+    path = 'pickledObjects/userInfosV2.pkl'
     result = readPickleObject(path)
     if (updateObject is False):
         return result
 
-    result = {}
-    for symbol in stocks:
-        accuracy = constants['db_user_client'].get_database('user_data_db').new_user_accuracy
-        allUsersAccs = accuracy.find({'perStock.' + symbol: {'$exists': True}})
-        for user in allUsersAccs:
-            if (user['_id'] not in result):
-                result[user['_id']] = user
+    allUsers = constants['db_user_client'].get_database('user_data_db').users
+    accuracy = constants['db_user_client'].get_database('user_data_db').user_accuracy_v2
+    allUsersAccs = allUsers.find()
+    modCheck = 0
+    count = 0
+    for user in allUsersAccs:
+        userId = user['_id']
+        count += 1
+        if (userId in result):
+            print('found', userId)
+            continue
+        if (accuracy.find_one({'_id': userId}) is None):
+            print(userId)
+            result[userId] = 1
+            continue
+        res = getAllUserInfo(user)
+        print('new', userId)
+        result[userId] = res
+        modCheck += 1
+        if (modCheck % 100 == 0):
+            writePickleObject(path, result)
+            modCheck = 0
+            print(count)
+
+    # result = {}
+    # for symbol in stocks:
+    #     print(symbol)
+    #     accuracy = constants['db_user_client'].get_database('user_data_db').user_accuracy_v2
+    #     allUsersAccs = accuracy.find({'perStock.' + symbol: {'$exists': True}})
+    #     print(allUsersAccs.count())
+    #     for user in allUsersAccs:
+    #         if (user['_id'] not in result):
+    #             print(user['_id'])
+    #             result[user['_id']] = user
 
     writePickleObject(path, result)
     return result

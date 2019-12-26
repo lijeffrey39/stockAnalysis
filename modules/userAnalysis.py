@@ -50,6 +50,16 @@ def shouldParseUser(username, reAnalyze, updateUser):
         analyzedUsers.count_documents({'_id': username}) != 0):
         return None
 
+    if (updateUser):
+        query = {'_id': username}
+        result = analyzedUsers.find_one(query)
+        if (result):
+            dateStart = convertToEST(datetime.datetime.now()) - datetime.timedelta(days=19)
+            lastUpdated = result['last_updated']
+            # Already updated recently
+            if (lastUpdated > dateStart):
+                return None
+
     (coreInfo, error) = findUserInfo(username)
     currTime = convertToEST(datetime.datetime.now())
 
@@ -96,7 +106,7 @@ def findUsers(reAnalyze, findNewUsers, updateUser):
     # Find all tweets this user posted again up till last time
     if (updateUser):
         analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
-        dateStart = convertToEST(datetime.datetime.now()) - datetime.timedelta(days=14)
+        dateStart = convertToEST(datetime.datetime.now()) - datetime.timedelta(days=19)
         query = {"$and": [{'error': ''},
                           {'last_updated': {'$lte': dateStart}}]}
         cursor = analyzedUsers.find(query)
@@ -444,7 +454,7 @@ def updateUserFeatures(result, tweet, seenTweets):
             result['perStock'][symbol][f][k][label] += val
         count += 1
     # if (symbol == 'MYSZ'):
-    #     print(time, symbol, isBull, closeOpen, result['1']['returnCloseOpen'])
+    print(time, symbol, isBull, closeOpen, result['1']['returnCloseOpen'])
 
 
 # Returns stats from user info for prediction

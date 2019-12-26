@@ -5,7 +5,7 @@ from modules.helpers import (convertToEST, findTradingDays, getAllStocks,
                              insertResults, findWeight)
 from modules.hyperparameters import constants
 from modules.nn import calcReturns, testing
-from modules.prediction import (basicPrediction, findAllTweets, updateBasicStockInfo)
+from modules.prediction import (basicPrediction, findAllTweets, updateBasicStockInfo, setupUserInfos)
 from modules.stockAnalysis import (findPageStock, getTopStocks, parseStockData,
                                    shouldParseStock, updateLastMessageTime,
                                    updateLastParsedTime)
@@ -14,7 +14,8 @@ from modules.userAnalysis import (findPageUser, findUsers, insertUpdateError,
                                   parseUserData, shouldParseUser, getStatsPerUser,
                                   updateUserNotAnalyzed, getAllUserInfo,
                                   calculateAllUserInfo)
-from modules.tests import (findBadMessages, removeMessagesWithStock, findTopUsers)
+from modules.tests import (findBadMessages, removeMessagesWithStock, 
+                           findTopUsers, findOutliers, findAllUsers)
 
 
 client = constants['db_client']
@@ -183,7 +184,7 @@ def main():
         # time = datetime.datetime(2019, 12, 12, 16, 3)
         # print(findCloseOpen('AAPL', time))
 
-        # updateAllCloseOpen(['AGRX'], dates)
+        # updateAllCloseOpen(['TTNP'], dates)
         # for d in dates:
         #     print(d, closeToOpen('TVIX', d))
         # date = datetime.datetime(2019, 12, 16, 16, 10) - datetime.datetime(2019, 12, 16)
@@ -196,16 +197,22 @@ def main():
         #         print(date, findCloseOpen('AAPL', date))
         #         # print(date, round(findWeight(date, 'x'), 1))
 
-        calculateAllUserInfo()
+        # calculateAllUserInfo()
         # getStatsPerUser('DaoofDow')
         # print(getAllUserInfo('sjs7'))
 
         # transferNonLabeled(stocks)
 
-        # findBadMessages('Always_A_Pleasure91')
+        # findBadMessages('ArmedInfidel')
         # findTopUsers()
-        # removeMessagesWithStock('TVIX')
+        # removeMessagesWithStock('AAPL')
+        # findOutliers('GNCA')
 
+        # findTopUsers()
+
+        # setupUserInfos(updateObject=True)
+        # findAllUsers()
+        
         # updateUserNotAnalyzed()
         # (setup, testing) = generateFeatures(dates, stocks, True)
         # basicPrediction(dates, stocks, False, False)
