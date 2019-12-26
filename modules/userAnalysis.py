@@ -153,7 +153,7 @@ def findPageUser(username):
         return ('', str(e), 0)
 
     # Hardcoded to the first day we have historical stock data
-    start_date = convertToEST(datetime.datetime(2019, 2, 1))
+    start_date = convertToEST(datetime.datetime(2019, 1, 1))
     # if (cursor.count() != 0 and 'last_updated' in cursor[0] and cursor[0]['error'] == ''):
     #     start_date = cursor[0]['last_updated']
     #     print('FOUND', start_date)

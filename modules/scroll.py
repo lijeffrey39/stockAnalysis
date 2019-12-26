@@ -55,8 +55,10 @@ def scrollFor(driver, hoursBack):
         else:
             prevTime = currTime
 
+        # If scrolled on the same one, reached end of page
         if (countSame == 10):
-            raise Exception('Scroll for too long')
+            return True
+            # raise Exception('Scroll for too long')
 
         last_height = new_height
         driver.execute_script("window.scrollTo(0,document.body.scrollHeight);")
