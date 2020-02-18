@@ -154,9 +154,9 @@ def findPageUser(username):
 
     # Hardcoded to the first day we have historical stock data
     start_date = convertToEST(datetime.datetime(2019, 1, 1))
-    # if (cursor.count() != 0 and 'last_updated' in cursor[0] and cursor[0]['error'] == ''):
-    #     start_date = cursor[0]['last_updated']
-    #     print('FOUND', start_date)
+    if (cursor.count() != 0 and 'last_updated' in cursor[0] and cursor[0]['error'] == ''):
+        start_date = cursor[0]['last_updated']
+        print('FOUND', start_date)
     current_date = convertToEST(datetime.datetime.now())
     date_span = current_date - start_date
     current_span_hours = 24 * date_span.days + int(date_span.seconds/3600)
