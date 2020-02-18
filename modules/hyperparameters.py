@@ -17,8 +17,8 @@ chrome_options = webdriver.ChromeOptions()
 prefs = {"profile.managed_default_content_settings.images": 2}
 chrome_options.add_experimental_option("prefs", prefs)
 chrome_options.add_experimental_option("prefs", prefs)
-chrome_options.add_argument("--headless")
-chrome_options.add_argument('log-level=3')
+# chrome_options.add_argument("--headless")
+# chrome_options.add_argument('log-level=3')
 chrome_options.add_argument("--disable-extensions")
 chrome_options.add_argument('disable-infobars')
 chrome_options.add_argument('--disable-gpu')
@@ -33,6 +33,8 @@ if (timeZoneName == 'Coordinated Universal Time'):
     timeZoneName = 'UTC'
 if (timeZoneName == 'PST'):
     timeZoneName = 'America/Los_Angeles'
+if (timeZoneName == 'Eastern Standard Time'):
+    timeZoneName = 'US/Eastern'
 
 constants = {
     'min_idea_threshold': 200,

@@ -4,7 +4,7 @@ import optparse
 from modules.helpers import (convertToEST, findTradingDays, getAllStocks,
                              insertResults, findWeight)
 from modules.hyperparameters import constants
-from modules.nn import calcReturns, testing
+#from modules.nn import calcReturns, testing
 from modules.prediction import (basicPrediction, findAllTweets, updateBasicStockInfo, setupUserInfos)
 from modules.stockAnalysis import (findPageStock, getTopStocks, parseStockData,
                                    shouldParseStock, updateLastMessageTime,
