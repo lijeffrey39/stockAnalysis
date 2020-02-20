@@ -39,7 +39,7 @@ if (timeZoneName == 'Eastern Standard Time'):
 constants = {
     'min_idea_threshold': 200,
     'max_tweets': 10000,
-    'hoursBackToAnalyze': 0.001,
+    'hoursBackToAnalyze': 1,
     'project_root': project_root,
     'driver_bin': driver_bin,
     'chrome_options': chrome_options,

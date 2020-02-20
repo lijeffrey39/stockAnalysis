@@ -122,6 +122,9 @@ def addOptions(parser):
     parser.add_option('-c', '--updateCloseOpens',
                       action='store_true', dest="updateCloseOpens",
                       help="update Close open times")
+    parser.add_option('-z', '--hourlyparser',
+                      action='store_true', dest="hourlyparser",
+                      help="parse through stock pages hourly")
 
 
 # Make a prediction for given date
@@ -132,6 +135,12 @@ def makePrediction(date):
     stocks = ['TSLA']
     analyzeStocks(date, stocks)
     # basicPrediction(dates, stocks, True, True)
+
+def hourlyparse():
+    date = convertToEST(datetime.datetime.now())
+    stocks = getTopStocks(50)
+    date = datetime.datetime(date.year, date.month, date.day, 9, 30)
+    analyzeStocks(date, stocks)
 
 
 def main():
@@ -159,6 +168,8 @@ def main():
         dateUpTo = datetime.datetime(dateNow.year, 12, 1, 16)
         dates = findTradingDays(date, dateUpTo)
         updateAllCloseOpen(stocks, dates)
+    elif (options.hourlyparser):
+        hourlyparse()
     else:
         date = datetime.datetime(2018, 7, 22, 9, 30)
         # date = datetime.datetime(2019, 7, 22, 9, 30)

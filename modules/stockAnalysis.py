@@ -109,6 +109,7 @@ def shouldParseStock(symbol, dateString):
 
     lastTime = tweetsMapped[0]['time']
     totalHoursBack = (currTime - lastTime).total_seconds() / 3600.0
+    #totalHoursBack = 1.1
     print(currTime, lastTime, totalHoursBack)
 
     # need to continue to parse if data is more than 3 hours old
