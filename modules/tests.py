@@ -14,6 +14,7 @@ from .stockPriceAPI import (findCloseOpen,
                             getUpdatedCloseOpen)
 from .stockAnalysis import getTopStocks
 from .userAnalysis import getAllUserInfo
+from .helpers import (readPickleObject, writePickleObject)
 from random import shuffle
 import matplotlib.pyplot as plt
 
@@ -136,3 +137,35 @@ def findErrorUsers():
 
     # for x in cursor[:100]:
     #     print(x['_id'], x['error'])
+
+
+def saveUserInfo():
+    accuracy = constants['db_user_client'].get_database('user_data_db').user_accuracy_v2
+    allUsersAccs = accuracy.find()
+    path = 'pickledObjects/tempUserInfo.pkl'
+    result = readPickleObject(path)
+    count = 0
+    for user in allUsersAccs:
+        print(user['_id'])
+        result[user['_id']] = user
+        if (count % 100 == 0):
+            count = 0
+            print(count)
+    
+    writePickleObject(path, result)
+
+
+# def readUserInfo():
+#     path = 'pickledObjects/tempUserInfo.pkl'
+#     result = readPickleObject(path)
+#     res = {}
+#     count = 0
+#     for user in result:
+#         print(user, result[user]['1']['numCloseOpen']['bull'])
+#         result[user['_id']] = user
+#         count += 1
+#         if (count % 100 == 0):
+#             count = 0
+#             print(count)
+
+#     writePickleObject(path res)

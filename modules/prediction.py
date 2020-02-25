@@ -10,19 +10,14 @@ from functools import reduce
 
 from dateutil.parser import parse
 
-from .helpers import (readPickleObject,
-                      writePickleObject,
-                      recurse,
-                      calcRatio,
-                      writeCachedTweets,
-                      readCachedTweets,
-                      readCachedCloseOpen,
-                      writeCachedCloseOpen)
+from .helpers import (calcRatio, findWeight, readCachedCloseOpen,
+                      readCachedTweets, readPickleObject, recurse,
+                      writeCachedCloseOpen, writeCachedTweets,
+                      writePickleObject)
 from .hyperparameters import constants
 from .messageExtract import *
-from .stockPriceAPI import (getUpdatedCloseOpen,
-                            updateAllCloseOpen)
-from .userAnalysis import getAllUserInfo
+from .stockPriceAPI import getUpdatedCloseOpen, updateAllCloseOpen
+from .userAnalysis import getAllUserInfo, setupUserInfos
 
 
 # ------------------------------------------------------------------------
@@ -48,51 +43,121 @@ def buildResult():
     return result
 
 
+# Build empty feature object
+def buildFeatures():
+    features = {}
+    functions = constants['functions']
+    uniques = ['nonUnique', 'unique']
+    infos = ['stock', 'user']
+    bullBear = ['bull', 'bear']
+    featureNames = ['return', 'returnWeights', 'count', 'totalReturnCloseOpen',
+                    'totalReturnWeighted', 'returnUnique', 'returnWeightedUnique',
+                    'countUnique', 'totalReturnUnique', 'totalReturnUniqueWeighted']
+    for fx in functions:
+        features[fx] = {}
+        for fy in functions:
+            features[fx][fy] = {}
+            for u in uniques:
+                features[fx][fy][u] = {}
+                for infoName in infos:
+                    features[fx][fy][u][infoName] = {}
+                    for f in featureNames:
+                        features[fx][fy][u][infoName][f] = {}
+                        for b in bullBear:
+                            features[fx][fy][u][infoName][f][b] = {}
+    return features
+
+
+# Return a number based on how reliable the users prediction is
+# Very naive metho right now
+# TODO: Ideally use features such as join date, follower following ratio etc
+def weightedUserPrediction(user):
+    return user['totalReturn'] * user['accuracy']
+
+
+# Tell whether the tweet is actually bull or bear based on historical predictions
+def bearBull(isBull, returns):
+    label = 'bull' if isBull else 'bear'
+    if (returns < 0):
+        label = 'bull' if (label == 'bear') else 'bear'
+    return label
+
+
+def findFeaturesFromTweet(isBull, userInfo, symbol, f):
+    stockInfo = userInfo['perStock'][symbol]
+    result = buildFeatures()['1']['1']['unique']
+    result['totalLabeledTweet'] = 1
+    infos = {'stock': stockInfo, 'user': userInfo}
+    for infoName in infos:
+        # If more accurate for this label, trust prediction, otherwise do opposite
+        # Basically reverse what their prediction was
+        info = infos[infoName]
+        label = bearBull(isBull, info[f]['returnCloseOpen']['bull' if isBull else 'bear'])
+        result[infoName]['return'][label] = info[f]['returnCloseOpen'][label]
+        accuracy = info[f]['numCloseOpen'][label] / info[f]['numPredictions'][label]
+        result[infoName]['returnWeighted'][label] = accuracy * info[f]['returnCloseOpen'][label]
+        result[infoName]['count'][label] += 1
+
+        totalReturn = info[f]['returnCloseOpen']['bull'] + info[f]['returnCloseOpen']['bear']
+        labelTotal = bearBull(isBull, totalReturn)
+        result[infoName]['totalReturnCloseOpen'][labelTotal] = totalReturn
+        accuracy = (info[f]['numCloseOpen']['bull'] + info[f]['numCloseOpen']['bear']) / (info[f]['numPredictions']['bull'] + info[f]['numPredictions']['bear'])
+        result[infoName]['totalReturnWeighted'][labelTotal] = accuracy * totalReturn
+
+        labelUnique = bearBull(isBull, info[f]['returnUnique']['bull' if isBull else 'bear'])
+        result[infoName]['returnUnique'][labelUnique] = info[f]['returnUnique'][labelUnique]
+        accuracy = info[f]['numUnique'][labelUnique] / info[f]['numUniquePredictions'][labelUnique]
+        result[infoName]['returnWeightedUnique'][labelUnique] = accuracy * info[f]['returnCloseOpen'][labelUnique]
+        result[infoName]['countUnique'][labelUnique] += 1
+
+        totalReturnUnique = info[f]['returnUnique']['bull'] + info[f]['returnUnique']['bear']
+        labelTotalUnique = bearBull(isBull, totalReturnUnique)
+        result[infoName]['totalReturnUnique'][labelTotalUnique] = totalReturnUnique
+        accuracy = (info[f]['numUnique']['bull'] + info[f]['numUnique']['bear']) / (info[f]['numUniquePredictions']['bull'] + info[f]['numUniquePredictions']['bear'])
+        result[infoName]['totalReturnUniqueWeighted'][labelTotalUnique] = accuracy * totalReturnUnique
+    return result
+
+
+# Update feature object per stock, per day
+def updateSentimentFeatures(features, tweetFeatures, usersTweets, unique, w, f):
+    for fs in tweetFeatures:
+        for infoName in tweetFeatures[fs]:
+            for features in tweetFeatures[fs][infoName]:
+                for labels in tweetFeatures[fs][infoName][features]:
+                    value = tweetFeatures[fs][infoName][features][labels]
+                    features[f][fs][unique][infoName][features][labels] += (w * value)
+                bullFeature = features[f][fs][unique][infoName][features]['bull']
+                bearFeature = features[f][fs][unique][infoName][features]['bear']
+                features[f][fs][unique][infoName][features]['ratio'] = calcRatio(bullFeature, bearFeature)
+
+
 # Calculate features based on list of tweets
 def newCalculateSentiment(tweets, symbol, userAccDict):
     usersTweeted = {'bull': set([]), 'bear': set([])}
-    result = buildResult()
+    functions = constants['functions']
+    features = buildFeatures()
 
-    for tweet in tweets:
-        username = tweet['user']
-        isBull = tweet['isBull']
-        result['totalLabeledTweets'] += 1
-        if (username not in userAccDict or symbol not in userAccDict[username]['perStock']):
-            continue
+    # Weight all values based on the function and time of posting
+    for f in functions:
+        for tweet in tweets:
+            username = tweet['user']
+            isBull = tweet['isBull']
+            label = 'bull' if isBull else 'bear'
+            w = findWeight(tweet['time'], f)
+            if (username not in userAccDict or symbol not in userAccDict[username]['perStock']):
+                continue
 
-        lWord = 'bull'
-        uWord = 'Bull'
-        if (isBull is False):
-            lWord = 'bear'
-            uWord = 'Bear'
+            tweetFeatures = {}
+            for fs in functions:   
+                tempResult = findFeaturesFromTweet(isBull, userAccDict[username], symbol, fs)
+                tweetFeatures[fs] = tempResult
 
-        userInfo = userAccDict[username]
-        stockInfo = userInfo['perStock'][symbol]
-        if (stockInfo[lWord + 'ReturnCloseOpen'] > 0):
-            result['user' + uWord + 'Return'] += userInfo[lWord + 'ReturnCloseOpen']
-            result['user' + uWord + 'ReturnUnique'] += userInfo[lWord + 'ReturnUnique']
-            result['stock' + uWord + 'Return'] += stockInfo[lWord + 'ReturnCloseOpen']
-            result['stock' + uWord + 'ReturnUnique'] += stockInfo[lWord + 'ReturnUnique']
-            result[lWord + 'Count'] += 1
-            if (username not in usersTweeted[lWord]):
-                usersTweeted[lWord].add(username)
-                result['Uuser' + uWord + 'Return'] += userInfo[lWord + 'ReturnCloseOpen']
-                result['Uuser' + uWord + 'ReturnUnique'] += userInfo[lWord + 'ReturnUnique']
-                result['Ustock' + uWord + 'Return'] += stockInfo[lWord + 'ReturnCloseOpen']
-                result['Ustock' + uWord + 'ReturnUnique'] += stockInfo[lWord + 'ReturnUnique']
-                result['U' + lWord + 'Count'] += 1
+            updateSentimentFeatures(features, tweetFeatures, usersTweeted, 'nonUnique', w, f)
+            if (username not in usersTweeted[label]):
+                usersTweeted[label].add(username)
+                updateSentimentFeatures(features, tweetFeatures, usersTweeted, 'unqiue', w, f)
 
-    for start in ['', 'U']:
-        for ending in ['Return', 'ReturnUnique']:
-            for second in ['user', 'stock']:
-                result[start + second + ending + 'Ratio'] = calcRatio(result[second + 'Bull' + ending],
-                          result[second + 'Bear' + ending])
-
-    result['countRatio'] = calcRatio(result['bullCount'], result['bearCount'])
-    result['UCountRatio'] = calcRatio(result['UbullCount'], result['UbearCount'])
-    result['totalLabeledTweetsUsed'] = result['bullCount'] + result['bearCount']
-    result['UtotalLabeledTweetsUsed'] = result['UbullCount'] + result['UbearCount']
-    return result
+    return features
 
 
 # Calculate features based on list of tweets
@@ -177,53 +242,6 @@ def setupCloseOpen(dates, stocks, updateObject=False):
     return result
 
 
-# User Infos from saved file
-def setupUserInfos(updateObject=False):
-    print("Setup User Info")
-    path = 'pickledObjects/userInfosV2.pkl'
-    result = readPickleObject(path)
-    if (updateObject is False):
-        return result
-
-    allUsers = constants['db_user_client'].get_database('user_data_db').users
-    accuracy = constants['db_user_client'].get_database('user_data_db').user_accuracy_v2
-    allUsersAccs = allUsers.find()
-    modCheck = 0
-    count = 0
-    for user in allUsersAccs:
-        userId = user['_id']
-        count += 1
-        if (userId in result):
-            print('found', userId)
-            continue
-        if (accuracy.find_one({'_id': userId}) is None):
-            print(userId)
-            result[userId] = 1
-            continue
-        res = getAllUserInfo(user)
-        print('new', userId)
-        result[userId] = res
-        modCheck += 1
-        if (modCheck % 100 == 0):
-            writePickleObject(path, result)
-            modCheck = 0
-            print(count)
-
-    # result = {}
-    # for symbol in stocks:
-    #     print(symbol)
-    #     accuracy = constants['db_user_client'].get_database('user_data_db').user_accuracy_v2
-    #     allUsersAccs = accuracy.find({'perStock.' + symbol: {'$exists': True}})
-    #     print(allUsersAccs.count())
-    #     for user in allUsersAccs:
-    #         if (user['_id'] not in result):
-    #             print(user['_id'])
-    #             result[user['_id']] = user
-
-    writePickleObject(path, result)
-    return result
-
-
 # Stock Infos from saved file
 def setupStockInfos(stocks, updateObject=False):
     print("Setup Stock Info")
@@ -241,19 +259,35 @@ def setupStockInfos(stocks, updateObject=False):
     return result
 
 
-def setupResults(dates, keys):
-    results = {}
-    for date in dates:
-        results[date] = {}
-        results[date]['closeOpen'] = {}
-        results[date]['params'] = buildResult()
-        for k in results[date]['params']:
-            results[date]['params'][k] = {}
-        for k in keys:
-            results[date]['params'][k] = {}
-    return results
+# Find all tweets on this given day from database
+def findTweets(date, symbol):
+    tweetsDB = constants['stocktweets_client'].get_database('tweets_db')
+    db = constants['db_client'].get_database('stocks_data_db').updated_close_open
+    dayIncrement = datetime.timedelta(days=1)
+    dateEnd = datetime.datetime(date.year, date.month, date.day, 16)
+    dateStart = dateEnd - dayIncrement
+
+    # find dateStart starting at dateEnd
+    testDay = db.find_one({'_id': 'AAPL ' + dateStart.strftime("%Y-%m-%d")})
+    count = 0
+    while (testDay is None and count != 10):
+        dateStart -= dayIncrement
+        testDay = db.find_one({'_id': 'AAPL ' + dateStart.strftime("%Y-%m-%d")})
+        count += 1
+
+    query = {"$and": [{'symbol': symbol},
+                      {"$or": [
+                            {'isBull': True},
+                            {'isBull': False}
+                      ]},
+                      {'time': {'$gte': dateStart,
+                                '$lt': dateEnd}}]}
+    tweets = list(tweetsDB.tweets.find(query))
+    return tweets
 
 
+# Find all tweets for each date
+# Tweets for any given day is from the previous trading day to current day at 4:00 PM
 def findAllTweets(stocks, dates, updateObject=False, dayPrediction=False):
     print("Setup Tweets")
     path = 'pickledObjects/allTweets.pkl'
@@ -264,7 +298,6 @@ def findAllTweets(stocks, dates, updateObject=False, dayPrediction=False):
     if (dayPrediction):
         result = {}
 
-    tweetsDB = constants['stocktweets_client'].get_database('tweets_db')
     for symbol in stocks:
         print(symbol)
         if (symbol not in result):
@@ -272,30 +305,20 @@ def findAllTweets(stocks, dates, updateObject=False, dayPrediction=False):
 
         cachedTweets = readCachedTweets(symbol)
         for date in dates:
-            d = date.strftime('%m/%d/%Y')
-            if (d not in result[symbol]):
+            if (date not in result[symbol]):
                 # Check if the date exists in the cached tweets
-                if (d in cachedTweets):
-                    result[symbol][d] = cachedTweets[d]
+                if (date in cachedTweets):
+                    result[symbol][date] = cachedTweets[date]
                     continue
-                result[symbol][d] = []
-                dateStart = datetime.datetime(date.year,
-                                              date.month, date.day, 9, 30)
-                dateEnd = datetime.datetime(date.year,
-                                            date.month, date.day, 16, 0)
-                query = {"$and": [{'symbol': symbol},
-                                  {"$or": [
-                                        {'isBull': True},
-                                        {'isBull': False}
-                                  ]},
-                                  {'time': {'$gte': dateStart,
-                                            '$lt': dateEnd}}]}
-                tweets = list(tweetsDB.tweets.find(query))
+                result[symbol][date] = []
+                # Find all tweets from previous trading day to 4:00 PM this day
+                tweets = findTweets(date, symbol)
                 for tweet in tweets:
-                    result[symbol][d].append(tweet)
+                    result[symbol][date].append(tweet)
 
                 if (dayPrediction is False):
                     writeCachedTweets(symbol, tweets)
+            print(date, len(result[symbol][date]))
 
     if (updateObject and dayPrediction is False):
         writePickleObject(path, result)
@@ -433,6 +456,7 @@ def basicPrediction(dates, stocks, updateObject=False, dayPrediction=False):
     #     print(x[0], sum(x[1]))
 
 
+# Generate features for each stock on each day based on tweets for that given day
 def generateFeatures(dates, stocks, allTweets, stockInfo,
                      userInfo, updateObject=False, dayPrediction=False):
     print("Generating Features")
@@ -446,15 +470,14 @@ def generateFeatures(dates, stocks, allTweets, stockInfo,
         print(symbol)
         features[symbol] = {}
         for date in dates:
-            if (date.strftime('%m/%d/%Y') not in allTweets[symbol]):
+            if (date not in allTweets[symbol]):
                 continue
             features[symbol][date] = {}
-            tweets = allTweets[symbol][date.strftime('%m/%d/%Y')]
+            tweets = allTweets[symbol][date]
             print(len(tweets))
             sentiment = calculateSentiment(tweets, symbol, userInfo)
             for param in sentiment:
                 paramVal = sentiment[param]
-                # print(stockInfo[symbol])
                 paramMean = stockInfo[symbol][param]['mean']
                 paramStd = stockInfo[symbol][param]['stdev']
                 if (stockInfo[symbol][param]['stdev'] == 0.0):
@@ -507,21 +530,3 @@ def updateBasicStockInfo(dates, stocks, allTweets):
                 symbolInfo[k]['mean'] = statistics.mean(vals)
                 symbolInfo[k]['stdev'] = statistics.stdev(vals)
         basicStockInfo.insert_one(symbolInfo)
-
-
-# Ideal when enough user information collected
-
-# Current weightings for predictions
-# 1. Number of stocks to pick from (higher means lower risk)
-# 2. Accuracy for that user overall
-# 3. Accuracy for that user for that specific stock
-# 4. How many predictions this user has made relative to everyone else
-# 5. How many predictions this user has made relative to people predicting this stock
-
-# Other weights to add
-# 6. Number of likes/comments for a prediction
-# 7. Number of followers (If in thousands, remove k and multiply by 1,000)
-# 8. How old of a member he/she is
-
-# TODO
-# 8. Find weight of a particular sector/industry

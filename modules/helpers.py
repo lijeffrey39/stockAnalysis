@@ -109,7 +109,12 @@ def readCachedCloseOpen(symbol):
 
 # Extracts tweets from cached tweets from CSVs
 def readCachedTweets(symbol):
-    with open('./cachedTweets/' + symbol + '.csv') as csv_file:
+    path = './cachedTweets/' + symbol + '.csv'
+    if (os.path.exists(path) is False):
+        writeCachedTweets(symbol, [])
+        return {}
+
+    with open(path) as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=',')
         result = {}
         for row in csv_reader:

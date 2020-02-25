@@ -106,18 +106,22 @@ def findUsers(reAnalyze, findNewUsers, updateUser):
     # Find all tweets this user posted again up till last time
     if (updateUser):
         analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
-        dateStart = convertToEST(datetime.datetime.now()) - datetime.timedelta(days=19)
+        dateStart = convertToEST(datetime.datetime.now()) - datetime.timedelta(days=30)
         query = {"$and": [{'error': ''},
                           {'last_updated': {'$lte': dateStart}}]}
         cursor = analyzedUsers.find(query)
     elif (reAnalyze):
         analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
-        query = {"$and": [{'error': {'$ne': 'Not enough ideas'}},
-                          {'error': {'$ne': "User doesn't exist"}},
-                          {'error': {'$ne': ""}},
-                          {'error': {'$ne': "User doesn't exist / API down"}},
-                          {'error': {'$ne': 'User has no tweets'}},
-                          {'error': {'$ne': "Empty result list"}}]}
+        query = {"$and": [{'error': {'$ne': 'Not enough ideas'}}
+                        # fix these too
+                        # Message: session not created: This version of ChromeDriver only supports Chrome version 78
+                        # ,
+                        #   {'error': {'$ne': "User doesn't exist"}},
+                        #   {'error': {'$ne': ""}},
+                        #   {'error': {'$ne': "User doesn't exist / API down"}},
+                        #   {'error': {'$ne': 'User has no tweets'}},
+                        #   {'error': {'$ne': "Empty result list"}}
+                          ]}
         cursor = analyzedUsers.find(query)
     else:
         analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
@@ -559,3 +563,50 @@ def calculateAllUserInfo():
         if (len(result) == 0):
             continue
         print(u, result['accuracyUnique'], result['totalReturnUnique'])
+
+
+# User Infos from saved file
+def setupUserInfos(updateObject=False):
+    print("Setup User Info")
+    path = 'pickledObjects/userInfosV2.pkl'
+    result = readPickleObject(path)
+    if (updateObject is False):
+        return result
+
+    allUsers = constants['db_user_client'].get_database('user_data_db').users
+    accuracy = constants['db_user_client'].get_database('user_data_db').user_accuracy_v2
+    allUsersAccs = allUsers.find()
+    modCheck = 0
+    count = 0
+    for user in allUsersAccs:
+        userId = user['_id']
+        count += 1
+        if (userId in result):
+            print('found', userId)
+            continue
+        if (accuracy.find_one({'_id': userId}) is None):
+            print(userId)
+            result[userId] = 1
+            continue
+        res = getAllUserInfo(user)
+        print('new', userId)
+        result[userId] = res
+        modCheck += 1
+        if (modCheck % 100 == 0):
+            writePickleObject(path, result)
+            modCheck = 0
+            print(count)
+
+    # result = {}
+    # for symbol in stocks:
+    #     print(symbol)
+    #     accuracy = constants['db_user_client'].get_database('user_data_db').user_accuracy_v2
+    #     allUsersAccs = accuracy.find({'perStock.' + symbol: {'$exists': True}})
+    #     print(allUsersAccs.count())
+    #     for user in allUsersAccs:
+    #         if (user['_id'] not in result):
+    #             print(user['_id'])
+    #             result[user['_id']] = user
+
+    writePickleObject(path, result)
+    return result
