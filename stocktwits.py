@@ -8,7 +8,7 @@ from modules.hyperparameters import constants
 from modules.prediction import (basicPrediction, findAllTweets, updateBasicStockInfo, setupUserInfos)
 from modules.stockAnalysis import (findPageStock, getTopStocks, parseStockData,
                                    shouldParseStock, updateLastMessageTime,
-                                   updateLastParsedTime)
+                                   updateLastParsedTime, updateStockCount, getSortedStocks)
 from modules.stockPriceAPI import (updateAllCloseOpen, transferNonLabeled, findCloseOpen, closeToOpen)
 from modules.userAnalysis import (findPageUser, findUsers, insertUpdateError,
                                   parseUserData, shouldParseUser, getStatsPerUser,
@@ -122,8 +122,13 @@ def addOptions(parser):
     parser.add_option('-c', '--updateCloseOpens',
                       action='store_true', dest="updateCloseOpens",
                       help="update Close open times")
+
     parser.add_option('-z', '--hourlyparser',
                       action='store_true', dest="hourlyparser",
+                      help="parse through stock pages hourly")
+    
+    parser.add_option('-d', '--dailyparser',
+                      action='store_true', dest="dailyparser",
                       help="parse through stock pages hourly")
 
 
@@ -141,6 +146,14 @@ def hourlyparse():
     stocks = getTopStocks(50)
     date = datetime.datetime(date.year, date.month, date.day, 9, 30)
     analyzeStocks(date, stocks)
+
+def dailyparse():
+    updateStockCount()
+    
+    date = convertToEST(datetime.datetime.now())
+    stocks = getSortedStocks()
+    analyzeStocks(date, stocks[50:])
+
 
 
 def main():
@@ -170,6 +183,8 @@ def main():
         updateAllCloseOpen(stocks, dates)
     elif (options.hourlyparser):
         hourlyparse()
+    elif (options.dailyparser):
+        dailyparse()
     else:
         date = datetime.datetime(2018, 7, 22, 9, 30)
         # date = datetime.datetime(2019, 7, 22, 9, 30)
