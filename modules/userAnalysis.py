@@ -137,6 +137,7 @@ def findUsers(reAnalyze, findNewUsers, updateUser):
         toBeFound = setAllUsers - setUsers
         newL = sorted(list(toBeFound))
         print(len(newL))
+        shuffle(newL)
         return newL
 
     users = list(map(lambda document: document['_id'], cursor))
