@@ -2,6 +2,7 @@ import datetime
 from datetime import timedelta
 import time
 from random import shuffle
+import pickle
 
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
@@ -36,7 +37,7 @@ def getSortedStocks():
 
 def updateStockCount():
     currTime = convertToEST(datetime.datetime.now())
-    prevTime = currTime - timedelta(days=30)    
+    prevTime = currTime - timedelta(days=300)    
     stockCounts = constants['db_client'].get_database(
         'stocktwits_db').stock_counts
     allStocks = constants['db_client'].get_database('stocktwits_db').all_stocks
@@ -49,13 +50,15 @@ def updateStockCount():
                                                                   '$lt': currTime}}]})
         lastTime = stockCounts.find({'_id': s})
         tweetsMapped = list(map(lambda document: document, lastTime))
+        count = tweets.count()
+        print(s, count)
         # If no last parsed time has been set yet
         if (len(tweetsMapped) == 0):
-            stockCounts.insert_one({'_id': s, 'count': tweets.count()})
+            stockCounts.insert_one({'_id': s, 'count': count})
         else:
             # update last parsed time as current time
             query = {'_id': s}
-            newVal = {'$set': {'count': tweets.count()}}
+            newVal = {'$set': {'count': count}}
             stockCounts.update_one(query, newVal)
 
 
@@ -89,7 +92,7 @@ def findPageStock(symbol, date, hoursBack):
     #     if button.text == symbol:
     #         button.click()
     #         break
-    # hoursBack = 2
+    hoursBack = 0.1
     try:
         scroll.scrollFor(driver, hoursBack)
     except Exception as e:
@@ -99,6 +102,7 @@ def findPageStock(symbol, date, hoursBack):
 
     html = driver.page_source
     soup = BeautifulSoup(html, 'html.parser')
+
     end = time.time()
     print('Parsing stock took %d seconds' % (end - start))
     endDriver(driver)
@@ -198,6 +202,8 @@ def parseStockData(symbol, soup):
         allText = allT.find_all('div')
         username = findUser(t[0])
         textFound = allText[1].find('div').text  # No post processing
+        if (textFound == 'Bearish' or textFound == 'Bullish'):
+            textFound = allText[3].find('div').text
         isBull = isBullMessage(m)
         likeCnt = likeCount(m)
         commentCnt = commentCount(m)

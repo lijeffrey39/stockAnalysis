@@ -58,16 +58,20 @@ def findDateFromMessage(message):
     text = message.text
     t = text.split('\n')
     dateString = ''
-    if (t[0] == "Bearish" or t[0] == "Bullish"):
-        if (t[2] == 'Plus' or t[2] == 'Lifetime'):
-            dateString = t[3]
-        else:
-            dateString = t[2]
+    if (t[1] == "Bearish" or t[1] == "Bullish"):
+        dateString = t[2]
     else:
-        if (t[1] == 'Plus' or t[1] == 'Lifetime'):
-            dateString = t[2]
-        else:
-            dateString = t[1]
+        dateString = t[1]
+    # if (t[0] == "Bearish" or t[0] == "Bullish"):
+    #     if (t[2] == 'Plus' or t[2] == 'Lifetime'):
+    #         dateString = t[3]
+    #     else:
+    #         dateString = t[2]
+    # else:
+    #     if (t[1] == 'Plus' or t[1] == 'Lifetime'):
+    #         dateString = t[2]
+    #     else:
+    #         dateString = t[1]
     return findDateTime(dateString)
 
 

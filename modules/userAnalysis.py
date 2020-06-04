@@ -112,14 +112,15 @@ def findUsers(reAnalyze, findNewUsers, updateUser):
         cursor = analyzedUsers.find(query)
     elif (reAnalyze):
         analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
-        query = {"$or": [{'error': 'Not enough ideas'},
+        query = {"$or": [
+            # {'error': 'Not enough ideas'},
                         # fix these too
                         # Message: session not created: This version of ChromeDriver only supports Chrome version 78
                         # ,
                         #   {'error': {'$ne': "User doesn't exist"}},
-                        #   {'error': {'$ne': ""}},
+                          {'error': {'$ne': ""}},
                         #   {'error': {'$ne': "User doesn't exist / API down"}},
-                          {'error': 'User has no tweets'}
+                        #   {'error': 'User has no tweets'}
                         #   {'error': {'$ne': "Empty result list"}}
                           ]}
         cursor = analyzedUsers.find(query)

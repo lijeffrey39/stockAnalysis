@@ -1,5 +1,6 @@
 import datetime
 import optparse
+from bs4 import BeautifulSoup
 
 from modules.helpers import (convertToEST, findTradingDays, getAllStocks,
                              insertResults, findWeight)
@@ -44,6 +45,8 @@ def analyzeStocks(date, stocks):
             db.stock_tweets_errors.insert_one(stockError)
             continue
 
+        # page = open('output1.html')
+        # soup = BeautifulSoup(page.read())
         try:
             result = parseStockData(symbol, soup)
         except Exception as e:
@@ -148,7 +151,7 @@ def hourlyparse():
     analyzeStocks(date, stocks)
 
 def dailyparse():
-    updateStockCount()
+    # updateStockCount()
     
     date = convertToEST(datetime.datetime.now())
     stocks = getSortedStocks()
@@ -168,11 +171,13 @@ def main():
         now = convertToEST(datetime.datetime.now())
         date = datetime.datetime(now.year, now.month, now.day)
         stocks = getAllStocks()
+        stocks = getTopStocks(100)
         # print(len(stocks))
         # for i in range(len(stocks)):
         #     if (stocks[i] == "SESN"):
         #         print(i)
-        analyzeStocks(date, stocks)
+        print(stocks)
+        analyzeStocks(date, ['AAPL'])
     elif (options.prediction):
         makePrediction(dateNow)
     elif (options.updateCloseOpens):
