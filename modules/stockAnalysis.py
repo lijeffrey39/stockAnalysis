@@ -62,20 +62,25 @@ def updateStockCount():
 # Return soup object page of that stock
 def findPageStock(symbol, date, hoursBack):
     driver = None
+    print('1')
     try:
+        print('2')
         driver = webdriver.Chrome(executable_path=constants['driver_bin'],
                                   options=constants['chrome_options'],
                                   desired_capabilities=constants['caps'])
         driver.set_page_load_timeout(90)
     except Exception as e:
+        print('3')
         return ('', str(e), 0)
 
     start = time.time()
     url = "https://stocktwits.com/symbol/%s" % symbol
 
     try:
+        print('4')
         driver.get(url)
     except Exception as e:
+        print('5')
         end = time.time()
         endDriver(driver)
         return ('', str(e), end - start)
@@ -91,11 +96,13 @@ def findPageStock(symbol, date, hoursBack):
     #         break
     # hoursBack = 2
     try:
+        print('6')
         scroll.scrollFor(driver, hoursBack)
     except Exception as e:
         endDriver(driver)
         end = time.time()
-        return ('', str(e), end - start)
+        print(e)
+        # return ('', str(e), end - start)
 
     html = driver.page_source
     soup = BeautifulSoup(html, 'html.parser')
@@ -128,7 +135,7 @@ def shouldParseStock(symbol, dateString):
 
     lastTime = tweetsMapped[0]['time']
     totalHoursBack = (currTime - lastTime).total_seconds() / 3600.0
-    #totalHoursBack = 1.1
+    totalHoursBack = 13.0
     print(currTime, lastTime, totalHoursBack)
 
     # need to continue to parse if data is more than 3 hours old

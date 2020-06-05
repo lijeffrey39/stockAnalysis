@@ -114,7 +114,7 @@ def updateAllCloseOpen(stocks, dates, replace=False):
 def updatedCloseOpen(symbol, date):
     dateString = date.strftime("%Y%m%d")
     baseURL = "https://cloud.iexapis.com/stable/stock/" + symbol + "/chart/date/"
-    restURL = "?chartByDay=True&token=sk_63da34a91b164aeb943b44a8c5861e91"
+    restURL = "?chartByDay=True&token=sk_22c2d5789bb446b6aef446816d83a75c"
     URL = baseURL + dateString + restURL
     r = requests.get(url=URL)
     data = r.json()

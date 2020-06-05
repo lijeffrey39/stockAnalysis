@@ -141,6 +141,20 @@ def findUsers(reAnalyze, findNewUsers, updateUser):
         return newL
 
     users = list(map(lambda document: document['_id'], cursor))
+    shuffle(users) 
+    return users
+
+def parseOldUsers(daysback):
+    # Find new users to analyze from all tweets
+    updateUserNotAnalyzed()
+
+    cursor = None
+    analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
+    dateStart = convertToEST(datetime.datetime.now()) - datetime.timedelta(days=daysback)
+    query = {"$and": [{'error': ''},
+                        {'last_updated': {'$lte': dateStart}}]}
+    cursor = analyzedUsers.find(query)
+    users = list(map(lambda document: document['_id'], cursor))
     shuffle(users)
     return users
 

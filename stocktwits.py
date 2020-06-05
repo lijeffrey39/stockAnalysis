@@ -13,7 +13,7 @@ from modules.stockPriceAPI import (updateAllCloseOpen, transferNonLabeled, findC
 from modules.userAnalysis import (findPageUser, findUsers, insertUpdateError,
                                   parseUserData, shouldParseUser, getStatsPerUser,
                                   updateUserNotAnalyzed, getAllUserInfo,
-                                  calculateAllUserInfo)
+                                  calculateAllUserInfo, parseOldUsers)
 from modules.tests import (findBadMessages, removeMessagesWithStock, 
                            findTopUsers, findOutliers, findAllUsers, findErrorUsers)
 
@@ -35,27 +35,32 @@ def analyzeStocks(date, stocks):
         db = clientStockTweets.get_database('stocks_data_db')
         (shouldParse, hours) = shouldParseStock(symbol, dateString)
         if (shouldParse is False):
+            print('oh')
             continue
-
         (soup, errorMsg, timeElapsed) = findPageStock(symbol, date, hours)
+        print('hi')
         if (soup == ''):
             stockError = {'date': dateString, 'symbol': symbol,
                           'error': errorMsg, 'timeElapsed': timeElapsed}
             db.stock_tweets_errors.insert_one(stockError)
+            print('test1')
             continue
-
+        
         try:
             result = parseStockData(symbol, soup)
+            print('test4')
         except Exception as e:
             stockError = {'date': dateString, 'symbol': symbol,
                           'error': str(e), 'timeElapsed': -1}
             db.stock_tweets_errors.insert_one(stockError)
+            print('test2')
             continue
 
         if (len(result) == 0):
             stockError = {'date': dateString, 'symbol': symbol,
                           'error': 'Result length is 0??', 'timeElapsed': -1}
             db.stock_tweets_errors.insert_one(stockError)
+            print('test3')
             continue
 
         results = updateLastMessageTime(db, symbol, result)
@@ -77,6 +82,31 @@ def analyzeStocks(date, stocks):
 # reAnalyze reanalyzes users that errored out
 def analyzeUsers(reAnalyze, findNewUsers, updateUser):
     users = findUsers(reAnalyze, findNewUsers, updateUser)
+    print(len(users))
+    for username in users:
+        print(username)
+        coreInfo = shouldParseUser(username, reAnalyze, updateUser)
+        if (not coreInfo):
+            continue
+
+        (soup, errorMsg, timeElapsed) = findPageUser(username)
+        coreInfo['timeElapsed'] = timeElapsed
+        if (errorMsg != ''):
+            coreInfo['error'] = errorMsg
+            insertUpdateError(coreInfo, reAnalyze, updateUser)
+            continue
+
+        result = parseUserData(username, soup)
+        if (len(result) == 0):
+            coreInfo['error'] = "Empty result list"
+            insertUpdateError(coreInfo, reAnalyze, updateUser)
+            continue
+
+        insertUpdateError(coreInfo, reAnalyze, updateUser)
+        insertResults(result)
+
+def dailyAnalyzeUsers(reAnalyze, updateUser, daysback):
+    users = parseOldUsers(daysback)
     print(len(users))
     for username in users:
         print(username)
@@ -129,7 +159,11 @@ def addOptions(parser):
     
     parser.add_option('-d', '--dailyparser',
                       action='store_true', dest="dailyparser",
-                      help="parse through stock pages hourly")
+                      help="parse through non-top x stock pages daily")
+
+    parser.add_option('-a', '--dailyuserparser',
+                      action='store_true', dest="dailyuserparser",
+                      help="parse through user information that havent been parsed over last x days (14)")
 
 
 # Make a prediction for given date
@@ -141,20 +175,19 @@ def makePrediction(date):
     analyzeStocks(date, stocks)
     # basicPrediction(dates, stocks, True, True)
 
+# Executed hourly, finds all the tweets from the top x stocks
 def hourlyparse():
     date = convertToEST(datetime.datetime.now())
     stocks = getTopStocks(50)
     date = datetime.datetime(date.year, date.month, date.day, 9, 30)
     analyzeStocks(date, stocks)
 
+# Executed daily, finds all the tweets from the non-top x stocks
 def dailyparse():
     updateStockCount()
-    
     date = convertToEST(datetime.datetime.now())
     stocks = getSortedStocks()
     analyzeStocks(date, stocks[50:])
-
-
 
 def main():
     opt_parser = optparse.OptionParser()
@@ -172,25 +205,26 @@ def main():
         # for i in range(len(stocks)):
         #     if (stocks[i] == "SESN"):
         #         print(i)
-        analyzeStocks(date, stocks)
+        analyzeStocks(date, ['FB'])
     elif (options.prediction):
         makePrediction(dateNow)
     elif (options.updateCloseOpens):
+        date = datetime.datetime(2019, 12, 20, 9, 30)
+        dateUpTo = datetime.datetime(dateNow.year, 12, 20, 16)
+        dates = findTradingDays(date, dateNow - datetime.timedelta(days=1))
         stocks = getTopStocks(100)
-        date = datetime.datetime(dateNow.year, 7, 22, 9, 30)
-        dateUpTo = datetime.datetime(dateNow.year, 12, 1, 16)
-        dates = findTradingDays(date, dateUpTo)
         updateAllCloseOpen(stocks, dates)
     elif (options.hourlyparser):
         hourlyparse()
     elif (options.dailyparser):
         dailyparse()
+    elif (options.dailyuserparser):
+        dailyAnalyzeUsers(reAnalyze=True, updateUser=True, daysback=14)
     else:
-        date = datetime.datetime(2018, 7, 22, 9, 30)
-        # date = datetime.datetime(2019, 7, 22, 9, 30)
-        dateUpTo = datetime.datetime(dateNow.year, 12, 20, 16)
-        dates = findTradingDays(date, dateUpTo)
-        stocks = getTopStocks(20)
+        stocks = getTopStocks(100)
+        print(stocks)
+
+
         # stocks = getAllStocks()
         # print(dates)
         # findAllTweets(stocks, dates, True)
