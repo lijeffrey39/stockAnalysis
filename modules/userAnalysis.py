@@ -234,10 +234,10 @@ def findUserInfoDriver(username):
 
     # find user type, will be stored in bitwise fashion
     # plus is bit 3, lifetime is bit 2, official is bit 1, premium bit 0
-    user_block = soup.find('div', attrs={'class': constants['html_class_user_div']})
-    plus = user_block.find('div', attrs={'class': constants['html_class_plus']})
-    official = user_block.find('span', attrs={'class': constants['html_class_official']})
-    premium = user_block.find('a', attrs={'class': constants['html_class_premium_room']})
+    # user_block = soup.find('div', attrs={'class': constants['html_class_user_div']})
+    plus = soup.find('div', attrs={'class': 'lib_XwnOHoV lib_3UzYkI9 lib_lPsmyQd lib_2TK8fEo'})
+    official = soup.find('i', attrs={'class': 'lib_3rvh3qQ lib_AHwHgd8 st_15f6hU9 st_2Y5n_y3'})
+    premium = soup.find('a', attrs={'class': 'st_3yezEtB st_3PVuCod st_bPzIqx3 st_2t3n5Ue st_1VMMH6S st_1jzr122 st_wva9-Y8 st_2mehCkH st_8u0ePN3'})
 
     status = 0
     if (plus):

@@ -38,7 +38,7 @@ if (timeZoneName == 'Eastern Standard Time'):
 
 constants = {
     'min_idea_threshold': 200,
-    'max_tweets': 10000,
+    'max_tweets': 5000,
     'hoursBackToAnalyze': 12,
     'project_root': project_root,
     'driver_bin': driver_bin,
