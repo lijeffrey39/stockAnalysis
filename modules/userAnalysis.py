@@ -174,7 +174,7 @@ def findPageUser(username):
         return ('', str(e), 0)
 
     # Hardcoded to the first day we have historical stock data
-    start_date = convertToEST(datetime.datetime(2020, 1, 1))
+    start_date = convertToEST(datetime.datetime(2019, 6, 1))
     if (cursor.count() != 0 and 'last_updated' in cursor[0] and cursor[0]['error'] == ''):
         start_date = cursor[0]['last_updated']
         print('FOUND', start_date)
@@ -190,11 +190,12 @@ def findPageUser(username):
         endDriver(driver)
         return ('', str(e), end - start)
 
-    messages = driver.find_elements_by_class_name(constants['messageStreamAttr'])
-    if (len(messages) == 0):
-        endDriver(driver)
-        end = time.time()
-        return ('', 'User has no tweets', end - start)
+    # messages = driver.find_elements_by_class_name(constants['messageStreamAttr'])
+    # print(len(messages))
+    # if (len(messages) == 0):
+    #     endDriver(driver)
+    #     end = time.time()
+    #     return ('', 'User has no tweets', end - start)
 
     try:
         scroll.scrollFor(driver, current_span_hours)
