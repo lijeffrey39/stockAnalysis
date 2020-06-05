@@ -34,12 +34,13 @@ from .stockAnalysis import (getTopStocks)
 # if reanlyze, assumes user is already in db so need to update coreinfo
 def insertUpdateError(coreInfo, reAnalyze, updateUser):
     analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
-    if (reAnalyze is False and updateUser is False):
-        analyzedUsers.insert_one(coreInfo)
-    else:
+    result = analyzedUsers.find_one({'_id': coreInfo['_id']})
+    if (result):
         updateQuery = {'_id': coreInfo['_id']}
         newCoreInfo = {'$set': coreInfo}
         analyzedUsers.update_one(updateQuery, newCoreInfo)
+    else:
+        analyzedUsers.insert_one(coreInfo)
 
 
 # Checks whether to parse user
@@ -112,14 +113,15 @@ def findUsers(reAnalyze, findNewUsers, updateUser):
         cursor = analyzedUsers.find(query)
     elif (reAnalyze):
         analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
-        query = {"$or": [{'error': 'Not enough ideas'},
+        query = {"$or": [
+            # {'error': 'Not enough ideas'},
                         # fix these too
                         # Message: session not created: This version of ChromeDriver only supports Chrome version 78
                         # ,
                         #   {'error': {'$ne': "User doesn't exist"}},
-                        #   {'error': {'$ne': ""}},
+                          {'error': {'$ne': ""}},
                         #   {'error': {'$ne': "User doesn't exist / API down"}},
-                          {'error': 'User has no tweets'}
+                        #   {'error': 'User has no tweets'}
                         #   {'error': {'$ne': "Empty result list"}}
                           ]}
         cursor = analyzedUsers.find(query)
@@ -172,7 +174,7 @@ def findPageUser(username):
         return ('', str(e), 0)
 
     # Hardcoded to the first day we have historical stock data
-    start_date = convertToEST(datetime.datetime(2019, 1, 1))
+    start_date = convertToEST(datetime.datetime(2020, 1, 1))
     if (cursor.count() != 0 and 'last_updated' in cursor[0] and cursor[0]['error'] == ''):
         start_date = cursor[0]['last_updated']
         print('FOUND', start_date)
@@ -246,10 +248,10 @@ def findUserInfoDriver(username):
 
     # find user type, will be stored in bitwise fashion
     # plus is bit 3, lifetime is bit 2, official is bit 1, premium bit 0
-    user_block = soup.find('div', attrs={'class': constants['html_class_user_div']})
-    plus = user_block.find('div', attrs={'class': constants['html_class_plus']})
-    official = user_block.find('span', attrs={'class': constants['html_class_official']})
-    premium = user_block.find('a', attrs={'class': constants['html_class_premium_room']})
+    # user_block = soup.find('div', attrs={'class': constants['html_class_user_div']})
+    plus = soup.find('div', attrs={'class': 'lib_XwnOHoV lib_3UzYkI9 lib_lPsmyQd lib_2TK8fEo'})
+    official = soup.find('i', attrs={'class': 'lib_3rvh3qQ lib_AHwHgd8 st_15f6hU9 st_2Y5n_y3'})
+    premium = soup.find('a', attrs={'class': 'st_3yezEtB st_3PVuCod st_bPzIqx3 st_2t3n5Ue st_1VMMH6S st_1jzr122 st_wva9-Y8 st_2mehCkH st_8u0ePN3'})
 
     status = 0
     if (plus):
@@ -323,6 +325,8 @@ def parseUserData(username, soup):
         allT = m.find('div', {'class': constants['messageTextAttr']})
         allText = allT.find_all('div')
         textFound = allText[1].find('div').text  # No post processing
+        if (textFound == 'Bearish' or textFound == 'Bullish'):
+            textFound = allText[3].find('div').text
         isBull = isBullMessage(m)
         likeCnt = likeCount(m)
         commentCnt = commentCount(m)

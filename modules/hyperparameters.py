@@ -17,8 +17,8 @@ chrome_options = webdriver.ChromeOptions()
 prefs = {"profile.managed_default_content_settings.images": 2}
 chrome_options.add_experimental_option("prefs", prefs)
 chrome_options.add_experimental_option("prefs", prefs)
-chrome_options.add_argument("--headless")
-chrome_options.add_argument('log-level=3')
+# chrome_options.add_argument("--headless")
+# chrome_options.add_argument('log-level=3')
 chrome_options.add_argument("--disable-extensions")
 chrome_options.add_argument('disable-infobars')
 chrome_options.add_argument('--disable-gpu')
@@ -38,8 +38,8 @@ if (timeZoneName == 'Eastern Standard Time'):
 
 constants = {
     'min_idea_threshold': 200,
-    'max_tweets': 10000,
-    'hoursBackToAnalyze': 1,
+    'max_tweets': 5000,
+    'hoursBackToAnalyze': 12,
     'project_root': project_root,
     'driver_bin': driver_bin,
     'chrome_options': chrome_options,

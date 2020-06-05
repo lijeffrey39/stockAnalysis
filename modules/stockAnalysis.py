@@ -2,6 +2,7 @@ import datetime
 from datetime import timedelta
 import time
 from random import shuffle
+import pickle
 
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
@@ -36,7 +37,7 @@ def getSortedStocks():
 
 def updateStockCount():
     currTime = convertToEST(datetime.datetime.now())
-    prevTime = currTime - timedelta(days=30)    
+    prevTime = currTime - timedelta(days=300)    
     stockCounts = constants['db_client'].get_database(
         'stocktwits_db').stock_counts
     allStocks = constants['db_client'].get_database('stocktwits_db').all_stocks
@@ -49,38 +50,35 @@ def updateStockCount():
                                                                   '$lt': currTime}}]})
         lastTime = stockCounts.find({'_id': s})
         tweetsMapped = list(map(lambda document: document, lastTime))
+        count = tweets.count()
+        print(s, count)
         # If no last parsed time has been set yet
         if (len(tweetsMapped) == 0):
-            stockCounts.insert_one({'_id': s, 'count': tweets.count()})
+            stockCounts.insert_one({'_id': s, 'count': count})
         else:
             # update last parsed time as current time
             query = {'_id': s}
-            newVal = {'$set': {'count': tweets.count()}}
+            newVal = {'$set': {'count': count}}
             stockCounts.update_one(query, newVal)
 
 
 # Return soup object page of that stock
 def findPageStock(symbol, date, hoursBack):
     driver = None
-    print('1')
     try:
-        print('2')
         driver = webdriver.Chrome(executable_path=constants['driver_bin'],
                                   options=constants['chrome_options'],
                                   desired_capabilities=constants['caps'])
         driver.set_page_load_timeout(90)
     except Exception as e:
-        print('3')
         return ('', str(e), 0)
 
     start = time.time()
     url = "https://stocktwits.com/symbol/%s" % symbol
 
     try:
-        print('4')
         driver.get(url)
     except Exception as e:
-        print('5')
         end = time.time()
         endDriver(driver)
         return ('', str(e), end - start)
@@ -94,9 +92,8 @@ def findPageStock(symbol, date, hoursBack):
     #     if button.text == symbol:
     #         button.click()
     #         break
-    # hoursBack = 2
+    #hoursBack = 13
     try:
-        print('6')
         scroll.scrollFor(driver, hoursBack)
     except Exception as e:
         endDriver(driver)
@@ -106,6 +103,7 @@ def findPageStock(symbol, date, hoursBack):
 
     html = driver.page_source
     soup = BeautifulSoup(html, 'html.parser')
+
     end = time.time()
     print('Parsing stock took %d seconds' % (end - start))
     endDriver(driver)
@@ -205,6 +203,8 @@ def parseStockData(symbol, soup):
         allText = allT.find_all('div')
         username = findUser(t[0])
         textFound = allText[1].find('div').text  # No post processing
+        if (textFound == 'Bearish' or textFound == 'Bullish'):
+            textFound = allText[3].find('div').text
         isBull = isBullMessage(m)
         likeCnt = likeCount(m)
         commentCnt = commentCount(m)

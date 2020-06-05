@@ -57,17 +57,16 @@ def findSymbol(text, allSymbols):
 def findDateFromMessage(message):
     text = message.text
     t = text.split('\n')
-    dateString = ''
-    if (t[0] == "Bearish" or t[0] == "Bullish"):
-        if (t[2] == 'Plus' or t[2] == 'Lifetime'):
+    
+    if (t[0] == "Plus" or t[0] == "Lifetime"):
+        if (t[2] == 'Bullish' or t[2] == 'Bearish'):
             dateString = t[3]
         else:
             dateString = t[2]
+    elif (t[1] == "Bullish" or t[1] == "Bearish"):
+        dateString = t[2]
     else:
-        if (t[1] == 'Plus' or t[1] == 'Lifetime'):
-            dateString = t[2]
-        else:
-            dateString = t[1]
+        dateString = t[1]
     return findDateTime(dateString)
 
 

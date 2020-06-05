@@ -35,32 +35,29 @@ def analyzeStocks(date, stocks):
         db = clientStockTweets.get_database('stocks_data_db')
         (shouldParse, hours) = shouldParseStock(symbol, dateString)
         if (shouldParse is False):
-            print('oh')
             continue
         (soup, errorMsg, timeElapsed) = findPageStock(symbol, date, hours)
-        print('hi')
         if (soup == ''):
             stockError = {'date': dateString, 'symbol': symbol,
                           'error': errorMsg, 'timeElapsed': timeElapsed}
-            db.stock_tweets_errors.insert_one(stockError)
-            print('test1')
+            #db.stock_tweets_errors.insert_one(stockError)
+            print(errorMsg)
             continue
         
         try:
             result = parseStockData(symbol, soup)
-            print('test4')
         except Exception as e:
             stockError = {'date': dateString, 'symbol': symbol,
                           'error': str(e), 'timeElapsed': -1}
-            db.stock_tweets_errors.insert_one(stockError)
-            print('test2')
+            #db.stock_tweets_errors.insert_one(stockError)
+            print(e)
             continue
 
         if (len(result) == 0):
             stockError = {'date': dateString, 'symbol': symbol,
                           'error': 'Result length is 0??', 'timeElapsed': -1}
-            db.stock_tweets_errors.insert_one(stockError)
-            print('test3')
+            #db.stock_tweets_errors.insert_one(stockError)
+            print(stockError)
             continue
 
         results = updateLastMessageTime(db, symbol, result)
@@ -205,7 +202,7 @@ def main():
         # for i in range(len(stocks)):
         #     if (stocks[i] == "SESN"):
         #         print(i)
-        analyzeStocks(date, ['FB'])
+        analyzeStocks(date, ['SNAP'])
     elif (options.prediction):
         makePrediction(dateNow)
     elif (options.updateCloseOpens):
@@ -221,8 +218,14 @@ def main():
     elif (options.dailyuserparser):
         dailyAnalyzeUsers(reAnalyze=True, updateUser=True, daysback=14)
     else:
-        stocks = getTopStocks(100)
-        print(stocks)
+        now = convertToEST(datetime.datetime.now())
+        date = datetime.datetime(now.year, now.month, now.day)
+        stocks = getAllStocks()
+        # print(len(stocks))
+        # for i in range(len(stocks)):
+        #     if (stocks[i] == "SESN"):
+        #         print(i)
+        analyzeStocks(date, ['SNAP'])
 
 
         # stocks = getAllStocks()
