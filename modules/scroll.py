@@ -36,6 +36,7 @@ def scrollFor(driver, hoursBack):
         time.sleep(constants['scroll_pause_time'])
 
         messages = driver.find_elements_by_class_name(constants['messageStreamAttr'])
+        print(len(messages))
         if (len(messages) > constants['max_tweets']):
             break
 
@@ -53,6 +54,7 @@ def scrollFor(driver, hoursBack):
         if (prevTime == currTime):
             countSame += 1
         else:
+            countSame = 0
             prevTime = currTime
 
         # If scrolled on the same one, reached end of page
