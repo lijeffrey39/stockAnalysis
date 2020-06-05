@@ -34,12 +34,13 @@ from .stockAnalysis import (getTopStocks)
 # if reanlyze, assumes user is already in db so need to update coreinfo
 def insertUpdateError(coreInfo, reAnalyze, updateUser):
     analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
-    if (reAnalyze is False and updateUser is False):
-        analyzedUsers.insert_one(coreInfo)
-    else:
+    result = analyzedUsers.find_one({'_id': coreInfo['_id']})
+    if (result):
         updateQuery = {'_id': coreInfo['_id']}
         newCoreInfo = {'$set': coreInfo}
         analyzedUsers.update_one(updateQuery, newCoreInfo)
+    else:
+        analyzedUsers.insert_one(coreInfo)
 
 
 # Checks whether to parse user
@@ -175,11 +176,11 @@ def findPageUser(username):
         endDriver(driver)
         return ('', str(e), end - start)
 
-    messages = driver.find_elements_by_class_name(constants['messageStreamAttr'])
-    if (len(messages) == 0):
-        endDriver(driver)
-        end = time.time()
-        return ('', 'User has no tweets', end - start)
+    # messages = driver.find_elements_by_class_name(constants['messageStreamAttr'])
+    # if (len(messages) == 0):
+    #     endDriver(driver)
+    #     end = time.time()
+    #     return ('', 'User has no tweets', end - start)
 
     try:
         scroll.scrollFor(driver, current_span_hours)
@@ -310,6 +311,8 @@ def parseUserData(username, soup):
         allT = m.find('div', {'class': constants['messageTextAttr']})
         allText = allT.find_all('div')
         textFound = allText[1].find('div').text  # No post processing
+        if (textFound == 'Bearish' or textFound == 'Bullish'):
+            textFound = allText[3].find('div').text
         isBull = isBullMessage(m)
         likeCnt = likeCount(m)
         commentCnt = commentCount(m)
