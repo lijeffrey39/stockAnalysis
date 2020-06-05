@@ -197,7 +197,7 @@ def main():
     elif (options.stocks):
         now = convertToEST(datetime.datetime.now())
         date = datetime.datetime(now.year, now.month, now.day)
-        stocks = getAllStocks()
+        stocks = getTopStocks(100)
         # print(len(stocks))
         # for i in range(len(stocks)):
         #     if (stocks[i] == "SESN"):
