@@ -23,6 +23,7 @@ from .stockPriceAPI import *
 
 def getTopStocks(numStocks=100):
     sortedStockList = getSortedStocks()
+    sortedStockList.remove('HSGX')
     return sortedStockList[:numStocks]
 
 def getSortedStocks():
@@ -99,7 +100,7 @@ def findPageStock(symbol, date, hoursBack):
         endDriver(driver)
         end = time.time()
         print(e)
-        # return ('', str(e), end - start)
+        return ('', str(e), end - start)
 
     html = driver.page_source
     soup = BeautifulSoup(html, 'html.parser')
@@ -133,7 +134,7 @@ def shouldParseStock(symbol, dateString):
 
     lastTime = tweetsMapped[0]['time']
     totalHoursBack = (currTime - lastTime).total_seconds() / 3600.0
-    totalHoursBack = 13.0
+    #totalHoursBack = 1.1
     print(currTime, lastTime, totalHoursBack)
 
     # need to continue to parse if data is more than 3 hours old
@@ -189,6 +190,7 @@ def updateLastMessageTime(db, symbol, result):
 
 def parseStockData(symbol, soup):
     res = []
+    print(soup)
     messages = soup.find_all('div',
                              attrs={'class': constants['messageStreamAttr']})
 

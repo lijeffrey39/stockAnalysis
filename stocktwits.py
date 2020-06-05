@@ -40,8 +40,7 @@ def analyzeStocks(date, stocks):
         if (soup == ''):
             stockError = {'date': dateString, 'symbol': symbol,
                           'error': errorMsg, 'timeElapsed': timeElapsed}
-            #db.stock_tweets_errors.insert_one(stockError)
-            print(errorMsg)
+            db.stock_tweets_errors.insert_one(stockError)
             continue
         
         try:
@@ -49,14 +48,14 @@ def analyzeStocks(date, stocks):
         except Exception as e:
             stockError = {'date': dateString, 'symbol': symbol,
                           'error': str(e), 'timeElapsed': -1}
-            #db.stock_tweets_errors.insert_one(stockError)
+            db.stock_tweets_errors.insert_one(stockError)
             print(e)
             continue
 
         if (len(result) == 0):
             stockError = {'date': dateString, 'symbol': symbol,
                           'error': 'Result length is 0??', 'timeElapsed': -1}
-            #db.stock_tweets_errors.insert_one(stockError)
+            db.stock_tweets_errors.insert_one(stockError)
             print(stockError)
             continue
 
@@ -218,14 +217,38 @@ def main():
     elif (options.dailyuserparser):
         dailyAnalyzeUsers(reAnalyze=True, updateUser=True, daysback=14)
     else:
-        now = convertToEST(datetime.datetime.now())
-        date = datetime.datetime(now.year, now.month, now.day)
-        stocks = getAllStocks()
+        dateStart = datetime.datetime(2020, 6, 5, 17, 00)
+        dateEnd = datetime.datetime(2020, 6, 5, 18, 00)
+        stocks = getTopStocks(100)
+        for i in stocks:
+            print(i)
+            tweets = clientStockTweets.get_database('tweets_db').tweets.find({"$and": [{'symbol': i},
+                                                                            {'time': {'$gte': dateStart,
+                                                                            '$lt': dateEnd}}]})
+            print(tweets.count())
+
+        # check last parsetime
+        # stocks = getTopStocks(100)
+        # db = constants['stocktweets_client'].get_database('stocks_data_db')
+        # lastParsed = db.last_parsed
+        # for i in stocks:
+        #     lastTime = lastParsed.find({'_id': i})
+        #     print(str(i) + ':' + str(lastTime[0]))
+
+
+        # db = clientStockTweets.get_database('stocks_data_db')
+        # errors = db.stock_tweets_errors.find()
+        # for i in errors:
+        #     print(i)
+
+        # now = convertToEST(datetime.datetime.now())
+        # date = datetime.datetime(now.year, now.month, now.day)
+        # stocks = getAllStocks()
         # print(len(stocks))
         # for i in range(len(stocks)):
         #     if (stocks[i] == "SESN"):
         #         print(i)
-        analyzeStocks(date, ['SNAP'])
+        # analyzeStocks(date, ['SNAP'])
 
 
         # stocks = getAllStocks()
