@@ -202,7 +202,7 @@ def main():
         # for i in range(len(stocks)):
         #     if (stocks[i] == "SESN"):
         #         print(i)
-        analyzeStocks(date, ['SNAP'])
+        analyzeStocks(date, stocks)
     elif (options.prediction):
         makePrediction(dateNow)
     elif (options.updateCloseOpens):
