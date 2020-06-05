@@ -81,7 +81,7 @@ def analyzeStocks(date, stocks):
 def analyzeUsers(reAnalyze, findNewUsers, updateUser):
     users = findUsers(reAnalyze, findNewUsers, updateUser)
     print(len(users))
-    # users=['desaiparth1812']
+    # users=['Jwil727']
     for username in users:
         print(username)
         coreInfo = shouldParseUser(username, reAnalyze, updateUser)
