@@ -92,13 +92,14 @@ def findPageStock(symbol, date, hoursBack):
     #     if button.text == symbol:
     #         button.click()
     #         break
-    hoursBack = 0.1
+    #hoursBack = 13
     try:
         scroll.scrollFor(driver, hoursBack)
     except Exception as e:
         endDriver(driver)
         end = time.time()
-        return ('', str(e), end - start)
+        print(e)
+        # return ('', str(e), end - start)
 
     html = driver.page_source
     soup = BeautifulSoup(html, 'html.parser')
@@ -132,7 +133,7 @@ def shouldParseStock(symbol, dateString):
 
     lastTime = tweetsMapped[0]['time']
     totalHoursBack = (currTime - lastTime).total_seconds() / 3600.0
-    #totalHoursBack = 1.1
+    totalHoursBack = 13.0
     print(currTime, lastTime, totalHoursBack)
 
     # need to continue to parse if data is more than 3 hours old
