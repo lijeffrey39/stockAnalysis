@@ -115,11 +115,11 @@ def findPageStock(symbol, date, hoursBack):
 # Will be parsed if it has been more than 12 hours since the last time it was
 def shouldParseStock(symbol, dateString):
     db = constants['stocktweets_client'].get_database('stocks_data_db')
-    tweetsErrorCollection = db.stock_tweets_errors
-    if (tweetsErrorCollection.
-            count_documents({'symbol': symbol,
-                             'date': dateString}) != 0):
-        return (False, 0)
+    # tweetsErrorCollection = db.stock_tweets_errors
+    # if (tweetsErrorCollection.
+    #         count_documents({'symbol': symbol,
+    #                          'date': dateString}) != 0):
+    #     return (False, 0)
 
     lastParsed = db.last_parsed
     lastTime = lastParsed.find({'_id': symbol})
