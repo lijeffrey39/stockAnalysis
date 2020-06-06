@@ -180,10 +180,10 @@ def hourlyparse():
 
 # Executed daily, finds all the tweets from the non-top x stocks
 def dailyparse():
-    updateStockCount()
-    date = convertToEST(datetime.datetime.now())
+    now = convertToEST(datetime.datetime.now())
+    date = datetime.datetime(now.year, now.month, now.day)
     stocks = getSortedStocks()
-    analyzeStocks(date, stocks[50:])
+    analyzeStocks(date, stocks[101:1001])
 
 def main():
     opt_parser = optparse.OptionParser()
@@ -217,6 +217,7 @@ def main():
     elif (options.dailyuserparser):
         dailyAnalyzeUsers(reAnalyze=True, updateUser=True, daysback=14)
     else:
+
         # dateStart = datetime.datetime(2020, 6, 6, 12, 00)
         # dateEnd = datetime.datetime(2020, 6, 6, 16, 00)
         # stocks = getTopStocks(100)
@@ -236,10 +237,10 @@ def main():
         #     print(str(i) + ':' + str(lastTime[0]))
 
 
-        db = clientStockTweets.get_database('stocks_data_db')
-        errors = db.stock_tweets_errors.find()
-        for i in errors:
-            print(i)
+        # db = clientStockTweets.get_database('stocks_data_db')
+        # errors = db.stock_tweets_errors.find()
+        # for i in errors:
+        #     print(i)
 
         # now = convertToEST(datetime.datetime.now())
         # date = datetime.datetime(now.year, now.month, now.day)
