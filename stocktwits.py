@@ -206,9 +206,9 @@ def main():
         makePrediction(dateNow)
     elif (options.updateCloseOpens):
         date = datetime.datetime(2019, 12, 20, 9, 30)
-        dateUpTo = datetime.datetime(dateNow.year, 12, 20, 16)
-        dates = findTradingDays(date, dateNow - datetime.timedelta(days=1))
-        stocks = getTopStocks(100)
+        dateNow = convertToEST(datetime.datetime.now())
+        dates = findTradingDays(date, dateNow)
+        stocks = getSortedStocks()
         updateAllCloseOpen(stocks, dates)
     elif (options.hourlyparser):
         hourlyparse()
@@ -217,22 +217,26 @@ def main():
     elif (options.dailyuserparser):
         dailyAnalyzeUsers(reAnalyze=True, updateUser=True, daysback=14)
     else:
-
-        # dateStart = datetime.datetime(2020, 6, 6, 12, 00)
-        # dateEnd = datetime.datetime(2020, 6, 6, 16, 00)
+        print('')
+        # dateStart = datetime.datetime(2020, 6, 6, 15, 00)
+        # dateEnd = datetime.datetime(2020, 6, 6, 17, 00)
         # stocks = getTopStocks(100)
-        # for i in stocks:
+        # stocks1 = getSortedStocks()[101:1001]
+        # for i in stocks1:
         #     print(i)
         #     tweets = clientStockTweets.get_database('tweets_db').tweets.find({"$and": [{'symbol': i},
         #                                                                     {'time': {'$gte': dateStart,
         #                                                                     '$lt': dateEnd}}]})
         #     print(tweets.count())
+        # for i in tweets:
+        #     print(i)
 
-        # # check last parsetime
+        # check last parsetime
         # stocks = getTopStocks(100)
+        # stocks1 = getSortedStocks()[101:1001]
         # db = constants['stocktweets_client'].get_database('stocks_data_db')
         # lastParsed = db.last_parsed
-        # for i in stocks:
+        # for i in stocks1:
         #     lastTime = lastParsed.find({'_id': i})
         #     print(str(i) + ':' + str(lastTime[0]))
 
