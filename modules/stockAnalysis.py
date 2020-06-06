@@ -190,7 +190,6 @@ def updateLastMessageTime(db, symbol, result):
 
 def parseStockData(symbol, soup):
     res = []
-    print(soup)
     messages = soup.find_all('div',
                              attrs={'class': constants['messageStreamAttr']})
 

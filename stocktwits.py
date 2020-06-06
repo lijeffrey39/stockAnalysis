@@ -217,8 +217,8 @@ def main():
     elif (options.dailyuserparser):
         dailyAnalyzeUsers(reAnalyze=True, updateUser=True, daysback=14)
     else:
-        dateStart = datetime.datetime(2020, 6, 5, 17, 00)
-        dateEnd = datetime.datetime(2020, 6, 5, 18, 00)
+        dateStart = datetime.datetime(2020, 6, 5, 18, 30)
+        dateEnd = datetime.datetime(2020, 6, 5, 20, 00)
         stocks = getTopStocks(100)
         for i in stocks:
             print(i)
@@ -227,7 +227,7 @@ def main():
                                                                             '$lt': dateEnd}}]})
             print(tweets.count())
 
-        # check last parsetime
+        # # check last parsetime
         # stocks = getTopStocks(100)
         # db = constants['stocktweets_client'].get_database('stocks_data_db')
         # lastParsed = db.last_parsed
