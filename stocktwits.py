@@ -205,8 +205,11 @@ def main():
     elif (options.prediction):
         makePrediction(dateNow)
     elif (options.updateCloseOpens):
-        date = datetime.datetime(2019, 12, 20, 9, 30)
-        dateNow = convertToEST(datetime.datetime.now())
+        now = convertToEST(datetime.datetime.now())
+        date = datetime.datetime(now.year, now.month, now.day, 4, 30) - datetime.timedelta(days=10)
+        dateNow = convertToEST(datetime.datetime.now()) 
+        print(date)
+        print(dateNow)
         dates = findTradingDays(date, dateNow)
         stocks = getSortedStocks()
         updateAllCloseOpen(stocks, dates)
@@ -217,17 +220,17 @@ def main():
     elif (options.dailyuserparser):
         dailyAnalyzeUsers(reAnalyze=True, updateUser=True, daysback=14)
     else:
-        print('')
-        # dateStart = datetime.datetime(2020, 6, 6, 15, 00)
-        # dateEnd = datetime.datetime(2020, 6, 6, 17, 00)
-        # stocks = getTopStocks(100)
-        # stocks1 = getSortedStocks()[101:1001]
-        # for i in stocks1:
-        #     print(i)
-        #     tweets = clientStockTweets.get_database('tweets_db').tweets.find({"$and": [{'symbol': i},
-        #                                                                     {'time': {'$gte': dateStart,
-        #                                                                     '$lt': dateEnd}}]})
-        #     print(tweets.count())
+        
+        dateStart = datetime.datetime(2020, 6, 6, 12, 00)
+        dateEnd = datetime.datetime(2020, 6, 6, 16, 00)
+        stocks = getTopStocks(100)
+        stocks1 = getSortedStocks()[101:1001]
+        for i in stocks:
+            print(i)
+            tweets = clientStockTweets.get_database('tweets_db').tweets.find({"$and": [{'symbol': i},
+                                                                            {'time': {'$gte': dateStart,
+                                                                            '$lt': dateEnd}}]})
+            print(tweets.count())
         # for i in tweets:
         #     print(i)
 
