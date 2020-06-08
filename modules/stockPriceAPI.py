@@ -92,10 +92,11 @@ def averagedOpenClose(symbol, date):
 
 
 def updateAllCloseOpen(stocks, dates, replace=False):
+    removal = []
     for symbol in stocks:
         print(symbol)
-        print(dates)
         for date in dates:
+            replace = True
             dateString = date.strftime("%Y-%m-%d")
             idString = symbol + ' ' + dateString
             db = constants['db_client'].get_database('stocks_data_db').updated_close_open
@@ -115,7 +116,7 @@ def updateAllCloseOpen(stocks, dates, replace=False):
 def updatedCloseOpen(symbol, date):
     dateString = date.strftime("%Y%m%d")
     baseURL = "https://cloud.iexapis.com/stable/stock/" + symbol + "/chart/date/"
-    restURL = "?chartByDay=True&token=sk_f4ed622d0fbe47248167f36f2df61f48"
+    restURL = "?chartByDay=True&token=sk_c38d3babd3c144a886597ce6d014e543"
     URL = baseURL + dateString + restURL
     r = requests.get(url=URL)
     data = r.json()

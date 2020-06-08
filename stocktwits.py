@@ -205,12 +205,10 @@ def main():
     elif (options.prediction):
         makePrediction(dateNow)
     elif (options.updateCloseOpens):
-        now = convertToEST(datetime.datetime.now())
-        date = datetime.datetime(now.year, now.month, now.day, 4, 30) - datetime.timedelta(days=10)
-        dateNow = convertToEST(datetime.datetime.now()) 
-        print(date)
-        print(dateNow)
+        date = datetime.datetime(2020, 6, 5, 9, 30)
+        dateNow = convertToEST(datetime.datetime.now())
         dates = findTradingDays(date, dateNow)
+        print(dates)
         stocks = getSortedStocks()
         updateAllCloseOpen(stocks, dates)
     elif (options.hourlyparser):
@@ -220,23 +218,24 @@ def main():
     elif (options.dailyuserparser):
         dailyAnalyzeUsers(reAnalyze=True, updateUser=True, daysback=14)
     else:
-        
-        dateStart = datetime.datetime(2020, 6, 6, 12, 00)
-        dateEnd = datetime.datetime(2020, 6, 6, 16, 00)
-        stocks = getTopStocks(100)
-        stocks1 = getSortedStocks()[101:1001]
-        for i in stocks:
-            print(i)
-            tweets = clientStockTweets.get_database('tweets_db').tweets.find({"$and": [{'symbol': i},
-                                                                            {'time': {'$gte': dateStart,
-                                                                            '$lt': dateEnd}}]})
-            print(tweets.count())
+        print('')
+        # dateStart = datetime.datetime(2020, 5, 31, 9, 00)
+        # dateEnd = datetime.datetime(2020, 6, 7, 16, 30)
+        # stocks = getTopStocks(100)
+        # stocks1 = getSortedStocks()[101:1001]
+        # #test = ['MDR', 'I', 'HSGX', 'RTTR', 'UWT', 'JCP', 'SES', 'DWT', 'SPEX', 'RBZ', 'YUMA', 'BPMX', 'SNNA', 'PTIE', 'FOMX', 'TROV', 'HIIQ', 'S', 'XGTI', 'MDCO', 'NLNK', 'SSI', 'VLRX', 'ATIS', 'INNT', 'DCAR', 'CUR', 'AKS', 'FTNW', 'KEG', 'CNAT', 'MLNT', 'GNMX', 'AKRX', 'CLD', 'ECA', 'DCIX', 'PIR', 'DF', 'AXON', 'CIFS', 'XON', 'SBOT', 'KOOL', 'HAIR', 'ARQL', 'IPCI', 'ACHN', 'ABIL', 'RTN', 'AMR', 'FTR', 'DERM', 'CBS', 'OILU', 'JMU', 'CELG', 'DRYS', 'AGN', 'SBGL', 'UPL', 'VTL', 'BURG', 'DO', 'SN', 'PVTL', 'UTX', 'HEB', 'WFT', 'CY', 'SYMC', 'PTX', 'AKAO', 'AVP', 'GEMP', 'CBK', 'HABT', 'RARX', 'ORPN', 'IGLD', 'ROX', 'LEVB', 'CTRP', 'CARB', 'AAC', 'HK', 'CRZO', 'MNGA', 'PEGI', 'OHGI', 'ZAYO', 'GLOW', 'MLNX', 'COT', 'SORL', 'BBT', 'FGP', 'SGYP', 'STI', 'FCSC', 'NIHD', 'ONCE', 'ANFI', 'VSI', 'INSY', 'CVRS', 'GG', 'WIN', 'BRS', 'NVLN', 'EMES', 'CBLK', 'ARRY', 'ESV', 'HRS', 'APHB', 'RHT', 'CLDC', 'EPE', 'APC', 'ACET', 'DATA', 'SDLP', 'GHDX', 'OHRP', 'EDGE', 'DFRG', 'VSM', 'RGSE', 'ASNS', 'BSTI', 'CADC', 'MXWL', 'PETX', 'IMDZ', 'ATTU', 'RLM', 'OMED']
+        # for i in stocks1:
+        #     print(i)
+        #     tweets = clientStockTweets.get_database('tweets_db').tweets.find({"$and": [{'symbol': i},
+        #                                                                     {'time': {'$gte': dateStart,
+        #                                                                     '$lt': dateEnd}}]})
+        #     print(tweets.count())
         # for i in tweets:
         #     print(i)
 
         # check last parsetime
         # stocks = getTopStocks(100)
-        # stocks1 = getSortedStocks()[101:1001]
+        # stocks1 = getSortedStocks()[551:1001]
         # db = constants['stocktweets_client'].get_database('stocks_data_db')
         # lastParsed = db.last_parsed
         # for i in stocks1:
