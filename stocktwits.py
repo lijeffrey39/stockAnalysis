@@ -235,10 +235,11 @@ def main():
 
         # check last parsetime
         # stocks = getTopStocks(100)
-        # stocks1 = getSortedStocks()[551:1001]
+        # stocks1 = getSortedStocks()[101:551]
+        # print(stocks)
         # db = constants['stocktweets_client'].get_database('stocks_data_db')
         # lastParsed = db.last_parsed
-        # for i in stocks1:
+        # for i in stocks:
         #     lastTime = lastParsed.find({'_id': i})
         #     print(str(i) + ':' + str(lastTime[0]))
 
