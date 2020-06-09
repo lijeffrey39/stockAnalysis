@@ -205,6 +205,7 @@ def main():
     elif (options.prediction):
         makePrediction(dateNow)
     elif (options.updateCloseOpens):
+        updateStockCount()
         now = convertToEST(datetime.datetime.now())
         date = datetime.datetime(now.year, now.month, now.day, 12, 30)
         dateNow = datetime.datetime(now.year, now.month, now.day, 13, 30)

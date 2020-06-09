@@ -39,7 +39,7 @@ def getSortedStocks():
 
 def updateStockCount():
     currTime = convertToEST(datetime.datetime.now())
-    prevTime = currTime - timedelta(days=300)    
+    prevTime = currTime - timedelta(days=30)    
     stockCounts = constants['db_client'].get_database(
         'stocktwits_db').stock_counts
     allStocks = constants['db_client'].get_database('stocktwits_db').all_stocks
