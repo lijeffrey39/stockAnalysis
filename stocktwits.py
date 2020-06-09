@@ -205,8 +205,9 @@ def main():
     elif (options.prediction):
         makePrediction(dateNow)
     elif (options.updateCloseOpens):
-        date = datetime.datetime(2020, 6, 5, 9, 30)
-        dateNow = convertToEST(datetime.datetime.now())
+        now = convertToEST(datetime.datetime.now())
+        date = datetime.datetime(now.year, now.month, now.day, 12, 30)
+        dateNow = datetime.datetime(now.year, now.month, now.day, 13, 30)
         dates = findTradingDays(date, dateNow)
         print(dates)
         stocks = getSortedStocks()
@@ -236,13 +237,12 @@ def main():
         # check last parsetime
         # stocks = getTopStocks(100)
         # stocks1 = getSortedStocks()[101:551]
-        # print(stocks)
+
         # db = constants['stocktweets_client'].get_database('stocks_data_db')
         # lastParsed = db.last_parsed
-        # for i in stocks:
+        # for i in stocks1:
         #     lastTime = lastParsed.find({'_id': i})
         #     print(str(i) + ':' + str(lastTime[0]))
-
 
         # db = clientStockTweets.get_database('stocks_data_db')
         # errors = db.stock_tweets_errors.find()
