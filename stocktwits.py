@@ -193,7 +193,7 @@ def main():
     dateNow = convertToEST(datetime.datetime.now())
 
     if (options.users):
-        analyzeUsers(reAnalyze=False, findNewUsers=False, updateUser=True)
+        analyzeUsers(reAnalyze=True, findNewUsers=False, updateUser=False)
     elif (options.stocks):
         now = convertToEST(datetime.datetime.now())
         date = datetime.datetime(now.year, now.month, now.day)
@@ -225,7 +225,7 @@ def main():
         # for i in range(len(stocks)):
         #     if (stocks[i] == "SESN"):
         #         print(i)
-        analyzeStocks(date, ['SNAP'])
+        # analyzeStocks(date, ['SNAP'])
 
 
         # stocks = getAllStocks()
@@ -261,7 +261,7 @@ def main():
         #         # print(date, round(findWeight(date, 'x'), 1))
 
         # calculateAllUserInfo()
-        # getStatsPerUser('DaoofDow')
+        getStatsPerUser('Latino2mil')
         # print(getAllUserInfo('sjs7'))
 
         # transferNonLabeled(stocks)
