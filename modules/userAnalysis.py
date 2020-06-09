@@ -108,7 +108,7 @@ def findUsers(reAnalyze, findNewUsers, updateUser):
     if (updateUser):
         analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
         dateStart = convertToEST(datetime.datetime.now()) - datetime.timedelta(days=30)
-        query = {"$and": [{'error': ''},
+        query = {"$and": [{'error': {'$ne': ""}},
                           {'last_updated': {'$lte': dateStart}}]}
         cursor = analyzedUsers.find(query)
     elif (reAnalyze):
