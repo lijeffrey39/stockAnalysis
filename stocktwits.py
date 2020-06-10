@@ -1,8 +1,10 @@
 import datetime
 import optparse
+import matplotlib. pyplot as plt
+import math
 
 from modules.helpers import (convertToEST, findTradingDays, getAllStocks,
-                             insertResults, findWeight)
+                             insertResults, findWeight, writePickleObject)
 from modules.hyperparameters import constants
 #from modules.nn import calcReturns, testing
 from modules.prediction import (basicPrediction, findAllTweets, updateBasicStockInfo, setupUserInfos)
@@ -221,10 +223,20 @@ def main():
         dailyAnalyzeUsers(reAnalyze=True, updateUser=True, daysback=14)
     else:
         print('')
-        (test, test1, nice) = getCloseOpenInterval('SPY', datetime.datetime(2020, 1, 1), 3)
-        print(test)
-        print(test1)
-        print(nice)
+        allUsers = constants['db_user_client'].get_database('user_data_db').user_accuracy_v2.find()
+        userList = []
+        for i in allUsers:
+            val = i['1']['numPredictions']['bull'] + i['1']['numPredictions']['bear']
+            userList.append(val)
+            if val == 0:
+                userList.append(0)
+            elif val > 70:
+                userList.append(math.log10(val))
+
+
+        plt.hist(userList, 100)
+        plt.show()
+
         # testing yfinance
         # import yfinance as yf
         # gss = ['BDX']
