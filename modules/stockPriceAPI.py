@@ -127,6 +127,42 @@ def updatedCloseOpen(symbol, date):
     result = {'_id': _id, 'open': data['open'], 'close': data['close']}
     return result
 
+def getCloseOpenInterval(symbol, date, interval):
+    db = constants['db_client'].get_database('stocks_data_db').updated_close_open
+    nextDay = None
+    count = 0
+
+    # If saturday, sunday or holiday, find first trading day to start from time
+    testDay = db.find_one({'_id': 'AAPL ' + date.strftime("%Y-%m-%d")})
+    while (testDay is None and count != 10):
+        date = datetime.datetime(date.year, date.month, date.day)
+        date += datetime.timedelta(days=1)
+        testDay = db.find_one({'_id': 'AAPL ' + date.strftime("%Y-%m-%d")})
+        count += 1
+
+    # Find next day based on the picked first day
+    nextDay = date + datetime.timedelta(days=interval)
+    testDay = db.find_one({'_id': 'AAPL ' + nextDay.strftime("%Y-%m-%d")})
+    while (testDay is None and count != 10):
+        print(testDay)
+        nextDay += datetime.timedelta(days=1)
+        testDay = db.find_one({'_id': 'AAPL ' + nextDay.strftime("%Y-%m-%d")})
+        count += 1
+
+    if (count >= 10):
+        return None
+
+    start = db.find_one({'_id': symbol + ' ' + date.strftime("%Y-%m-%d")})
+    end = db.find_one({'_id': symbol + ' ' + nextDay.strftime("%Y-%m-%d")})
+    print(date.strftime("%Y-%m-%d"))
+    print(nextDay.strftime("%Y-%m-%d"))
+    # If either start or end are 0, don't allow it (fixes TTNP)
+    if (end is None) or (start is None) or (end['open'] == 0) or (start['close'] == 0):
+        return None
+    else:
+        firstPrice = start['close']
+        secondPrice = end['close']
+        return (firstPrice, secondPrice, round(((secondPrice - firstPrice) / firstPrice) * 100, 3))
 
 def getUpdatedCloseOpen(symbol, date):
     exceptions = [datetime.datetime(2019, 11, 27)]

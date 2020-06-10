@@ -9,7 +9,7 @@ from modules.prediction import (basicPrediction, findAllTweets, updateBasicStock
 from modules.stockAnalysis import (findPageStock, getTopStocks, parseStockData,
                                    shouldParseStock, updateLastMessageTime,
                                    updateLastParsedTime, updateStockCount, getSortedStocks)
-from modules.stockPriceAPI import (updateAllCloseOpen, transferNonLabeled, findCloseOpen, closeToOpen)
+from modules.stockPriceAPI import (updateAllCloseOpen, transferNonLabeled, findCloseOpen, closeToOpen, getUpdatedCloseOpen, getCloseOpenInterval)
 from modules.userAnalysis import (findPageUser, findUsers, insertUpdateError,
                                   parseUserData, shouldParseUser, getStatsPerUser,
                                   updateUserNotAnalyzed, getAllUserInfo,
@@ -221,12 +221,49 @@ def main():
         dailyAnalyzeUsers(reAnalyze=True, updateUser=True, daysback=14)
     else:
         print('')
-        # dateStart = datetime.datetime(2020, 5, 31, 9, 00)
-        # dateEnd = datetime.datetime(2020, 6, 7, 16, 30)
+        (test, test1, nice) = getCloseOpenInterval('SPY', datetime.datetime(2020, 1, 1), 3)
+        print(test)
+        print(test1)
+        print(nice)
+        # testing yfinance
+        # import yfinance as yf
+        # gss = ['BDX']
+        # openDiff = closeDiff = 0
+        # maxo = maxc = 0
+        # for i in gss:
+        #     print(i)
+        #     tick = yf.Ticker(i)
+        #     yesterday = convertToEST(datetime.datetime.now())-datetime.timedelta(days=4)
+        #     print(yesterday)
+        #     yOpen = tick.history(start=yesterday, end=yesterday)[['Open']].values[0][0].item()
+        #     yClose = tick.history(start=yesterday, end=yesterday)[['Close']].values[0][0].item()   
+        #     (ogClose, ogOpen, test, bleh) = getUpdatedCloseOpen(i, yesterday)
+        #     # print('ours')
+        #     print(test, ogClose)
+        #     # print('yahoo')
+        #     print(yOpen, yClose)
+        #     print('diff')
+        #     print(test-yOpen, ogClose-yClose)
+        #     openDiff += abs(test-yOpen)
+        #     closeDiff += abs(ogClose-yClose)
+        #     if abs(test-yOpen) > maxo:
+        #         maxo = abs(test-yOpen)
+        #     if abs(ogClose-yClose) > maxc:
+        #         maxc = abs(ogClose-yClose)
+
+        # print('avg o diff: ' + str(openDiff/len(gss)))
+        # print('avg c diff: ' + str(closeDiff/len(gss)))
+        # print('maxo : ', maxo)
+        # print('maxc : ', maxc)
+        # print(ogClose)
+        # print(ogOpen)
+        
+        # dateStart = datetime.datetime(2020, 6, 9, 12, 00)
+        # dateEnd = datetime.datetime(2020, 6, 9, 16, 30)
         # stocks = getTopStocks(100)
         # stocks1 = getSortedStocks()[101:1001]
         # #test = ['MDR', 'I', 'HSGX', 'RTTR', 'UWT', 'JCP', 'SES', 'DWT', 'SPEX', 'RBZ', 'YUMA', 'BPMX', 'SNNA', 'PTIE', 'FOMX', 'TROV', 'HIIQ', 'S', 'XGTI', 'MDCO', 'NLNK', 'SSI', 'VLRX', 'ATIS', 'INNT', 'DCAR', 'CUR', 'AKS', 'FTNW', 'KEG', 'CNAT', 'MLNT', 'GNMX', 'AKRX', 'CLD', 'ECA', 'DCIX', 'PIR', 'DF', 'AXON', 'CIFS', 'XON', 'SBOT', 'KOOL', 'HAIR', 'ARQL', 'IPCI', 'ACHN', 'ABIL', 'RTN', 'AMR', 'FTR', 'DERM', 'CBS', 'OILU', 'JMU', 'CELG', 'DRYS', 'AGN', 'SBGL', 'UPL', 'VTL', 'BURG', 'DO', 'SN', 'PVTL', 'UTX', 'HEB', 'WFT', 'CY', 'SYMC', 'PTX', 'AKAO', 'AVP', 'GEMP', 'CBK', 'HABT', 'RARX', 'ORPN', 'IGLD', 'ROX', 'LEVB', 'CTRP', 'CARB', 'AAC', 'HK', 'CRZO', 'MNGA', 'PEGI', 'OHGI', 'ZAYO', 'GLOW', 'MLNX', 'COT', 'SORL', 'BBT', 'FGP', 'SGYP', 'STI', 'FCSC', 'NIHD', 'ONCE', 'ANFI', 'VSI', 'INSY', 'CVRS', 'GG', 'WIN', 'BRS', 'NVLN', 'EMES', 'CBLK', 'ARRY', 'ESV', 'HRS', 'APHB', 'RHT', 'CLDC', 'EPE', 'APC', 'ACET', 'DATA', 'SDLP', 'GHDX', 'OHRP', 'EDGE', 'DFRG', 'VSM', 'RGSE', 'ASNS', 'BSTI', 'CADC', 'MXWL', 'PETX', 'IMDZ', 'ATTU', 'RLM', 'OMED']
-        # for i in stocks1:
+        # for i in stocks:
         #     print(i)
         #     tweets = clientStockTweets.get_database('tweets_db').tweets.find({"$and": [{'symbol': i},
         #                                                                     {'time': {'$gte': dateStart,
