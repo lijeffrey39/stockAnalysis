@@ -24,6 +24,33 @@ currDateTimeStr = ""
 # ------------------------------------------------------------------------
 
 
+def findDateString(time):
+    db = constants['db_client'].get_database('stocks_data_db').updated_close_open
+    dayIncrement = datetime.timedelta(days=1)
+    count = 0
+
+    # If saturday, sunday or holiday, find first trading day to start from time
+    testDay = db.find_one({'_id': 'AAPL ' + time.strftime("%Y-%m-%d")})
+    while (testDay is None and count != 10):
+        time = datetime.datetime(time.year, time.month, time.day)
+        time += dayIncrement
+        testDay = db.find_one({'_id': 'AAPL ' + time.strftime("%Y-%m-%d")})
+        count += 1
+
+    # Find first day if tweeted after 4pm
+    # If 4:00 on Wed, first day is Thursday
+    # If 4:00 on Friday, first day is Monday
+    timeDiff = time - datetime.datetime(time.year, time.month, time.day)
+    if (timeDiff.total_seconds() >= (16 * 60 * 60)):
+        time += dayIncrement
+        testDay = db.find_one({'_id': 'AAPL ' + time.strftime("%Y-%m-%d")})
+        while (testDay is None and count != 10):
+            time += dayIncrement
+            testDay = db.find_one({'_id': 'AAPL ' + time.strftime("%Y-%m-%d")})
+            count += 1
+
+    return time.strftime("%Y-%m-%d")
+
 # Find close open for date. Anytime before 4pm is
 def findCloseOpen(symbol, time):
     db = constants['db_client'].get_database('stocks_data_db').updated_close_open

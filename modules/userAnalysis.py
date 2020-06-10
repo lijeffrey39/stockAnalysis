@@ -1,5 +1,6 @@
 import datetime
 import time
+import math
 from random import shuffle
 
 import requests
@@ -21,7 +22,8 @@ from .hyperparameters import constants
 from .messageExtract import *
 from .stockPriceAPI import (findCloseOpen,
                             inTradingDay,
-                            getUpdatedCloseOpen)
+                            getUpdatedCloseOpen,
+                            findDateString)
 from .stockAnalysis import (getTopStocks)
 
 
@@ -413,11 +415,10 @@ def initializeResult(tweets, user):
     result = {}
     result['_id'] = user
     functions = constants['functions']
-
     keys = ['returnCloseOpen', 'numCloseOpen', 
-            'numPredictions', 'totalLikes',
-            'totalComments', 'returnUnique',
-            'numUnique', 'numUniquePredictions']
+            'numPredictions', 'returnUnique',
+            'numUnique', 'numUniquePredictions', 
+            'returnUniqueLog']
 
     for f in functions:
         result[f] = {}
@@ -441,7 +442,7 @@ def initializeResult(tweets, user):
 
 
 # Update feature results for a user given close open prices
-def updateUserFeatures(result, tweet, uniqueStocks):
+def updateUserFeatures(result, tweet, uniqueStocks, like_comment_counts):
     functions = constants['functions']
     time = tweet['time']
     symbol = tweet['symbol']
@@ -451,15 +452,17 @@ def updateUserFeatures(result, tweet, uniqueStocks):
         return
 
     pChangeCloseOpen = closeOpen[2]
-
     correctPredCloseOpen = (isBull and pChangeCloseOpen >= 0) or (isBull is False and pChangeCloseOpen <= 0)
     correctNumCloseOpen = 1 if correctPredCloseOpen else 0
     pReturnCloseOpen = abs(pChangeCloseOpen) if correctPredCloseOpen else -abs(pChangeCloseOpen)
-    values = [pReturnCloseOpen, correctNumCloseOpen, 1, tweet['likeCount'], tweet['commentCount']]
+    values = [pReturnCloseOpen, correctNumCloseOpen, 1]
+
+    like_comment_counts['likes'] += tweet['likeCount']
+    like_comment_counts['comments'] += tweet['commentCount']
+    like_comment_counts['total'] += 1
 
     # For unique predictions per day, only count (bull/bear) if its majority
-    # stockDate = symbol + ' ' + str(closeOpen)
-    time_string = symbol + ' ' + time.strftime("%m/%d/%Y")
+    time_string = symbol + ' ' + findDateString(time)
     if (time_string in uniqueStocks):
         uniqueStocks[time_string]['times'].append(time)
         if (isBull):
@@ -467,25 +470,20 @@ def updateUserFeatures(result, tweet, uniqueStocks):
         else:
             uniqueStocks[time_string]['bear'] += 1
     else:
-        time_result = {'bull': 0, 'bear': 0, 'closeOpen': closeOpen, 
-                        'times': [time],
+        time_result = {'times': [time],
                         'symbol': symbol,
                         'returnUnique': pReturnCloseOpen,
                         'numUnique': correctNumCloseOpen,
                         'numUniquePredictions': 1}
+        if (isBull):
+            time_result['bull'] = 1
+            time_result['bear'] = 0
+        else:
+            time_result['bull'] = 0
+            time_result['bear'] = 1
         uniqueStocks[time_string] = time_result
 
-    # if (seenTweetString not in seenTweets):
-    #     seenTweets.add(seenTweetString)
-    #     values.extend([pReturnCloseOpen, correctNumCloseOpen, 1])
-    # else:
-    #     values.extend([0, 0, 0])
-
-    keys = ['returnCloseOpen', 'numCloseOpen', 
-            'numPredictions', 'totalLikes',
-            'totalComments']
-            # , 'returnUnique',
-            # 'numUnique', 'numUniquePredictions']
+    keys = ['returnCloseOpen', 'numCloseOpen', 'numPredictions']
     label = 'bull' if (isBull) else 'bear'
     count = 0
     for k in keys:
@@ -495,8 +493,6 @@ def updateUserFeatures(result, tweet, uniqueStocks):
             result[f][k][label] += val
             result['perStock'][symbol][f][k][label] += val
         count += 1
-
-    # print(time, symbol, isBull, closeOpen, result['1']['returnCloseOpen'])
 
 
 # Returns stats from user info for prediction
@@ -523,17 +519,23 @@ def getStatsPerUser(user):
     labeledTweets = list(map(lambda tweet: tweet, labeledTweets))
     labeledTweets.sort(key=lambda x: x['time'], reverse=True)
     result = initializeResult(labeledTweets, user)
-    # seenTweets = set([])
     uniqueStocks = {}
+    like_comment_counts = {'likes': 0, 'comments': 0, 'total': 0}
 
     # Loop through all tweets made by user and feature extract per user
     for tweet in labeledTweets:
         if (tweet['symbol'] in stocks):
-            updateUserFeatures(result, tweet, uniqueStocks)
+            updateUserFeatures(result, tweet, uniqueStocks, like_comment_counts)
+
+    if (like_comment_counts['total'] == 0):
+        result['likes_per_tweet'] = 0
+        result['comments_per_tweet'] = 0
+    else:
+        result['likes_per_tweet'] = like_comment_counts['likes'] / like_comment_counts['total']
+        result['comments_per_tweet'] = like_comment_counts['comments'] / like_comment_counts['total']
 
     # Update unique predictions per day features
     for time_string in uniqueStocks:
-        print(uniqueStocks[time_string]['symbol'], uniqueStocks[time_string]['times'])
         symbol = uniqueStocks[time_string]['symbol']
         times = uniqueStocks[time_string]['times']
         times.sort()
@@ -545,21 +547,46 @@ def getStatsPerUser(user):
         else:
             average_time = times[mid]
         
-        print(times, average_time)
-        
+        # Find whether tweet was bull or bear based on majority
         label = 'bull'
         if (uniqueStocks[time_string]['bear'] > uniqueStocks[time_string]['bull']):
             label = 'bear'
+        if (uniqueStocks[time_string]['bear'] == uniqueStocks[time_string]['bull']):
+            label = 'both'
         keys = ['returnUnique', 'numUnique', 'numUniquePredictions']
         functions = constants['functions']
+
         for k in keys:
             for f in functions:
                 w = findWeight(average_time, f)
                 val = w * uniqueStocks[time_string][k]
-                result[f][k][label] += val
-                result['perStock'][symbol][f][k][label] += val
-        
+                if (label == 'both'):
+                    result[f][k]['bear'] += val
+                    result[f][k]['bull'] += val
+                    result['perStock'][symbol][f][k]['bear'] += val
+                    result['perStock'][symbol][f][k]['bull'] += val
+                else:
+                    result[f][k][label] += val
+                    result['perStock'][symbol][f][k][label] += val
 
+        # return unique (log)
+        for f in functions:
+            w = findWeight(average_time, f)
+            unique_return = uniqueStocks[time_string]['returnUnique']
+            if (label == 'both'):
+                num_labels = len(times) // 2
+                val = w * unique_return * (math.log10(num_labels) + 1)
+                result[f]['returnUniqueLog']['bear'] += val
+                result[f]['returnUniqueLog']['bull'] += val
+                result['perStock'][symbol][f]['returnUniqueLog']['bear'] += val
+                result['perStock'][symbol][f]['returnUniqueLog']['bull'] += val
+            else:
+                num_labels = uniqueStocks[time_string][label]
+                val = w * unique_return * (math.log10(num_labels) + 1)
+                result[f]['returnUniqueLog'][label] += val
+                result['perStock'][symbol][f]['returnUniqueLog'][label] += val
+
+        print(average_time, symbol, uniqueStocks[time_string]['returnUnique'], result['1']['returnUnique']['bull'], result['1']['returnUnique']['bear'])
 
     # Remove symbols that user didn't have valid tweets about
     for symbol in list(result['perStock'].keys()):
@@ -567,11 +594,10 @@ def getStatsPerUser(user):
             result['perStock'][symbol]['x']['numPredictions']['bear'] == 0):
             del result['perStock'][symbol]
 
-    # userAccuracy.insert_one(result)
-
-    # currTime = convertToEST(datetime.datetime.now())
-    # lastTime = {'_id': user, 'time': currTime}
-    # analyzedUsersDB.last_user_accuracy_calculated.insert_one(lastTime)
+    userAccuracy.insert_one(result)
+    currTime = convertToEST(datetime.datetime.now())
+    lastTime = {'_id': user, 'time': currTime}
+    analyzedUsersDB.last_user_accuracy_actual_calculated.insert_one(lastTime)
     return result
 
 
@@ -594,19 +620,6 @@ def getAllUserInfo(username):
     if (len(result) == 0):
         return {}
 
-    totalCorrect = result['1']['numCloseOpen']['bull'] + result['1']['numCloseOpen']['bear']
-    totalPreds = result['1']['numPredictions']['bull'] + result['1']['numPredictions']['bear']
-    totalUniqueCorrect = result['1']['numUnique']['bull'] + result['1']['numUnique']['bear']
-    totalUniquePreds = result['1']['numUniquePredictions']['bull'] + result['1']['numUniquePredictions']['bear']
-    totalReturn = result['1']['returnCloseOpen']['bull'] + result['1']['returnCloseOpen']['bear']
-    totalReturnUnique = result['1']['returnUnique']['bull'] + result['1']['returnUnique']['bear']
-    if (totalPreds == 0 or totalUniquePreds == 0):
-        return {}
-
-    result['accuracy'] = totalCorrect * 1.0 / totalPreds
-    result['accuracyUnique'] = totalUniqueCorrect * 1.0 / totalUniquePreds
-    result['totalReturn'] = totalReturn
-    result['totalReturnUnique'] = totalReturnUnique
     result['followers'] = userInfo['followers']
     result['following'] = userInfo['following']
     result['ideas'] = userInfo['ideas']

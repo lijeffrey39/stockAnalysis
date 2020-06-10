@@ -5,7 +5,7 @@ from modules.helpers import (convertToEST, findTradingDays, getAllStocks,
                              insertResults, findWeight)
 from modules.hyperparameters import constants
 #from modules.nn import calcReturns, testing
-from modules.prediction import (basicPrediction, findAllTweets, updateBasicStockInfo, setupUserInfos)
+from modules.prediction import (basicPrediction, findAllTweets, updateBasicStockInfo, setupUserInfos, weightedUserPrediction)
 from modules.stockAnalysis import (findPageStock, getTopStocks, parseStockData,
                                    shouldParseStock, updateLastMessageTime,
                                    updateLastParsedTime, updateStockCount, getSortedStocks)
@@ -261,9 +261,10 @@ def main():
         #         # print(date, round(findWeight(date, 'x'), 1))
 
         # calculateAllUserInfo()
-        getStatsPerUser('Latino2mil')
-        # print(getAllUserInfo('sjs7'))
+        # getStatsPerUser('robsokool')
+        # print(getAllUserInfo('hirashima'))
 
+        print(weightedUserPrediction(getAllUserInfo('hirashima'), 'NFLX'))
         # transferNonLabeled(stocks)
 
         # findBadMessages('ArmedInfidel')

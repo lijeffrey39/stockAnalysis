@@ -68,13 +68,6 @@ def buildFeatures():
     return features
 
 
-# Return a number based on how reliable the users prediction is
-# Very naive metho right now
-# TODO: Ideally use features such as join date, follower following ratio etc
-def weightedUserPrediction(user):
-    return user['totalReturn'] * user['accuracy']
-
-
 # Tell whether the tweet is actually bull or bear based on historical predictions
 def bearBull(isBull, returns):
     label = 'bull' if isBull else 'bear'
@@ -161,6 +154,124 @@ def newCalculateSentiment(tweets, symbol, userAccDict):
 
 
 # Calculate features based on list of tweets
+# Each tweet is multiplied by the weights
+# number tweets
+# number unique tweets
+# bull count / ratio
+# unique bull / ratio
+# bear count / ratio
+# unique bull / ratio
+# unique return
+
+
+##
+# All per stocks featuers are weighted by (x(1 + tweets per stock))
+##
+
+# unique accuracy (0 - 1) x return per stock (0 - 1) x number of tweets = if - - make negative
+# unique accuracy x return x number of tweets = if - - make negative
+
+# unique return per stock = -150 - 150 -> -1 - 1
+# unique return = -150 - 150 -> -1 - 1
+
+# accuracy per stock with # tweets = accuracy * # min number of tweets per stock 
+# accuracy in general with # tweets =  accuracy * # min number of tweets 
+
+# unique accuracy per stock = 0 - 1 -> -1 - 1
+# unique accuracy in general = 0 - 1 -> -1 - 1
+
+# min number of tweets per stock (0) = log(# tweets) -> 1 - 100 -> 0 - 2 -> 0 - 1 
+# min number of tweets (bull/bear) in general (75) = log(# tweets) -> 75 - 600 -> 2 - 4 -> 0 - 1
+
+# negative weight for below accuracy
+
+# Return a number based on how reliable the users prediction is (0 - 1)
+# TODO: Ideally use features such as join date, follower following ratio etc
+# TODO: instead of log, use distribution of the data
+# TODO: use return_uniquelog instead of returnUnique
+def weightedUserPrediction(user, symbol):
+    function = '1'
+    bull_bear = None
+    num_tweets = findFeature(user, '', ['numPredictions'], function, bull_bear)
+    num_tweets_s = findFeature(user, symbol, ['numPredictions'], function, bull_bear)
+
+    # Don't consider anyone below 60 predictions
+    if (num_tweets < 70):
+        return 0
+    
+    # (1) scale between 70-700 (general) and 1-100 (per stock)
+    scaled_num_tweets = math.log10(num_tweets) - math.log10(70)
+    scaled_num_tweets_s = math.log10(num_tweets_s + 1)
+    if (scaled_num_tweets > 1):
+        scaled_num_tweets = 1
+    if (scaled_num_tweets_s > 1):
+        scaled_num_tweets_s = 1
+
+    accuracy_unique = findFeature(user, '', ['numUnique', 'numPredictions'], function, bull_bear)
+    accuracy_unique_s = findFeature(user, symbol, ['numUnique', 'numPredictions'], function, bull_bear)
+
+    return_unique = findFeature(user, '', ['returnUnique'], function, bull_bear)
+    return_unique_s = findFeature(user, symbol, ['returnUnique'], function, bull_bear)
+
+    # (2) scale between -150 and 150
+    scaled_return_unique = (150 + return_unique) / 300
+    scaled_return_unique_s = (150 + return_unique_s) / 300
+    if (scaled_return_unique > 1):
+        scaled_return_unique = 1
+    if (scaled_return_unique_s > 1):
+        scaled_return_unique_s = 1
+
+    accuracy_x_tweets = accuracy_unique * scaled_num_tweets
+    accuracy_x_tweets_s = accuracy_unique_s * scaled_num_tweets_s
+
+    # (3)
+    all_features = accuracy_x_tweets * scaled_return_unique
+    all_features_s = accuracy_x_tweets_s * scaled_return_unique_s
+
+    return (scaled_num_tweets + 3 * scaled_num_tweets_s + scaled_return_unique +
+            scaled_return_unique_s + all_features + all_features_s) / 8
+
+
+# Find feature for given user based on symbol and feature name
+def findFeature(user, symbol, feature_names, function, bull_bear):
+    feature_info = user
+    # If finding general feature
+    if (symbol != ''):
+        feature_info = user['perStock'][symbol]
+
+    # Not bull or bear specific feature
+    if (bull_bear == None):
+        # only looking for one value
+        if (len(feature_names) == 1):
+            bull_res = feature_info[function][feature_names[0]]['bull']
+            bear_res = feature_info[function][feature_names[0]]['bear']
+            return bull_res + bear_res
+        # looking for a fraction
+        else:
+            bull_res_n = feature_info[function][feature_names[0]]['bull']
+            bear_res_n = feature_info[function][feature_names[0]]['bear']
+            bull_res_d = feature_info[function][feature_names[1]]['bull']
+            bear_res_d = feature_info[function][feature_names[1]]['bear']
+            total_nums = bull_res_d + bear_res_d
+            # If never tweeted about this stock
+            if (total_nums == 0):
+                return findFeature(user, '', feature_names, function, bull_bear)
+            return (bull_res_n + bear_res_n) * 1.0 / total_nums
+    else:
+        # only looking for one value
+        if (len(feature_names) == 1):
+            res = feature_info[function][feature_names[0]][bull_bear]
+            return res
+        # looking for a fraction
+        else:
+            res_n = feature_info[function][feature_names[0]][bull_bear]
+            res_d = feature_info[function][feature_names[1]][bull_bear]
+            total_nums = res_n + res_d
+            # If never tweeted about this stock
+            if (total_nums == 0):
+                return findFeature(user, '', feature_names, function, bull_bear)
+            return res_n * 1.0 / total_nums
+
 def calculateSentiment(tweets, symbol, userAccDict):
     usersTweeted = {'bull': set([]), 'bear': set([])}
     result = buildResult()
