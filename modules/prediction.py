@@ -163,6 +163,21 @@ def newCalculateSentiment(tweets, symbol, userAccDict):
 # unique bull / ratio
 # unique return
 
+# divide by number of predictions per day
+
+# Return feature parameters based on tweets
+def stock_features(tweets, symbol):
+    result = {}
+    function = 'log(x)'
+    for tweet in tweets:
+        username = tweet['user']
+        isBull = tweet['isBull']
+        label = 'bull' if isBull else 'bear'
+        w = findWeight(tweet['time'], function)
+        user_info = getAllUserInfo(username)
+        user_weight = weightedUserPrediction(user_info, symbol)
+
+
 
 ##
 # All per stocks featuers are weighted by (x(1 + tweets per stock))
@@ -200,8 +215,8 @@ def weightedUserPrediction(user, symbol):
         return 0
     
     # (1) scale between 70-700 (general) and 1-100 (per stock)
-    scaled_num_tweets = math.log10(num_tweets) - math.log10(70)
-    scaled_num_tweets_s = math.log10(num_tweets_s + 1)
+    scaled_num_tweets = (math.sqrt(num_tweets) - math.sqrt(70)) / (math.sqrt(700) - math.sqrt(70))
+    scaled_num_tweets_s = math.sqrt(num_tweets_s) / math.sqrt(50)
     if (scaled_num_tweets > 1):
         scaled_num_tweets = 1
     if (scaled_num_tweets_s > 1):
@@ -213,9 +228,9 @@ def weightedUserPrediction(user, symbol):
     return_unique = findFeature(user, '', ['returnUnique'], function, bull_bear)
     return_unique_s = findFeature(user, symbol, ['returnUnique'], function, bull_bear)
 
-    # (2) scale between -150 and 150
-    scaled_return_unique = (150 + return_unique) / 300
-    scaled_return_unique_s = (150 + return_unique_s) / 300
+    # (2) scale between -100 and 100 / -100 and 100
+    scaled_return_unique = (100 + return_unique) / 200
+    scaled_return_unique_s = (100 + return_unique_s) / 200
     if (scaled_return_unique > 1):
         scaled_return_unique = 1
     if (scaled_return_unique_s > 1):
@@ -226,10 +241,17 @@ def weightedUserPrediction(user, symbol):
 
     # (3)
     all_features = accuracy_x_tweets * scaled_return_unique
-    all_features_s = accuracy_x_tweets_s * scaled_return_unique_s
+    all_features_s = 2 * accuracy_x_tweets_s * scaled_return_unique_s
 
-    return (scaled_num_tweets + 3 * scaled_num_tweets_s + scaled_return_unique +
-            scaled_return_unique_s + all_features + all_features_s) / 8
+    # print(scaled_num_tweets)
+    # print(scaled_num_tweets_s)
+    # print(scaled_return_unique)
+    # print(scaled_return_unique_s)
+    # print(all_features)
+    # print(all_features_s)
+
+    return (scaled_num_tweets + scaled_num_tweets_s + scaled_return_unique +
+            scaled_return_unique_s + all_features + all_features_s) / 6
 
 
 # Find feature for given user based on symbol and feature name

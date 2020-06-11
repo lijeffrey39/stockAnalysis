@@ -101,9 +101,9 @@ def shouldParseUser(username, reAnalyze, updateUser):
 # Returns list of all users to analyze
 def findUsers(reAnalyze, findNewUsers, updateUser):
     # Find new users to analyze from all tweets
-    if (findNewUsers):
-        updateUserNotAnalyzed()
-        return
+    # if (findNewUsers):
+    #     updateUserNotAnalyzed()
+    #     return
 
     cursor = None
     # Find all tweets this user posted again up till last time
@@ -586,7 +586,7 @@ def getStatsPerUser(user):
                 result[f]['returnUniqueLog'][label] += val
                 result['perStock'][symbol][f]['returnUniqueLog'][label] += val
 
-        print(average_time, symbol, uniqueStocks[time_string]['returnUnique'], result['1']['returnUnique']['bull'], result['1']['returnUnique']['bear'])
+        # print(average_time, symbol, uniqueStocks[time_string]['returnUnique'], result['1']['returnUnique']['bull'], result['1']['returnUnique']['bear'])
 
     # Remove symbols that user didn't have valid tweets about
     for symbol in list(result['perStock'].keys()):
@@ -594,10 +594,21 @@ def getStatsPerUser(user):
             result['perStock'][symbol]['x']['numPredictions']['bear'] == 0):
             del result['perStock'][symbol]
 
+    # Insert user info
     userAccuracy.insert_one(result)
+
+    # Update last updated time
+    last_calculated = analyzedUsersDB.last_user_accuracy_actual_calculated
     currTime = convertToEST(datetime.datetime.now())
     lastTime = {'_id': user, 'time': currTime}
-    analyzedUsersDB.last_user_accuracy_actual_calculated.insert_one(lastTime)
+    exists = last_calculated.find_one(lastTime)
+    if (exists):
+        updateQuery = {'_id': result['_id']}
+        newCoreInfo = {'$set': lastTime}
+        last_calculated.update_one(updateQuery, newCoreInfo)
+    else:
+        last_calculated.insert_one(lastTime)
+
     return result
 
 

@@ -193,7 +193,7 @@ def main():
     dateNow = convertToEST(datetime.datetime.now())
 
     if (options.users):
-        analyzeUsers(reAnalyze=False, findNewUsers=False, updateUser=True)
+        analyzeUsers(reAnalyze=False, findNewUsers=True, updateUser=False)
     elif (options.stocks):
         now = convertToEST(datetime.datetime.now())
         date = datetime.datetime(now.year, now.month, now.day)
@@ -264,7 +264,8 @@ def main():
         # getStatsPerUser('robsokool')
         # print(getAllUserInfo('hirashima'))
 
-        print(weightedUserPrediction(getAllUserInfo('hirashima'), 'NFLX'))
+        # getAllUserInfo('SDF9090')
+        print(weightedUserPrediction(getAllUserInfo('SDF9090'), ''))
         # transferNonLabeled(stocks)
 
         # findBadMessages('ArmedInfidel')
