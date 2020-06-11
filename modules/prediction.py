@@ -167,17 +167,76 @@ def newCalculateSentiment(tweets, symbol, userAccDict):
 
 # Return feature parameters based on tweets
 def stock_features(tweets, symbol):
-    result = {}
-    function = 'log(x)'
+    result = {
+        'bull_unique': 0,
+        'bear_unique': 0,
+        'bull_return': 0,
+        'bear_return': 0
+    }
+    function = '1'
+    bull_count = 0
+    bear_count = 0
+    seen_users = set([])
+
+    # Assume tweets sorted from new to old
     for tweet in tweets:
         username = tweet['user']
+        # Only look at the most recent prediction by user
+        if (username in seen_users):
+            continue
+        seen_users.add(username)
+
         isBull = tweet['isBull']
         label = 'bull' if isBull else 'bear'
         w = findWeight(tweet['time'], function)
         user_info = getAllUserInfo(username)
+        return_unique = findFeature(user_info, symbol, ['returnUniqueLog'], function, label)
         user_weight = weightedUserPrediction(user_info, symbol)
 
+        tweet_value = user_weight * w
+        if (isBull):
+            bull_count += 1
+            result['bull_return'] += tweet_value * return_unique
+            result['bull_unique'] += tweet_value
+        else:
+            bear_count += 1
+            result['bear_return'] += tweet_value * return_unique
+            result['bear_unique'] += tweet_value
 
+    # Standardize by number of tweets
+    try:
+        result['bull_unique'] /= bull_count
+        result['bull_return'] /= bull_count
+    except:
+        pass
+    
+    try:
+        result['bear_unique'] /= bear_count
+        result['bear_return'] /= bear_count
+    except:
+        pass
+
+    # Average should be 0?
+    # Should be standardized between stocks since divided by total count ?
+    result['total_unique'] = result['bull_unique'] - result['bear_unique']
+    result['total_return_unique'] = result['bull_return'] - result['bear_return']
+
+    # average should be 0
+    # negative means more bear than bull
+    result['count_ratio'] = calcRatio(result['bull_unique'], result['bear_unique'])
+    result['return_ratio'] = calcRatio(result['bull_return'], result['bear_return'])
+
+
+# Find the weight of a stock based on list of features (range is from -1 to 1)
+def calcStockWeight(features, weights):
+    result = 0
+    total_weights = 0
+    for f in features:
+        w = weights[f]
+        total_weights += w
+        result += (w * features[f])
+
+    return 
 
 ##
 # All per stocks featuers are weighted by (x(1 + tweets per stock))
@@ -293,6 +352,10 @@ def findFeature(user, symbol, feature_names, function, bull_bear):
             if (total_nums == 0):
                 return findFeature(user, '', feature_names, function, bull_bear)
             return res_n * 1.0 / total_nums
+
+
+
+
 
 def calculateSentiment(tweets, symbol, userAccDict):
     usersTweeted = {'bull': set([]), 'bear': set([])}

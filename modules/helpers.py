@@ -51,6 +51,7 @@ def insertResults(results):
 
 
 # Calculate ratio between two values
+# Alway < -1 or > 1
 def calcRatio(bullNum, bearNum):
     maxVal = max(bullNum, bearNum)
     minVal = min(bullNum, bearNum)

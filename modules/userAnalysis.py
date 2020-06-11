@@ -60,8 +60,8 @@ def shouldParseUser(username, reAnalyze, updateUser):
             dateStart = convertToEST(datetime.datetime.now()) - datetime.timedelta(days=19)
             lastUpdated = result['last_updated']
             # Already updated recently
-            if (lastUpdated > dateStart):
-                return None
+            # if (lastUpdated > dateStart):
+            #     return None
 
     (coreInfo, error) = findUserInfo(username)
     currTime = convertToEST(datetime.datetime.now())
@@ -110,8 +110,8 @@ def findUsers(reAnalyze, findNewUsers, updateUser):
     if (updateUser):
         analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
         dateStart = convertToEST(datetime.datetime.now()) - datetime.timedelta(days=30)
-        query = {"$and": [{'error': {'$ne': ""}},
-                          {'last_updated': {'$lte': dateStart}}]}
+        query = {"$and": [{'error': "Len of messages was 0 ???"},
+                          {'last_updated': {'$gte': dateStart}}]}
         cursor = analyzedUsers.find(query)
     elif (reAnalyze):
         analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
