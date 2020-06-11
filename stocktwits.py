@@ -4,14 +4,15 @@ import matplotlib. pyplot as plt
 import math
 
 from modules.helpers import (convertToEST, findTradingDays, getAllStocks,
-                             insertResults, findWeight, writePickleObject)
+                             insertResults, findWeight, writePickleObject, readPickleObject)
 from modules.hyperparameters import constants
 #from modules.nn import calcReturns, testing
 from modules.prediction import (basicPrediction, findAllTweets, updateBasicStockInfo, setupUserInfos)
 from modules.stockAnalysis import (findPageStock, getTopStocks, parseStockData,
                                    shouldParseStock, updateLastMessageTime,
                                    updateLastParsedTime, updateStockCount, getSortedStocks)
-from modules.stockPriceAPI import (updateAllCloseOpen, transferNonLabeled, findCloseOpen, closeToOpen, getUpdatedCloseOpen, getCloseOpenInterval)
+from modules.stockPriceAPI import (updateAllCloseOpen, transferNonLabeled, findCloseOpen, closeToOpen, getUpdatedCloseOpen, 
+                                    getCloseOpenInterval, updateyfinanceCloseOpen)
 from modules.userAnalysis import (findPageUser, findUsers, insertUpdateError,
                                   parseUserData, shouldParseUser, getStatsPerUser,
                                   updateUserNotAnalyzed, getAllUserInfo,
@@ -79,7 +80,7 @@ def analyzeStocks(date, stocks):
 # findNewUsers updates user_not_analyzed table to find new users to parse/store
 # reAnalyze reanalyzes users that errored out
 def analyzeUsers(reAnalyze, findNewUsers, updateUser):
-    users = findUsers(reAnalyze, findNewUsers, updateUser)
+    users = ['SDF9090']
     print(len(users))
     for username in users:
         print(username)
@@ -223,22 +224,30 @@ def main():
         dailyAnalyzeUsers(reAnalyze=True, updateUser=True, daysback=14)
     else:
         print('')
-        import pickle
-        allUsers = constants['db_user_client'].get_database('user_data_db').user_accuracy_v2.find()
-        userList = []
-        for i in allUsers:
-            val = i['1']['numPredictions']['bull'] + i['1']['numPredictions']['bear']
-            userList.append(val)
-            # if val == 0:
-            #     userList.append(0)
-            # elif val > 70:
-            #     userList.append(math.log10(val))
-
-        writePickleObject('insert path here', userList)
-
-
-        plt.hist(userList, 100)
-        plt.show()
+        import yfinance as yf
+        tick = yf.Ticker('AAPL')
+        now = convertToEST(datetime.datetime.now())
+        date1 = datetime.datetime(now.year, 5, 20, 12, 30)
+        dateNow = datetime.datetime(now.year, now.month, now.day, 13, 30)
+        dates = findTradingDays(date1, dateNow)
+        count = 0
+        for date in dates:
+            print(date)
+            yOpen = tick.history(start=date, end=date)[['Close']].values[0][0].item()
+            print(type(yOpen))
+            count+=1
+        
+        #db = constants['db_client'].get_database('stocks_data_db').yfin_close_open
+        # import pickle
+        # #allUsers = constants['db_user_client'].get_database('user_data_db').user_accuracy_v2.find()
+        # userList = readPickleObject("pickledObjects/test.pkl")
+        # newList = []
+        # for val in userList:
+        #     if val > 70:
+        #         newList.append(math.sqrt(math.sqrt(val)))
+        # # newList = list(map(lambda x:math.log10(x),newList))
+        # plt.hist(newList, 10)
+        # plt.show()
 
         # testing yfinance
         # import yfinance as yf
