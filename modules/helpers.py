@@ -48,6 +48,11 @@ def insertResults(results):
             count += 1
         except Exception:
             continue
+    
+    # try:
+    #     collection.insert_many(results, ordered=False)
+    # except:
+    #     pass
     print(count, count1, total)
 
 
@@ -113,32 +118,43 @@ def readCachedCloseOpen(symbol):
 def readCachedTweets(symbol):
     path = './cachedTweets/' + symbol + '.csv'
     if (os.path.exists(path) is False):
-        writeCachedTweets(symbol, [])
-        return {}
+        with open('./cachedTweets/' + symbol + '.csv', "a") as f:
+            csvWriter = csv.writer(f, delimiter=',')
+            csvWriter.writerows([])
+        return []
 
     with open(path) as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=',')
-        result = {}
+        result = []
         for row in csv_reader:
             cDate = parse(row[0])
-            d = datetime.datetime(cDate.year, cDate.month, cDate.day).strftime('%m/%d/%Y')
-            if (d not in result):
-                result[d] = []
-            tweet = {'time': cDate, 'likeCount': int(row[3]),
-                    'commentCount': int(row[2]), 'isBull': ast.literal_eval(row[1]),
+            # d = datetime.datetime(cDate.year, cDate.month, cDate.day).strftime('%m/%d/%Y')
+            tweet = {'time': cDate, 
+                    'likeCount': int(row[3]),
+                    'commentCount': int(row[2]),
+                    'isBull': ast.literal_eval(row[1]),
                     'user': row[4]}
-            result[d].append(tweet)
+            result.append(tweet)
         return result
 
+def convertTweetToString(tweet):
+    result = ""
+    result += tweet['time'].strftime("%m/%d/%Y, %H:%M:%S")
+    result += tweet['user']
+    result += str(tweet['isBull'])
+    result += (str(tweet['likeCount']) + str(tweet['commentCount']))
+    return result
 
 # Write tweets to cached CSVs
 def writeCachedTweets(symbol, tweets):
-    tweets = list(map(lambda x: [x['time'], x['isBull'], x['commentCount'],
-                                 x['likeCount'], x['user']], tweets))
-
-    with open('./cachedTweets/' + symbol + '.csv', "a") as f:
+    curr_tweets = readCachedTweets(symbol)
+    mapped_curr_tweets = set(list(map(convertTweetToString, curr_tweets)))
+    new_tweets = list(filter(lambda t: convertTweetToString(t) not in mapped_curr_tweets, tweets))
+    new_tweets = list(map(lambda x: [x['time'], x['isBull'], x['commentCount'],
+                                 x['likeCount'], x['user']], new_tweets))
+    with open('./cachedTweets/' + symbol + '.csv', 'a') as f:
         csvWriter = csv.writer(f, delimiter=',')
-        csvWriter.writerows(tweets)
+        csvWriter.writerows(new_tweets)
     return
 
 

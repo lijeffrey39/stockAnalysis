@@ -105,16 +105,20 @@ def findUsers(reAnalyze, findNewUsers, updateUser):
     #     updateUserNotAnalyzed()
     #     return
 
+
+    analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
+    res = analyzedUsers.aggregate([{'$group' : { '_id' : '$error', 'count' : {'$sum' : 1}}}, { "$sort": { "count": 1 } },])
+    # for i in res:
+    #     print(i)
+    # return
     cursor = None
     # Find all tweets this user posted again up till last time
     if (updateUser):
-        analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
         dateStart = convertToEST(datetime.datetime.now()) - datetime.timedelta(days=30)
         query = {"$and": [{'error': "Len of messages was 0 ???"},
                           {'last_updated': {'$gte': dateStart}}]}
         cursor = analyzedUsers.find(query)
     elif (reAnalyze):
-        analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
         query = {"$or": [
             # {'error': 'Not enough ideas'},
                         # fix these too
@@ -128,7 +132,6 @@ def findUsers(reAnalyze, findNewUsers, updateUser):
                           ]}
         cursor = analyzedUsers.find(query)
     else:
-        analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
         cursor = analyzedUsers.find()
         users = list(map(lambda document: document['_id'], cursor))
         setUsers = set(users)
@@ -142,7 +145,19 @@ def findUsers(reAnalyze, findNewUsers, updateUser):
         newL = sorted(list(toBeFound))
         print(len(newL))
         shuffle(newL)
-        return newL
+
+        dateStart = convertToEST(datetime.datetime.now()) - datetime.timedelta(days=30)
+        query = {"$or": [{'error': "Len of messages was 0 ???"},
+                          {'error': "Message: session not created: This version of ChromeDriver only supports Chrome version 79\n"},
+                          {'error': 'Message: script timeout\n  (Session info: headless chrome=83.0.4103.97)\n',},
+                          {'error': 'Message: unknown error: failed to close window in 20 seconds\n  (Session info: headless chrome=83.0.4103.97)\n'},
+                          {'error': 'Empty result list'},
+                          {'error': 'Message: unknown error: unable to discover open pages\n'}]}
+        cursor = analyzedUsers.find(query)
+        users = list(map(lambda document: document['_id'], cursor))
+        users.extend(newL)
+        res = list(set(users))
+        return res
 
     users = list(map(lambda document: document['_id'], cursor))
     shuffle(users) 

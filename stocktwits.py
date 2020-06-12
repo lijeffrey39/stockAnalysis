@@ -4,8 +4,7 @@ import optparse
 from modules.helpers import (convertToEST, findTradingDays, getAllStocks,
                              insertResults, findWeight)
 from modules.hyperparameters import constants
-#from modules.nn import calcReturns, testing
-from modules.prediction import (basicPrediction, findAllTweets, updateBasicStockInfo, setupUserInfos, weightedUserPrediction)
+from modules.prediction import (basicPrediction, findAllTweets, updateBasicStockInfo, setupUserInfos)
 from modules.stockAnalysis import (findPageStock, getTopStocks, parseStockData,
                                    shouldParseStock, updateLastMessageTime,
                                    updateLastParsedTime, updateStockCount, getSortedStocks)
@@ -16,6 +15,8 @@ from modules.userAnalysis import (findPageUser, findUsers, insertUpdateError,
                                   calculateAllUserInfo, parseOldUsers)
 from modules.tests import (findBadMessages, removeMessagesWithStock, 
                            findTopUsers, findOutliers, findAllUsers, findErrorUsers)
+                        
+from modules.newPrediction import (findTweets, weightedUserPrediction, prediction)
 
 
 client = constants['db_client']
@@ -193,7 +194,7 @@ def main():
     dateNow = convertToEST(datetime.datetime.now())
 
     if (options.users):
-        analyzeUsers(reAnalyze=False, findNewUsers=False, updateUser=True)
+        analyzeUsers(reAnalyze=False, findNewUsers=True, updateUser=False)
     elif (options.stocks):
         now = convertToEST(datetime.datetime.now())
         date = datetime.datetime(now.year, now.month, now.day)
@@ -204,7 +205,14 @@ def main():
         #         print(i)
         analyzeStocks(date, ['SNAP'])
     elif (options.prediction):
-        makePrediction(dateNow)
+        stocks = getTopStocks(100)
+        date = datetime.datetime(2020, 5, 5, 9, 30)
+        dateUpTo = datetime.datetime(dateNow.year, dateNow.month, dateNow.day + 1)
+        dates = findTradingDays(date, dateUpTo)
+        # dates = [dates[0], dates[1]]
+        stocks=['AAPL']
+        prediction(dates, stocks, True)
+        # makePrediction(dateNow)
     elif (options.updateCloseOpens):
         date = datetime.datetime(2019, 12, 20, 9, 30)
         dateUpTo = datetime.datetime(dateNow.year, 12, 20, 16)
@@ -219,7 +227,8 @@ def main():
         dailyAnalyzeUsers(reAnalyze=True, updateUser=True, daysback=14)
     else:
         now = convertToEST(datetime.datetime.now())
-        date = datetime.datetime(now.year, now.month, now.day)
+        date = datetime.datetime(now.year, now.month, now.day - 2)
+        print(date)
         stocks = getAllStocks()
         # print(len(stocks))
         # for i in range(len(stocks)):
@@ -264,8 +273,10 @@ def main():
         # getStatsPerUser('robsokool')
         # print(getAllUserInfo('hirashima'))
 
+        # print(len(findTweets(date, 'AAPL')))
+
         # getAllUserInfo('SDF9090')
-        print(weightedUserPrediction(getAllUserInfo('SDF9090'), ''))
+        # print(weightedUserPrediction(getAllUserInfo('SDF9090'), ''))
         # transferNonLabeled(stocks)
 
         # findBadMessages('ArmedInfidel')
