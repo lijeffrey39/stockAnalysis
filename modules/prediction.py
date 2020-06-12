@@ -163,16 +163,21 @@ def newCalculateSentiment(tweets, symbol, userAccDict):
 # unique bull / ratio
 # unique return
 
-# divide by number of predictions per day
+def buildStockFeatures():
+    result = {}
+    labels = ['bull', 'bear']
+    features = ['return', 'return_log', 'return_s', 'return_log_s']
+    for l in labels:
+        result[l] = 0
+        for f in features:
+            result[l + '_' + f] = 0
+    return result
 
+
+# divide by number of predictions per day
 # Return feature parameters based on tweets
-def stock_features(tweets, symbol):
-    result = {
-        'bull_unique': 0,
-        'bear_unique': 0,
-        'bull_return': 0,
-        'bear_return': 0
-    }
+def stockFeatures(tweets, symbol):
+    result = buildStockFeatures()
     function = '1'
     bull_count = 0
     bear_count = 0
@@ -190,39 +195,52 @@ def stock_features(tweets, symbol):
         label = 'bull' if isBull else 'bear'
         w = findWeight(tweet['time'], function)
         user_info = getAllUserInfo(username)
-        return_unique = findFeature(user_info, symbol, ['returnUniqueLog'], function, label)
-        user_weight = weightedUserPrediction(user_info, symbol)
 
+        return_unique = findFeature(user_info, '', ['returnUnique'], function, label)
+        return_unique_log = findFeature(user_info, '', ['returnUniqueLog'], function, label)
+        return_unique_s = findFeature(user_info, symbol, ['returnUnique'], function, label)
+        return_unique_log_s = findFeature(user_info, symbol, ['returnUniqueLog'], function, label)
+
+        user_weight = weightedUserPrediction(user_info, symbol)
         tweet_value = user_weight * w
         if (isBull):
             bull_count += 1
-            result['bull_return'] += tweet_value * return_unique
-            result['bull_unique'] += tweet_value
         else:
             bear_count += 1
-            result['bear_return'] += tweet_value * return_unique
-            result['bear_unique'] += tweet_value
+
+        result[label] += tweet_value
+        result[label + '_return'] += tweet_value * return_unique
+        result[label + '_return_log'] += tweet_value * return_unique_log
+        result[label + '_return_s'] += tweet_value * return_unique_s
+        result[label + '_return_log_s'] += tweet_value * return_unique_log_s
 
     # Standardize by number of tweets
     try:
-        result['bull_unique'] /= bull_count
-        result['bull_return'] /= bull_count
+        for f in result:
+            if ('bull' in f):
+                result[f] /= bull_count
     except:
         pass
     
     try:
-        result['bear_unique'] /= bear_count
-        result['bear_return'] /= bear_count
+        for f in result:
+            if ('bear' in f):
+                result[f] /= bull_count
     except:
         pass
 
     # Average should be 0?
     # Should be standardized between stocks since divided by total count ?
-    result['total_unique'] = result['bull_unique'] - result['bear_unique']
-    result['total_return_unique'] = result['bull_return'] - result['bear_return']
+    # "sentiment" of the stock for the day
+    result['total'] = result['bull'] - result['bear']
+    result['return'] = result['bull_return'] - result['bear_return']
+    result['return_log'] = result['bull_return_log'] - result['bear_return_log']
+    result['return_s'] = result['bull_return_s'] - result['bear_return_s']
+    result['return_log_s'] = result['bull_return_log_s'] - result['bear_return_log_s']
 
-    # average should be 0
+    # Need to look at historical ratios to determine if this is sig diff 
     # negative means more bear than bull
+    # ratio of the "sentiment" for the day
     result['count_ratio'] = calcRatio(result['bull_unique'], result['bear_unique'])
     result['return_ratio'] = calcRatio(result['bull_return'], result['bear_return'])
 
@@ -231,7 +249,7 @@ def stock_features(tweets, symbol):
 def calcStockWeight(features, weights):
     result = 0
     total_weights = 0
-    for f in features:
+    for f in weights:
         w = weights[f]
         total_weights += w
         result += (w * features[f])

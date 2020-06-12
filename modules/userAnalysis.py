@@ -338,7 +338,6 @@ def parseUserData(username, soup):
         # Only care about tweets that are labeled
         if (len(symbols) == 0):
             continue
-        print(symbols)
         dateString = ""
 
         # Handle edge cases

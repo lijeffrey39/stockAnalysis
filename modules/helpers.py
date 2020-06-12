@@ -42,6 +42,7 @@ def insertResults(results):
             count1 += 1
             continue
 
+        print(query['symbol'])
         try:
             collection.insert_one(r)
             count += 1
@@ -51,7 +52,7 @@ def insertResults(results):
 
 
 # Calculate ratio between two values
-# Alway < -1 or > 1
+# Alway < 0 or > 0
 def calcRatio(bullNum, bearNum):
     maxVal = max(bullNum, bearNum)
     minVal = min(bullNum, bearNum)
@@ -60,7 +61,7 @@ def calcRatio(bullNum, bearNum):
         ratio = maxVal
     else:
         ratio = maxVal * 1.0 / minVal
-
+    ratio -= 1 # offset by 1
     if (bullNum < bearNum):
         ratio = -ratio
     return ratio

@@ -99,8 +99,8 @@ def analyzeUsers(reAnalyze, findNewUsers, updateUser):
             insertUpdateError(coreInfo, reAnalyze, updateUser)
             continue
 
-        insertUpdateError(coreInfo, reAnalyze, updateUser)
         insertResults(result)
+        insertUpdateError(coreInfo, reAnalyze, updateUser)
 
 def dailyAnalyzeUsers(reAnalyze, updateUser, daysback):
     users = parseOldUsers(daysback)
