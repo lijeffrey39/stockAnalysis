@@ -349,6 +349,7 @@ def main():
         # db = constants['stocktweets_client'].get_database('stocks_data_db')
         # lastParsed = db.last_parsed
         # for i in stocks:
+        #     print(i)
         #     lastTime = lastParsed.find({'_id': i})
         #     print(str(i) + ':' + str(lastTime[0]))
 
