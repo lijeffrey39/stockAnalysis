@@ -27,7 +27,7 @@ def getTopStocks(numStocks=100):
 
 def getSortedStocks():
     stockCounts = constants['db_client'].get_database(
-        'stocktwits_db').stock_counts
+        'stocktwits_db').stock_counts_v2
     cursor = stockCounts.find()
     stocks = list(map(lambda document: document, cursor))
     newdict = sorted(stocks, key=lambda k: k['count'], reverse=True)
@@ -39,29 +39,14 @@ def getSortedStocks():
 
 def updateStockCount():
     currTime = convertToEST(datetime.datetime.now())
-    prevTime = currTime - timedelta(days=30)    
-    stockCounts = constants['db_client'].get_database(
-        'stocktwits_db').stock_counts
-    allStocks = constants['db_client'].get_database('stocktwits_db').all_stocks
-    cursor = allStocks.find()
-    stocks = list(map(lambda document: document['_id'], cursor))
-
-    for s in stocks:
-        tweets = constants['stocktweets_client'].get_database('tweets_db').tweets.find({"$and": [{'symbol': s},
-                                                                 {'time': {'$gte': prevTime,
-                                                                  '$lt': currTime}}]})
-        lastTime = stockCounts.find({'_id': s})
-        tweetsMapped = list(map(lambda document: document, lastTime))
-        count = tweets.count()
-        print(s, count)
-        # If no last parsed time has been set yet
-        if (len(tweetsMapped) == 0):
-            stockCounts.insert_one({'_id': s, 'count': count})
-        else:
-            # update last parsed time as current time
-            query = {'_id': s}
-            newVal = {'$set': {'count': count}}
-            stockCounts.update_one(query, newVal)
+    prevTime = currTime - datetime.timedelta(days=30)   
+    db = constants['db_client'].get_database('stocktwits_db').stock_counts_v2
+    analyzedUsers = constants['stocktweets_client'].get_database('tweets_db').tweets
+    res = analyzedUsers.aggregate([{ "$match": { "time" : { '$gte' : prevTime} } }, {'$group' : { '_id' : '$symbol', 'count' : {'$sum' : 1}}}, { "$sort": { "count": 1 } },])
+    for i in res:
+        query = {'_id': i['_id']}
+        newVal = {'$set': {'count30': i['count']}}
+        db.update_one(query, newVal)
 
 
 # Return soup object page of that stock
