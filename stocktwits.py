@@ -1,14 +1,19 @@
 import datetime
 import optparse
+import matplotlib. pyplot as plt
+import math
+import yfinance as yf
+import requests
 
 from modules.helpers import (convertToEST, findTradingDays, getAllStocks,
-                             insertResults, findWeight)
+                             insertResults, findWeight, writePickleObject, readPickleObject)
 from modules.hyperparameters import constants
 from modules.prediction import (basicPrediction, findAllTweets, updateBasicStockInfo, setupUserInfos)
 from modules.stockAnalysis import (findPageStock, getTopStocks, parseStockData,
                                    shouldParseStock, updateLastMessageTime,
                                    updateLastParsedTime, updateStockCount, getSortedStocks)
-from modules.stockPriceAPI import (updateAllCloseOpen, transferNonLabeled, findCloseOpen, closeToOpen)
+from modules.stockPriceAPI import (updateAllCloseOpen, transferNonLabeled, findCloseOpen, closeToOpen, getUpdatedCloseOpen, 
+                                    getCloseOpenInterval, updateyfinanceCloseOpen)
 from modules.userAnalysis import (findPageUser, findUsers, insertUpdateError,
                                   parseUserData, shouldParseUser, getStatsPerUser,
                                   updateUserNotAnalyzed,
@@ -41,8 +46,7 @@ def analyzeStocks(date, stocks):
         if (soup == ''):
             stockError = {'date': dateString, 'symbol': symbol,
                           'error': errorMsg, 'timeElapsed': timeElapsed}
-            #db.stock_tweets_errors.insert_one(stockError)
-            print(errorMsg)
+            db.stock_tweets_errors.insert_one(stockError)
             continue
         
         try:
@@ -50,14 +54,14 @@ def analyzeStocks(date, stocks):
         except Exception as e:
             stockError = {'date': dateString, 'symbol': symbol,
                           'error': str(e), 'timeElapsed': -1}
-            #db.stock_tweets_errors.insert_one(stockError)
+            db.stock_tweets_errors.insert_one(stockError)
             print(e)
             continue
 
         if (len(result) == 0):
             stockError = {'date': dateString, 'symbol': symbol,
                           'error': 'Result length is 0??', 'timeElapsed': -1}
-            #db.stock_tweets_errors.insert_one(stockError)
+            db.stock_tweets_errors.insert_one(stockError)
             print(stockError)
             continue
 
@@ -79,7 +83,7 @@ def analyzeStocks(date, stocks):
 # findNewUsers updates user_not_analyzed table to find new users to parse/store
 # reAnalyze reanalyzes users that errored out
 def analyzeUsers(reAnalyze, findNewUsers, updateUser):
-    users = findUsers(reAnalyze, findNewUsers, updateUser)
+    users = ['SDF9090']
     print(len(users))
     for username in users:
         print(username)
@@ -182,10 +186,10 @@ def hourlyparse():
 
 # Executed daily, finds all the tweets from the non-top x stocks
 def dailyparse():
-    updateStockCount()
-    date = convertToEST(datetime.datetime.now())
+    now = convertToEST(datetime.datetime.now())
+    date = datetime.datetime(now.year, now.month, now.day)
     stocks = getSortedStocks()
-    analyzeStocks(date, stocks[50:])
+    analyzeStocks(date, stocks[101:1001])
 
 def main():
     opt_parser = optparse.OptionParser()
@@ -203,7 +207,7 @@ def main():
         # for i in range(len(stocks)):
         #     if (stocks[i] == "SESN"):
         #         print(i)
-        analyzeStocks(date, ['SNAP'])
+        analyzeStocks(date, stocks)
     elif (options.prediction):
         stocks = getTopStocks(100)
         date = datetime.datetime(2020, 5, 5, 9, 30)
@@ -215,10 +219,13 @@ def main():
         prediction(dates, stocks, True)
         # makePrediction(dateNow)
     elif (options.updateCloseOpens):
-        date = datetime.datetime(2019, 12, 20, 9, 30)
-        dateUpTo = datetime.datetime(dateNow.year, 12, 20, 16)
-        dates = findTradingDays(date, dateNow - datetime.timedelta(days=1))
-        stocks = getTopStocks(100)
+        updateStockCount()
+        now = convertToEST(datetime.datetime.now())
+        date = datetime.datetime(now.year, now.month, now.day, 12, 30)
+        dateNow = datetime.datetime(now.year, now.month, now.day, 13, 30)
+        dates = findTradingDays(date, dateNow)
+        print(dates)
+        stocks = getSortedStocks()
         updateAllCloseOpen(stocks, dates)
     elif (options.hourlyparser):
         hourlyparse()

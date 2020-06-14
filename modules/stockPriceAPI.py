@@ -1,7 +1,7 @@
 import datetime
 import math
 from multiprocessing import current_process
-
+import yfinance as yf
 import requests
 
 from .hyperparameters import constants
@@ -54,6 +54,7 @@ def findDateString(time):
 # Find close open for date. Anytime before 4pm is
 def findCloseOpen(symbol, time):
     db = constants['db_client'].get_database('stocks_data_db').updated_close_open
+    dbYF = constants['db_client'].get_database('stocks_data_db').yfin_close_open
     dayIncrement = datetime.timedelta(days=1)
     nextDay = None
     count = 0
@@ -91,13 +92,24 @@ def findCloseOpen(symbol, time):
 
     start = db.find_one({'_id': symbol + ' ' + time.strftime("%Y-%m-%d")})
     end = db.find_one({'_id': symbol + ' ' + nextDay.strftime("%Y-%m-%d")})
+    startYF = dbYF.find_one({'_id': symbol + ' ' + time.strftime("%Y-%m-%d")})
+    endYF = dbYF.find_one({'_id': symbol + ' ' + nextDay.strftime("%Y-%m-%d")})
 
     # If either start or end are 0, don't allow it (fixes TTNP)
     if (end is None) or (start is None) or (end['open'] == 0) or (start['close'] == 0):
-        return None
-    else:
+        if (endYF is None) or (startYF is None) or (endYF['open'] == 0) or (startYF['close'] == 0):
+            return None
+        else:
+            closePrice = startYF['close']
+            openPrice = endYF['open']
+            return (closePrice, openPrice, round(((openPrice - closePrice) / closePrice) * 100, 3))
+    elif (endYF is None) or (startYF is None) or (endYF['open'] == 0) or (startYF['close'] == 0):
         closePrice = start['close']
         openPrice = end['open']
+        return (closePrice, openPrice, round(((openPrice - closePrice) / closePrice) * 100, 3))
+    else:
+        closePrice = (start['close'] + startYF['close'])/2
+        openPrice = (end['open'] + endYF['open'])/2
         return (closePrice, openPrice, round(((openPrice - closePrice) / closePrice) * 100, 3))
 
 
@@ -119,9 +131,11 @@ def averagedOpenClose(symbol, date):
 
 
 def updateAllCloseOpen(stocks, dates, replace=False):
+    removal = []
     for symbol in stocks:
         print(symbol)
         for date in dates:
+            replace = True
             dateString = date.strftime("%Y-%m-%d")
             idString = symbol + ' ' + dateString
             db = constants['db_client'].get_database('stocks_data_db').updated_close_open
@@ -141,7 +155,7 @@ def updateAllCloseOpen(stocks, dates, replace=False):
 def updatedCloseOpen(symbol, date):
     dateString = date.strftime("%Y%m%d")
     baseURL = "https://cloud.iexapis.com/stable/stock/" + symbol + "/chart/date/"
-    restURL = "?chartByDay=True&token=sk_22c2d5789bb446b6aef446816d83a75c"
+    restURL = "?chartByDay=True&token=sk_c38d3babd3c144a886597ce6d014e543"
     URL = baseURL + dateString + restURL
     r = requests.get(url=URL)
     data = r.json()
@@ -152,6 +166,75 @@ def updatedCloseOpen(symbol, date):
     result = {'_id': _id, 'open': data['open'], 'close': data['close']}
     return result
 
+def updateyfinanceCloseOpen(symbol, date):
+    dateString = date.strftime("%Y-%m-%d")
+    tick = yf.Ticker(symbol)
+    yOpen = tick.history(start=date, end=date)[['Open']].values[0][0].item()
+    yClose = tick.history(start=date, end=date)[['Close']].values[0][0].item()  
+    if len(yOpen) == 0 or yOpen is None:
+        return {}
+    elif len(yClose) == 0 or yClose is None:
+        return {}
+    _id = symbol + ' ' + datestring
+    result = {'_id': _id, 'open': yOpen, 'close': yClose}
+    return result
+
+def updateAllCloseOpenYF(stocks, dates, replace=False):
+    for symbol in stocks:
+        print(symbol)
+        for date in dates:
+            replace = True
+            dateString = date.strftime("%Y-%m-%d")
+            idString = symbol + ' ' + dateString
+            db = constants['db_client'].get_database('stocks_data_db').yfin_close_open
+            found = db.find_one({'_id': idString})
+            if (found is None or replace):
+                result = updateyfinanceCloseOpen(symbol, date)
+                if (len(result) == 0):
+                    continue
+                print(result)
+                if (found is not None):
+                    db.delete_one({'_id': result['_id']})
+                db.insert_one(result)
+            else:
+                print('found', found)
+
+def getCloseOpenInterval(symbol, date, interval):
+    db = constants['db_client'].get_database('stocks_data_db').updated_close_open
+    nextDay = None
+    count = 0
+
+    # If saturday, sunday or holiday, find first trading day to start from time
+    testDay = db.find_one({'_id': 'AAPL ' + date.strftime("%Y-%m-%d")})
+    while (testDay is None and count != 10):
+        date = datetime.datetime(date.year, date.month, date.day)
+        date += datetime.timedelta(days=1)
+        testDay = db.find_one({'_id': 'AAPL ' + date.strftime("%Y-%m-%d")})
+        count += 1
+
+    # Find next day based on the picked first day
+    nextDay = date + datetime.timedelta(days=interval)
+    testDay = db.find_one({'_id': 'AAPL ' + nextDay.strftime("%Y-%m-%d")})
+    while (testDay is None and count != 10):
+        print(testDay)
+        nextDay += datetime.timedelta(days=1)
+        testDay = db.find_one({'_id': 'AAPL ' + nextDay.strftime("%Y-%m-%d")})
+        count += 1
+
+    if (count >= 10):
+        return None
+
+    start = db.find_one({'_id': symbol + ' ' + date.strftime("%Y-%m-%d")})
+    end = db.find_one({'_id': symbol + ' ' + nextDay.strftime("%Y-%m-%d")})
+    print(date.strftime("%Y-%m-%d"))
+    print(nextDay.strftime("%Y-%m-%d"))
+    # If either start or end are 0, don't allow it (fixes TTNP)
+    if (end is None) or (start is None) or (end['open'] == 0) or (start['close'] == 0):
+        return None
+    else:
+        firstPrice = start['close']
+        secondPrice = end['close']
+        return (firstPrice, secondPrice, round(((secondPrice - firstPrice) / firstPrice) * 100, 3))
 
 def getUpdatedCloseOpen(symbol, date):
     exceptions = [datetime.datetime(2019, 11, 27)]

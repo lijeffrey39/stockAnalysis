@@ -27,39 +27,26 @@ def getTopStocks(numStocks=100):
 
 def getSortedStocks():
     stockCounts = constants['db_client'].get_database(
-        'stocktwits_db').stock_counts
+        'stocktwits_db').stock_counts_v2
     cursor = stockCounts.find()
     stocks = list(map(lambda document: document, cursor))
     newdict = sorted(stocks, key=lambda k: k['count'], reverse=True)
     newlist = list(map(lambda document: document['_id'], newdict))
-    return newlist
+    remove_list = ['MDR', 'I', 'HSGX', 'RTTR', 'UWT', 'JCP', 'SES', 'DWT', 'SPEX', 'RBZ', 'YUMA', 'BPMX', 'SNNA', 'PTIE', 'FOMX', 'TROV', 'HIIQ', 'S', 'XGTI', 'MDCO', 'NLNK', 'SSI', 'VLRX', 'ATIS', 'INNT', 'DCAR', 'CUR', 'AKS', 'FTNW', 'KEG', 'CNAT', 'MLNT', 'GNMX', 'AKRX', 'CLD', 'ECA', 'DCIX', 'PIR', 'DF', 'AXON', 'CIFS', 'XON', 'SBOT', 'KOOL', 'HAIR', 'ARQL', 'IPCI', 'ACHN', 'ABIL', 'RTN', 'AMR', 'FTR', 'DERM', 'CBS', 'OILU', 'JMU', 'CELG', 'DRYS', 'AGN', 'SBGL', 'UPL', 'VTL', 'BURG', 'DO', 'SN', 'PVTL', 'UTX', 'HEB', 'WFT', 'CY', 'SYMC', 'PTX', 'AKAO', 'AVP', 'GEMP', 'CBK', 'HABT', 'RARX', 'ORPN', 'IGLD', 'ROX', 'LEVB', 'CTRP', 'CARB', 'AAC', 'HK', 'CRZO', 'MNGA', 'PEGI', 'OHGI', 'ZAYO', 'GLOW', 'MLNX', 'COT', 'SORL', 'BBT', 'FGP', 'SGYP', 'STI', 'FCSC', 'NIHD', 'ONCE', 'ANFI', 'VSI', 'INSY', 'CVRS', 'GG', 'WIN', 'BRS', 'NVLN', 'EMES', 'CBLK', 'ARRY', 'ESV', 'HRS', 'APHB', 'RHT', 'CLDC', 'EPE', 'APC', 'ACET', 'DATA', 'SDLP', 'GHDX', 'OHRP', 'EDGE', 'DFRG', 'VSM', 'RGSE', 'ASNS', 'BSTI', 'CADC', 'MXWL', 'PETX', 'IMDZ', 'ATTU', 'RLM', 'OMED']
+    res = [i for i in newlist if i not in remove_list] 
+    return res
 
 
 def updateStockCount():
     currTime = convertToEST(datetime.datetime.now())
-    prevTime = currTime - timedelta(days=300)    
-    stockCounts = constants['db_client'].get_database(
-        'stocktwits_db').stock_counts
-    allStocks = constants['db_client'].get_database('stocktwits_db').all_stocks
-    cursor = allStocks.find()
-    stocks = list(map(lambda document: document['_id'], cursor))
-
-    for s in stocks:
-        tweets = constants['stocktweets_client'].get_database('tweets_db').tweets.find({"$and": [{'symbol': s},
-                                                                 {'time': {'$gte': prevTime,
-                                                                  '$lt': currTime}}]})
-        lastTime = stockCounts.find({'_id': s})
-        tweetsMapped = list(map(lambda document: document, lastTime))
-        count = tweets.count()
-        print(s, count)
-        # If no last parsed time has been set yet
-        if (len(tweetsMapped) == 0):
-            stockCounts.insert_one({'_id': s, 'count': count})
-        else:
-            # update last parsed time as current time
-            query = {'_id': s}
-            newVal = {'$set': {'count': count}}
-            stockCounts.update_one(query, newVal)
+    prevTime = currTime - datetime.timedelta(days=30)   
+    db = constants['db_client'].get_database('stocktwits_db').stock_counts_v2
+    analyzedUsers = constants['stocktweets_client'].get_database('tweets_db').tweets
+    res = analyzedUsers.aggregate([{ "$match": { "time" : { '$gte' : prevTime} } }, {'$group' : { '_id' : '$symbol', 'count' : {'$sum' : 1}}}, { "$sort": { "count": 1 } },])
+    for i in res:
+        query = {'_id': i['_id']}
+        newVal = {'$set': {'count30': i['count']}}
+        db.update_one(query, newVal)
 
 
 # Return soup object page of that stock
@@ -99,7 +86,7 @@ def findPageStock(symbol, date, hoursBack):
         endDriver(driver)
         end = time.time()
         print(e)
-        # return ('', str(e), end - start)
+        return ('', str(e), end - start)
 
     html = driver.page_source
     soup = BeautifulSoup(html, 'html.parser')
@@ -114,11 +101,11 @@ def findPageStock(symbol, date, hoursBack):
 # Will be parsed if it has been more than 12 hours since the last time it was
 def shouldParseStock(symbol, dateString):
     db = constants['stocktweets_client'].get_database('stocks_data_db')
-    tweetsErrorCollection = db.stock_tweets_errors
-    if (tweetsErrorCollection.
-            count_documents({'symbol': symbol,
-                             'date': dateString}) != 0):
-        return (False, 0)
+    # tweetsErrorCollection = db.stock_tweets_errors
+    # if (tweetsErrorCollection.
+    #         count_documents({'symbol': symbol,
+    #                          'date': dateString}) != 0):
+    #     return (False, 0)
 
     lastParsed = db.last_parsed
     lastTime = lastParsed.find({'_id': symbol})
@@ -133,7 +120,7 @@ def shouldParseStock(symbol, dateString):
 
     lastTime = tweetsMapped[0]['time']
     totalHoursBack = (currTime - lastTime).total_seconds() / 3600.0
-    totalHoursBack = 13.0
+    #totalHoursBack = 1.1
     print(currTime, lastTime, totalHoursBack)
 
     # need to continue to parse if data is more than 3 hours old

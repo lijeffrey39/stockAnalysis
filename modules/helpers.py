@@ -6,6 +6,7 @@ import hashlib
 import math
 import os
 import pickle
+import holidays
 
 import pytz
 from dateutil.parser import parse
@@ -241,13 +242,20 @@ def convertToEST(dateTime):
 def findTradingDays(date, upToDate):
     delta = datetime.timedelta(1)
     dates = []
+    holidayList = []
+    # Print all the holidays in UnitedKingdom in year 2018 
+    for ptr in holidays.UnitedStates(years = [date.year, upToDate.year]).items(): 
+        if ptr[1] == 'Columbus Day' or ptr[1] == 'Veterans Day':
+            continue
+        holidayList.append(ptr[0])
 
     while (date < upToDate):
         # See if it's a valid trading day
-        if ((date.day == 2 and date.month == 9) or
-            date.day == 28 and date.month == 11):
+        #holidays
+        if date.date() in holidayList:
             date += delta
             continue
+        #weekend
         if (inTradingDay(date)):
             dates.append(date)
         date += delta

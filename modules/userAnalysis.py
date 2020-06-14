@@ -463,8 +463,9 @@ def updateUserFeatures(result, tweet, uniqueStocks, like_comment_counts):
     isBull = tweet['isBull']
     closeOpen = findCloseOpen(symbol, time)
     if (closeOpen is None):
+        # print(symbol, time, closeOpen, 'rip')
         return
-
+    # print(symbol, time, closeOpen)
     pChangeCloseOpen = closeOpen[2]
     correctPredCloseOpen = (isBull and pChangeCloseOpen >= 0) or (isBull is False and pChangeCloseOpen <= 0)
     correctNumCloseOpen = 1 if correctPredCloseOpen else 0
