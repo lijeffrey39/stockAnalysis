@@ -17,7 +17,7 @@ from .helpers import (calcRatio, findWeight, readCachedCloseOpen,
 from .hyperparameters import constants
 from .messageExtract import *
 from .stockPriceAPI import getUpdatedCloseOpen, updateAllCloseOpen
-from .userAnalysis import getAllUserInfo, setupUserInfos
+from .userAnalysis import setupUserInfos
 
 
 # ------------------------------------------------------------------------

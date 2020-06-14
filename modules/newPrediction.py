@@ -1,11 +1,26 @@
 import datetime
+import math
 from .hyperparameters import constants
+from .userAnalysis import getStatsPerUser
 from .helpers import (calcRatio, findWeight, readPickleObject,
                     readCachedTweets, writeCachedTweets, writePickleObject)
 
 
 def prediction(dates, stocks, updateObject):
     tweets_all = findAllTweets(dates, stocks, updateObject)
+    weightings = {
+        'total': 1,
+        'return_log': 1,
+        'return_s': 1,
+        'count_ratio': 1
+    }
+    for date in dates:
+        print(date)
+        for symbol in stocks:
+            tweets = tweets_all[symbol][date]
+            features = stockFeatures(tweets, symbol)
+            print(features)
+
 
 
 def findAllTweets(dates, stocks, updateObject=False):
@@ -19,7 +34,7 @@ def findAllTweets(dates, stocks, updateObject=False):
             result[symbol] = {}
 
         # Tweets per symbol cached in files for easy access
-        cachedTweets = readCachedTweets(symbol)
+        # cachedTweets = readCachedTweets(symbol)
         for date in dates:
             # Check if the date exists in the cached tweets
             # AND If date not stored in current pickle object
@@ -27,11 +42,10 @@ def findAllTweets(dates, stocks, updateObject=False):
                 print(date, len(result[symbol][date]))
                 continue
 
-            result[symbol][date] = []
             tweets = findTweets(date, symbol, True)
             result[symbol][date] = tweets
-            writeCachedTweets(symbol, tweets)
             print(date, len(result[symbol][date]))
+            writeCachedTweets(symbol, tweets)
 
     if (updateObject):
         writePickleObject(path, result)
@@ -104,11 +118,10 @@ def stockFeatures(tweets, symbol):
         if (username in seen_users):
             continue
         seen_users.add(username)
-
         isBull = tweet['isBull']
         label = 'bull' if isBull else 'bear'
         w = findWeight(tweet['time'], function)
-        user_info = getAllUserInfo(username)
+        user_info = getStatsPerUser(username)
 
         return_unique = findFeature(user_info, '', ['returnUnique'], function, label)
         return_unique_log = findFeature(user_info, '', ['returnUniqueLog'], function, label)
@@ -127,6 +140,8 @@ def stockFeatures(tweets, symbol):
         result[label + '_return_log'] += tweet_value * return_unique_log
         result[label + '_return_s'] += tweet_value * return_unique_s
         result[label + '_return_log_s'] += tweet_value * return_unique_log_s
+
+        print(result)
 
     # Standardize by number of tweets
     try:
@@ -157,6 +172,7 @@ def stockFeatures(tweets, symbol):
     # ratio of the "sentiment" for the day
     result['count_ratio'] = calcRatio(result['bull_unique'], result['bear_unique'])
     result['return_ratio'] = calcRatio(result['bull_return'], result['bear_return'])
+    return result
 
 
 # Find the weight of a stock based on list of features (range is from -1 to 1)

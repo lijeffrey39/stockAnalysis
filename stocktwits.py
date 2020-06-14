@@ -11,7 +11,7 @@ from modules.stockAnalysis import (findPageStock, getTopStocks, parseStockData,
 from modules.stockPriceAPI import (updateAllCloseOpen, transferNonLabeled, findCloseOpen, closeToOpen)
 from modules.userAnalysis import (findPageUser, findUsers, insertUpdateError,
                                   parseUserData, shouldParseUser, getStatsPerUser,
-                                  updateUserNotAnalyzed, getAllUserInfo,
+                                  updateUserNotAnalyzed,
                                   calculateAllUserInfo, parseOldUsers)
 from modules.tests import (findBadMessages, removeMessagesWithStock, 
                            findTopUsers, findOutliers, findAllUsers, findErrorUsers)
@@ -210,7 +210,8 @@ def main():
         dateUpTo = datetime.datetime(dateNow.year, dateNow.month, dateNow.day + 1)
         dates = findTradingDays(date, dateUpTo)
         # dates = [dates[0], dates[1]]
-        stocks=['AAPL']
+        dates = [datetime.datetime(2020, 5, 11, 9, 30)]
+        stocks=['TSLA']
         prediction(dates, stocks, True)
         # makePrediction(dateNow)
     elif (options.updateCloseOpens):
@@ -269,7 +270,7 @@ def main():
         #         print(date, findCloseOpen('AAPL', date))
         #         # print(date, round(findWeight(date, 'x'), 1))
 
-        # calculateAllUserInfo()
+        calculateAllUserInfo()
         # getStatsPerUser('robsokool')
         # print(getAllUserInfo('hirashima'))
 

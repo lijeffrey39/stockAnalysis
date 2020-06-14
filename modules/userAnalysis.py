@@ -106,8 +106,8 @@ def findUsers(reAnalyze, findNewUsers, updateUser):
     #     return
 
 
-    analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
-    res = analyzedUsers.aggregate([{'$group' : { '_id' : '$error', 'count' : {'$sum' : 1}}}, { "$sort": { "count": 1 } },])
+    # analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
+    # res = analyzedUsers.aggregate([{'$group' : { '_id' : '$error', 'count' : {'$sum' : 1}}}, { "$sort": { "count": 1 } },])
     # for i in res:
     #     print(i)
     # return
@@ -512,7 +512,6 @@ def updateUserFeatures(result, tweet, uniqueStocks, like_comment_counts):
 # Returns stats from user info for prediction
 def getStatsPerUser(user):
     analyzedUsersDB = constants['db_user_client'].get_database('user_data_db')
-    stocks = getAllStocks()
     userAccuracy = analyzedUsersDB.user_accuracy_actual
     result = userAccuracy.find({'_id': user})
     if (result.count() != 0):
@@ -522,9 +521,6 @@ def getStatsPerUser(user):
     labeledTweets = tweetsDB.find({"$and": [{'user': user},
                                             {'symbol': {"$ne": ''}},
                                             {'symbol': {'$ne': None}},
-                                            {'symbol': {
-                                                '$in': stocks
-                                            }},
                                             {"$or": [
                                                 {'isBull': True},
                                                 {'isBull': False}
@@ -538,8 +534,7 @@ def getStatsPerUser(user):
 
     # Loop through all tweets made by user and feature extract per user
     for tweet in labeledTweets:
-        if (tweet['symbol'] in stocks):
-            updateUserFeatures(result, tweet, uniqueStocks, like_comment_counts)
+        updateUserFeatures(result, tweet, uniqueStocks, like_comment_counts)
 
     if (like_comment_counts['total'] == 0):
         result['likes_per_tweet'] = 0
@@ -629,47 +624,45 @@ def getStatsPerUser(user):
 # Returns all information regarding a user
 # Need better error handling
 # Save this in database so don't need to make to 2 calls to consolidate data
-def getAllUserInfo(username):
-    userInfoDB = constants['db_user_client'].get_database('user_data_db').users
-    checkUserInfo = userInfoDB.find({'_id': username})
+# def getAllUserInfo(username):
+    # userInfo = checkUserInfo[0]
+    # result = getStatsPerUser(username)
+    # if (len(result) == 0):
+    #     return {}
 
-    # Need to parse the user for basic information
-    if (checkUserInfo.count() == 0):
-        return {}
-    userInfo = checkUserInfo[0]
-
-    # Need to reanalyze user
-    if (userInfo['error'] != ''):
-        return {}
-    result = getStatsPerUser(username)
-    if (len(result) == 0):
-        return {}
-
-    result['followers'] = userInfo['followers']
-    result['following'] = userInfo['following']
-    result['ideas'] = userInfo['ideas']
-    result['likeCount'] = userInfo['like_count']
-    result['userStatus'] = userInfo['user_status']
-    result['joinDate'] = findJoinDate(userInfo['join_date'])
-    return result
+    # result['followers'] = userInfo['followers']
+    # result['following'] = userInfo['following']
+    # result['ideas'] = userInfo['ideas']
+    # result['likeCount'] = userInfo['like_count']
+    # result['userStatus'] = userInfo['user_status']
+    # result['joinDate'] = findJoinDate(userInfo['join_date'])
+    # return result
 
 
 # Finds users that haven't been calculated yet
 def calculateAllUserInfo():
+    # Users that don't have errors
     analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
-    time = datetime.datetime(2019, 12, 8)
+    time = datetime.datetime(2020, 6, 1)
     query = {"$and": [{'error': ''}, 
                       {'last_updated': {'$exists': True}},
                       {'last_updated': {'$gte': time}}]}
     cursor = analyzedUsers.find(query)
     users = list(map(lambda document: document['_id'], cursor))
+
+    # Remove users that were recently parsed
+    last_calculated = constants['db_user_client'].get_database('user_data_db').last_user_accuracy_actual_calculated
+    query = {'time': {'$gte': datetime.datetime(2020, 6, 1)}}
+    cursor = last_calculated.find(query)
+    analyzed_already = list(map(lambda document: document['_id'], cursor))
+    users = list(set(users) - set(analyzed_already))
     print(len(users))
     shuffle(users)
-    for u in users:
-        result = getAllUserInfo(u)
+    for username in users:
+        result = getStatsPerUser(username)
         if (len(result) == 0):
             continue
-        print(u, result['accuracyUnique'], result['totalReturnUnique'])
+        print(username, result['1']['returnUniqueLog']['bull'] + result['1']['returnUniqueLog']['bear'])
 
 
 # User Infos from saved file
