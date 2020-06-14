@@ -605,7 +605,7 @@ def getStatsPerUser(user):
             del result['perStock'][symbol]
 
     # Insert user info
-    userAccuracy.insert_one(result)
+    userAccuracy.insert(result, check_keys=False)
 
     # Update last updated time
     last_calculated = analyzedUsersDB.last_user_accuracy_actual_calculated
