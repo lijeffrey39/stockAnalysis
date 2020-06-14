@@ -13,9 +13,7 @@ from dateutil.parser import parse
 from dateutil.tz import *
 
 from .hyperparameters import constants
-from .stockPriceAPI import (getUpdatedCloseOpen, inTradingDay,
-                            updateAllCloseOpen)
-
+from .stockPriceAPI import inTradingDay
 
 # ------------------------------------------------------------------------
 # ----------------------------- Functions --------------------------------

@@ -13,7 +13,7 @@ from modules.stockAnalysis import (findPageStock, getTopStocks, parseStockData,
                                    shouldParseStock, updateLastMessageTime,
                                    updateLastParsedTime, updateStockCount, getSortedStocks)
 from modules.stockPriceAPI import (updateAllCloseOpen, transferNonLabeled, findCloseOpen, closeToOpen, getUpdatedCloseOpen, 
-                                    getCloseOpenInterval, updateyfinanceCloseOpen)
+                                    getCloseOpenInterval, updateyfinanceCloseOpen, exportCloseOpen)
 from modules.userAnalysis import (findPageUser, findUsers, insertUpdateError,
                                   parseUserData, shouldParseUser, getStatsPerUser,
                                   updateUserNotAnalyzed,
@@ -236,8 +236,8 @@ def main():
     else:
         now = convertToEST(datetime.datetime.now())
         date = datetime.datetime(now.year, now.month, now.day - 2)
-        print(date)
-        stocks = getAllStocks()
+        # print(date)
+        # stocks = getAllStocks()
         # print(len(stocks))
         # for i in range(len(stocks)):
         #     if (stocks[i] == "SESN"):
@@ -277,8 +277,10 @@ def main():
         #         print(date, findCloseOpen('AAPL', date))
         #         # print(date, round(findWeight(date, 'x'), 1))
 
+
+        # exportCloseOpen()
         calculateAllUserInfo()
-        # getStatsPerUser('robsokool')
+        # getStatsPerUser('Buckeye1212')
         # print(getAllUserInfo('hirashima'))
 
         # print(len(findTweets(date, 'AAPL')))

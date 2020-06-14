@@ -17,13 +17,15 @@ from .helpers import (convertToEST,
                       getActualAllStocks,
                       findWeight,
                       findJoinDate,
-                      getAllStocks)
+                      getAllStocks,
+                      readPickleObject)
 from .hyperparameters import constants
 from .messageExtract import *
 from .stockPriceAPI import (findCloseOpen,
                             inTradingDay,
                             getUpdatedCloseOpen,
-                            findDateString)
+                            findDateString,
+                            findCloseOpenCached)
 from .stockAnalysis import (getTopStocks)
 
 
@@ -456,15 +458,20 @@ def initializeResult(tweets, user):
 
 
 # Update feature results for a user given close open prices
-def updateUserFeatures(result, tweet, uniqueStocks, like_comment_counts):
+def updateUserFeatures(result, tweet, uniqueStocks, like_comment_counts, cached_prices):
     functions = constants['functions']
     time = tweet['time']
     symbol = tweet['symbol']
     isBull = tweet['isBull']
-    closeOpen = findCloseOpen(symbol, time)
+    # closeOpen = findCloseOpen(symbol, time)
+    # if (closeOpen is None):
+    #     # print(symbol, time, closeOpen, 'rip')
+    #     return
+
+    closeOpen = findCloseOpenCached(symbol, time, cached_prices)
     if (closeOpen is None):
-        # print(symbol, time, closeOpen, 'rip')
         return
+
     # print(symbol, time, closeOpen)
     pChangeCloseOpen = closeOpen[2]
     correctPredCloseOpen = (isBull and pChangeCloseOpen >= 0) or (isBull is False and pChangeCloseOpen <= 0)
@@ -534,8 +541,9 @@ def getStatsPerUser(user):
     like_comment_counts = {'likes': 0, 'comments': 0, 'total': 0}
 
     # Loop through all tweets made by user and feature extract per user
+    cached_prices = readPickleObject('newPickled/averaged.pkl')
     for tweet in labeledTweets:
-        updateUserFeatures(result, tweet, uniqueStocks, like_comment_counts)
+        updateUserFeatures(result, tweet, uniqueStocks, like_comment_counts, cached_prices)
 
     if (like_comment_counts['total'] == 0):
         result['likes_per_tweet'] = 0

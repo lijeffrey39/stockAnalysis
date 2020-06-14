@@ -1,9 +1,10 @@
 import datetime
 import math
+import pickle
 from multiprocessing import current_process
 import yfinance as yf
+import csv
 import requests
-
 from .hyperparameters import constants
 
 
@@ -50,6 +51,90 @@ def findDateString(time):
             count += 1
 
     return time.strftime("%Y-%m-%d")
+
+def exportCloseOpen():
+    path = 'newPickled/averaged.pkl'
+    result = {}
+
+    with open('cachedCloseOpen/close_open1.csv') as csv_file:
+        csv_reader = csv.reader(csv_file, delimiter=',')
+        for row in csv_reader:
+            first = row[0].split()
+            symbol = first[0]
+            date = first[1]
+            res = [float(row[1]), float(row[2])]
+            if (date not in result):
+                result[date] = {}
+            result[date][symbol] = res
+
+    with open('cachedCloseOpen/close_open2.csv') as csv_file:
+        csv_reader = csv.reader(csv_file, delimiter=',')
+        for row in csv_reader:
+            first = row[0].split()
+            symbol = first[0]
+            date = first[1]
+            res = [float(row[1]), float(row[2])]
+            
+            if (symbol in result[date]):
+                prev = result[date][symbol]
+                averaged = [(float(row[1]) + prev[0]) / 2, (float(row[2]) + prev[1]) / 2]
+                result[date][symbol] = averaged
+            else:
+                result[date][symbol] = res
+
+    dates = list(result.keys())
+    dates.sort()
+    for d in dates:
+        print(d, len(result[d].keys()))
+
+    f = open(path, 'wb')
+    pickle.dump(result, f)
+    f.close()
+
+
+def findCloseOpenCached(symbol, time, cached_prices):
+    dayIncrement = datetime.timedelta(days=1)
+    count = 0
+
+    # If saturday, sunday or holiday, find first trading day to start from time
+    while (time.strftime("%Y-%m-%d") not in cached_prices):
+        time = datetime.datetime(time.year, time.month, time.day)
+        time += dayIncrement
+        count += 1
+
+    # Find first day if tweeted after 4pm
+    # If 4:00 on Wed, first day is Thursday
+    # If 4:00 on Friday, first day is Monday
+    timeDiff = time - datetime.datetime(time.year, time.month, time.day)
+    if (timeDiff.total_seconds() >= (16 * 60 * 60)):
+        time += dayIncrement
+        while (time.strftime("%Y-%m-%d") not in cached_prices and count != 10):
+            time += dayIncrement
+            count += 1
+    
+    # Find next day based on the picked first day
+    nextDay = time + dayIncrement
+    while (nextDay.strftime("%Y-%m-%d") not in cached_prices and count != 10):
+        nextDay += dayIncrement
+        count += 1
+
+    if (count >= 10):
+        return None
+
+    start_str = time.strftime("%Y-%m-%d")
+    end_str = nextDay.strftime("%Y-%m-%d")
+    if (start_str not in cached_prices or end_str not in cached_prices or 
+        symbol not in cached_prices[start_str] or 
+        symbol not in cached_prices[end_str]):
+        return None
+
+    start = cached_prices[start_str][symbol]
+    end = cached_prices[end_str][symbol]
+    closePrice = start[1]
+    openPrice = end[0]
+    # print(start_str, end_str)
+    return (closePrice, openPrice, round(((openPrice - closePrice) / closePrice) * 100, 3))
+
 
 # Find close open for date. Anytime before 4pm is
 def findCloseOpen(symbol, time):
