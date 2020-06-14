@@ -472,7 +472,6 @@ def updateUserFeatures(result, tweet, uniqueStocks, like_comment_counts, cached_
     if (closeOpen is None):
         return
 
-    # print(symbol, time, closeOpen)
     pChangeCloseOpen = closeOpen[2]
     correctPredCloseOpen = (isBull and pChangeCloseOpen >= 0) or (isBull is False and pChangeCloseOpen <= 0)
     correctNumCloseOpen = 1 if correctPredCloseOpen else 0
@@ -484,7 +483,8 @@ def updateUserFeatures(result, tweet, uniqueStocks, like_comment_counts, cached_
     like_comment_counts['total'] += 1
 
     # For unique predictions per day, only count (bull/bear) if its majority
-    time_string = symbol + ' ' + findDateString(time)
+    time_string = symbol + ' ' + findDateString(time, cached_prices)
+    # print(time, closeOpen, findDateString(time, cached_prices))
     if (time_string in uniqueStocks):
         uniqueStocks[time_string]['times'].append(time)
         if (isBull):

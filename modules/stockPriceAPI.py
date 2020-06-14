@@ -25,17 +25,14 @@ currDateTimeStr = ""
 # ------------------------------------------------------------------------
 
 
-def findDateString(time):
-    db = constants['db_client'].get_database('stocks_data_db').updated_close_open
+def findDateString(time, cached_prices):
     dayIncrement = datetime.timedelta(days=1)
     count = 0
 
     # If saturday, sunday or holiday, find first trading day to start from time
-    testDay = db.find_one({'_id': 'AAPL ' + time.strftime("%Y-%m-%d")})
-    while (testDay is None and count != 10):
+    while (count <= 6 and time.strftime("%Y-%m-%d") not in cached_prices):
         time = datetime.datetime(time.year, time.month, time.day)
         time += dayIncrement
-        testDay = db.find_one({'_id': 'AAPL ' + time.strftime("%Y-%m-%d")})
         count += 1
 
     # Find first day if tweeted after 4pm
@@ -44,10 +41,8 @@ def findDateString(time):
     timeDiff = time - datetime.datetime(time.year, time.month, time.day)
     if (timeDiff.total_seconds() >= (16 * 60 * 60)):
         time += dayIncrement
-        testDay = db.find_one({'_id': 'AAPL ' + time.strftime("%Y-%m-%d")})
-        while (testDay is None and count != 10):
+        while (count <= 6 and time.strftime("%Y-%m-%d") not in cached_prices):
             time += dayIncrement
-            testDay = db.find_one({'_id': 'AAPL ' + time.strftime("%Y-%m-%d")})
             count += 1
 
     return time.strftime("%Y-%m-%d")
@@ -97,7 +92,7 @@ def findCloseOpenCached(symbol, time, cached_prices):
     count = 0
 
     # If saturday, sunday or holiday, find first trading day to start from time
-    while (time.strftime("%Y-%m-%d") not in cached_prices and count <= 10):
+    while (count <= 6 and time.strftime("%Y-%m-%d") not in cached_prices):
         time = datetime.datetime(time.year, time.month, time.day)
         time += dayIncrement
         count += 1
@@ -108,17 +103,17 @@ def findCloseOpenCached(symbol, time, cached_prices):
     timeDiff = time - datetime.datetime(time.year, time.month, time.day)
     if (timeDiff.total_seconds() >= (16 * 60 * 60)):
         time += dayIncrement
-        while (time.strftime("%Y-%m-%d") not in cached_prices and count <= 10):
+        while (count <= 6 and time.strftime("%Y-%m-%d") not in cached_prices):
             time += dayIncrement
             count += 1
-    
+
     # Find next day based on the picked first day
     nextDay = time + dayIncrement
-    while (nextDay.strftime("%Y-%m-%d") not in cached_prices and count <= 10):
+    while (count <= 6 and nextDay.strftime("%Y-%m-%d") not in cached_prices):
         nextDay += dayIncrement
         count += 1
 
-    if (count >= 10):
+    if (count >= 6):
         return None
 
     start_str = time.strftime("%Y-%m-%d")
