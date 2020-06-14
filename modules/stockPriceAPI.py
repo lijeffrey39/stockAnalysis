@@ -97,7 +97,7 @@ def findCloseOpenCached(symbol, time, cached_prices):
     count = 0
 
     # If saturday, sunday or holiday, find first trading day to start from time
-    while (time.strftime("%Y-%m-%d") not in cached_prices):
+    while (time.strftime("%Y-%m-%d") not in cached_prices and count <= 10):
         time = datetime.datetime(time.year, time.month, time.day)
         time += dayIncrement
         count += 1
@@ -108,13 +108,13 @@ def findCloseOpenCached(symbol, time, cached_prices):
     timeDiff = time - datetime.datetime(time.year, time.month, time.day)
     if (timeDiff.total_seconds() >= (16 * 60 * 60)):
         time += dayIncrement
-        while (time.strftime("%Y-%m-%d") not in cached_prices and count != 10):
+        while (time.strftime("%Y-%m-%d") not in cached_prices and count <= 10):
             time += dayIncrement
             count += 1
     
     # Find next day based on the picked first day
     nextDay = time + dayIncrement
-    while (nextDay.strftime("%Y-%m-%d") not in cached_prices and count != 10):
+    while (nextDay.strftime("%Y-%m-%d") not in cached_prices and count <= 10):
         nextDay += dayIncrement
         count += 1
 
