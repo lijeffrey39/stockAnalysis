@@ -28,7 +28,7 @@ def getTopStocks(numStocks=100):
 def getSortedStocks():
     stockCounts = constants['db_client'].get_database(
         'stocktwits_db').stock_counts_v2
-    cursor = stockCounts.find()
+    cursor = stockCounts.find({ 'count': { '$gte': 1000 } })
     stocks = list(map(lambda document: document, cursor))
     newdict = sorted(stocks, key=lambda k: k['count'], reverse=True)
     newlist = list(map(lambda document: document['_id'], newdict))
