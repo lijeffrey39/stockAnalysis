@@ -10,17 +10,11 @@ from .helpers import (calcRatio, findWeight, readPickleObject, findAllDays,
                     readCachedTweets, writeCachedTweets, writePickleObject)
 
 
-def prediction(dates, stocks, all_features):
-    weightings = {
-        'total': 1,
-        'return_log': 1,
-        'return_s': 1,
-        'count_ratio': 1
-    }
+def prediction(dates, stocks, all_features, weightings):
     cached_prices = readPickleObject('newPickled/averaged.pkl')
     avg_std = findAverageStd(stocks, all_features)
 
-    total = 0
+    total_return = 0
     accuracies = {}
     for date in dates[1:]:
         date_string = date.strftime("%Y-%m-%d")
@@ -33,10 +27,12 @@ def prediction(dates, stocks, all_features):
                 stdDev = (stock_features[f] - stock_avgstd[f]['avg']) / stock_avgstd[f]['std']
                 stock_features_calibrated[f] = stdDev
 
-            totalWeight = 0
+            result_weight = 0
+            total_weight = 0
             for w in weightings:
-                totalWeight += stock_features_calibrated[w]
-            result_day[symbol] = totalWeight
+                result_weight += (weightings[w] * stock_features_calibrated[w])
+                total_weight += weightings[w]
+            result_day[symbol] = result_weight / total_weight
 
         resPerParam = list(result_day.items())
         resPerParam.sort(key=lambda x: abs(x[1]), reverse=True)
@@ -66,24 +62,24 @@ def prediction(dates, stocks, all_features):
             accuracies[stock]['total'] += 1
 
         # print(resPerParam)
-        total += returnToday
+        total_return += returnToday
         mapped_stocks = list(map(lambda x: [x[0], round(x[1] / sumDiffs * 100, 2), x[2]], new_res_param))
-        print(date_string, returnToday, mapped_stocks)
+        # print(date_string, returnToday, mapped_stocks)
 
     total_correct = 0
     total_total = 0
     for s in accuracies:
-        print(s, accuracies[s])
+        # print(s, accuracies[s])
         total_correct += accuracies[s]['correct']
         total_total += accuracies[s]['total']
 
-    print(total_correct, total_total)
-    print(total)
+    print(total_correct/total_total, total_return)
+    return (total_return, total_correct/total_total)
 
 
 def findFeatures(stocks, dates, update=False):
     if (update == False):
-        return readPickleObject('newPickled/results.pkl')
+        return readPickleObject('newPickled/features.pkl')
 
     cached_prices = readPickleObject('newPickled/averaged.pkl')
     all_features = {}
@@ -97,7 +93,7 @@ def findFeatures(stocks, dates, update=False):
             features = stockFeatures(tweets, symbol)
             print(date.strftime("%Y-%m-%d"), len(tweets), features['total'])
             all_features[symbol][date.strftime("%Y-%m-%d")] = features
-    writePickleObject('newPickled/results.pkl', all_features)
+    writePickleObject('newPickled/features.pkl', all_features)
 
 
 def findAverageStd(stocks, all_features):
@@ -333,7 +329,7 @@ def calcStockWeight(features, weights):
 # TODO: instead of log, use distribution of the data
 # TODO: use return_uniquelog instead of returnUnique
 def weightedUserPrediction(user, symbol):
-    function = '1'
+    function = 'log(x)'
     bull_bear = None
     num_tweets = findFeature(user, '', ['numPredictions'], function, bull_bear)
     num_tweets_s = findFeature(user, symbol, ['numPredictions'], function, bull_bear)
@@ -341,7 +337,7 @@ def weightedUserPrediction(user, symbol):
     # Don't consider anyone below 60 predictions
     if (num_tweets < 70):
         return 0
-    
+
     # (1) scale between 70-700 (general) and 1-100 (per stock)
     scaled_num_tweets = (math.sqrt(num_tweets) - math.sqrt(70)) / (math.sqrt(700) - math.sqrt(70))
     scaled_num_tweets_s = math.sqrt(num_tweets_s) / math.sqrt(50)

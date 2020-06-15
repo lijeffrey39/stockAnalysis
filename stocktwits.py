@@ -5,7 +5,7 @@ import math
 import yfinance as yf
 import requests
 
-from modules.helpers import (convertToEST, findTradingDays, getAllStocks,
+from modules.helpers import (convertToEST, findTradingDays, getAllStocks, recurse,
                              insertResults, findWeight, writePickleObject, readPickleObject)
 from modules.hyperparameters import constants
 from modules.prediction import (basicPrediction, findAllTweets, updateBasicStockInfo, setupUserInfos)
@@ -21,7 +21,7 @@ from modules.userAnalysis import (findPageUser, findUsers, insertUpdateError,
 from modules.tests import (findBadMessages, removeMessagesWithStock, 
                            findTopUsers, findOutliers, findAllUsers, findErrorUsers)
                         
-from modules.newPrediction import (findTweets, weightedUserPrediction, 
+from modules.newPrediction import (findTweets, weightedUserPrediction, writeTweets,
                                     prediction, findFeatures, updateAllUsers)
 
 
@@ -211,7 +211,7 @@ def main():
         analyzeStocks(date, stocks)
     elif (options.prediction):
         stocks = getTopStocks(20)
-        date = datetime.datetime(2020, 5, 5, 9, 30)
+        date = datetime.datetime(2020, 1, 5, 9, 30)
         dateUpTo = datetime.datetime(dateNow.year, dateNow.month, dateNow.day)
         dates = findTradingDays(date, dateUpTo)
         
@@ -219,15 +219,49 @@ def main():
         # updateAllUsers()
 
         # Write stock tweet files
-        # start_date = dates[0]
-        # end_date = dateUpTo - datetime.timedelta(days=1)
-        # writeTweets(start_date, end_date, stocks)
+        start_date = dates[0]
+        end_date = dateUpTo - datetime.timedelta(days=1)
+        writeTweets(start_date, end_date, stocks)
 
         # Find features for prediction
-        found_features = findFeatures(stocks, dates)
+        found_features = findFeatures(stocks, dates, True)
+
+
+        # Optimize features
+        # return, bull_return_s, return_s not useful
+        # combinedResults = {}
+        # allPossibilities = []
+        # recurse([1, 1, 1, 1, 1] * 1, 0, 3, set([]), allPossibilities)
+        # print(len(allPossibilities))
+        # for combo in allPossibilities:
+        #     paramWeightings = {
+        #         'total': combo[0],
+        #         'return_log': combo[1],
+        #         'count_ratio': combo[2], 
+        #         'return_ratio': 3, 
+        #         'bull_return_s': combo[3],
+        #         'bull': combo[4]
+        #     }
+        #     (returns, accuracy) = prediction(dates, stocks, found_features, paramWeightings)
+        #     print(tuple(paramWeightings.items()), returns, accuracy)
+        #     combinedResults[tuple(paramWeightings.items())] = (returns, accuracy)
+
+        # bestParams = list(combinedResults.items())
+        # bestParams.sort(key=lambda x: x[1], reverse=True)
+        # for x in bestParams[:25]:
+        #     print(x[0], x[1])
 
         # Make prediction
-        prediction(dates, stocks, found_features)
+        weightings = {
+            'total': 1,
+            'return_log': 1,
+            'return_ratio': 3,
+            'return_s': 1,
+            'bull_return_s': 1,
+            'bull': 1,
+            'count_ratio': 3
+        }
+        prediction(dates, stocks, found_features, weightings)
 
     elif (options.updateCloseOpens):
         updateStockCount()
@@ -247,6 +281,7 @@ def main():
     else:
         now = convertToEST(datetime.datetime.now())
         date = datetime.datetime(now.year, now.month, now.day - 2)
+        updateStockCount()
         # print(date)
         # stocks = getAllStocks()
         # print(len(stocks))
@@ -290,7 +325,8 @@ def main():
 
 
         # exportCloseOpen()
-        calculateAllUserInfo()
+        # calculateAllUserInfo()
+
         # getStatsPerUser('Buckeye1212')
         # print(getAllUserInfo('hirashima'))
 
