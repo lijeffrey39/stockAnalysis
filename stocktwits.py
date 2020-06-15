@@ -21,7 +21,8 @@ from modules.userAnalysis import (findPageUser, findUsers, insertUpdateError,
 from modules.tests import (findBadMessages, removeMessagesWithStock, 
                            findTopUsers, findOutliers, findAllUsers, findErrorUsers)
                         
-from modules.newPrediction import (findTweets, weightedUserPrediction, prediction)
+from modules.newPrediction import (findTweets, weightedUserPrediction, 
+                                    prediction, findFeatures, updateAllUsers)
 
 
 client = constants['db_client']
@@ -210,11 +211,24 @@ def main():
         analyzeStocks(date, stocks)
     elif (options.prediction):
         stocks = getTopStocks(20)
-        print(stocks)
         date = datetime.datetime(2020, 5, 5, 9, 30)
         dateUpTo = datetime.datetime(dateNow.year, dateNow.month, dateNow.day)
         dates = findTradingDays(date, dateUpTo)
-        prediction(dates, stocks)
+        
+        # Write all user files
+        # updateAllUsers()
+
+        # Write stock tweet files
+        # start_date = dates[0]
+        # end_date = dateUpTo - datetime.timedelta(days=1)
+        # writeTweets(start_date, end_date, stocks)
+
+        # Find features for prediction
+        found_features = findFeatures(stocks, dates)
+
+        # Make prediction
+        prediction(dates, stocks, found_features)
+
     elif (options.updateCloseOpens):
         updateStockCount()
         now = convertToEST(datetime.datetime.now())

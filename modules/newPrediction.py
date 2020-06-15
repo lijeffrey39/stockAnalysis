@@ -10,22 +10,15 @@ from .helpers import (calcRatio, findWeight, readPickleObject, findAllDays,
                     readCachedTweets, writeCachedTweets, writePickleObject)
 
 
-def prediction(dates, stocks):
-    # dateNow = (datetime.datetime.now())
-    # writeTweets(dates[0], datetime.datetime(dateNow.year, dateNow.month, dateNow.day - 1), stocks)
-    # return
+def prediction(dates, stocks, all_features):
     weightings = {
         'total': 1,
         'return_log': 1,
         'return_s': 1,
         'count_ratio': 1
     }
-    
-    all_features = readPickleObject('newPickled/results.pkl')
     cached_prices = readPickleObject('newPickled/averaged.pkl')
-    # print(all_features['SPY'])
     avg_std = findAverageStd(stocks, all_features)
-    # print(avg_std['TSLA'])
 
     total = 0
     accuracies = {}
@@ -86,20 +79,25 @@ def prediction(dates, stocks):
 
     print(total_correct, total_total)
     print(total)
-        
-    # all_features = {}
-    # for symbol in stocks:
-    #     print(symbol)
-    #     path = 'stock_files/' + symbol + '.pkl'
-    #     tweets_per_stock = readPickleObject(path)
-    #     all_features[symbol] = {}
-    #     for date in dates[1:]:
-    #         tweets = findTweets(date, tweets_per_stock, cached_prices)
-    #         features = stockFeatures(tweets, symbol)
-    #         print(date.strftime("%Y-%m-%d"), len(tweets), features['total'])
-    #         all_features[symbol][date.strftime("%Y-%m-%d")] = features
-    # writePickleObject('newPickled/results.pkl', all_features)
 
+
+def findFeatures(stocks, dates, update=False):
+    if (update == False):
+        return readPickleObject('newPickled/results.pkl')
+
+    cached_prices = readPickleObject('newPickled/averaged.pkl')
+    all_features = {}
+    for symbol in stocks:
+        print(symbol)
+        path = 'stock_files/' + symbol + '.pkl'
+        tweets_per_stock = readPickleObject(path)
+        all_features[symbol] = {}
+        for date in dates[1:]:
+            tweets = findTweets(date, tweets_per_stock, cached_prices)
+            features = stockFeatures(tweets, symbol)
+            print(date.strftime("%Y-%m-%d"), len(tweets), features['total'])
+            all_features[symbol][date.strftime("%Y-%m-%d")] = features
+    writePickleObject('newPickled/results.pkl', all_features)
 
 
 def findAverageStd(stocks, all_features):
