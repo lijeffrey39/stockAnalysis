@@ -45,6 +45,9 @@ def findDateString(time, cached_prices):
             time += dayIncrement
             count += 1
 
+    if (count >= 6):
+        return None
+
     return time.strftime("%Y-%m-%d")
 
 def exportCloseOpen():

@@ -1,85 +1,206 @@
 import datetime
+import statistics
 import math
+from functools import reduce
 from .hyperparameters import constants
 from .userAnalysis import getStatsPerUser
-from .helpers import (calcRatio, findWeight, readPickleObject,
+from .stockAnalysis import findDateString
+from .stockPriceAPI import findCloseOpenCached
+from .helpers import (calcRatio, findWeight, readPickleObject, findAllDays,
                     readCachedTweets, writeCachedTweets, writePickleObject)
 
 
-def prediction(dates, stocks, updateObject):
-    tweets_all = findAllTweets(dates, stocks, updateObject)
+def prediction(dates, stocks):
+    # dateNow = (datetime.datetime.now())
+    # writeTweets(dates[0], datetime.datetime(dateNow.year, dateNow.month, dateNow.day - 1), stocks)
+    # return
     weightings = {
         'total': 1,
         'return_log': 1,
         'return_s': 1,
         'count_ratio': 1
     }
-    for date in dates:
-        print(date)
+    
+    all_features = readPickleObject('newPickled/results.pkl')
+    cached_prices = readPickleObject('newPickled/averaged.pkl')
+    # print(all_features['SPY'])
+    avg_std = findAverageStd(stocks, all_features)
+    # print(avg_std['TSLA'])
+
+    total = 0
+    accuracies = {}
+    for date in dates[1:]:
+        date_string = date.strftime("%Y-%m-%d")
+        result_day = {}
         for symbol in stocks:
-            tweets = tweets_all[symbol][date]
-            features = stockFeatures(tweets, symbol)
-            print(features)
+            stock_avgstd = avg_std[symbol]
+            stock_features = all_features[symbol][date_string]
+            stock_features_calibrated = {}
+            for f in stock_features:
+                stdDev = (stock_features[f] - stock_avgstd[f]['avg']) / stock_avgstd[f]['std']
+                stock_features_calibrated[f] = stdDev
 
+            totalWeight = 0
+            for w in weightings:
+                totalWeight += stock_features_calibrated[w]
+            result_day[symbol] = totalWeight
 
+        resPerParam = list(result_day.items())
+        resPerParam.sort(key=lambda x: abs(x[1]), reverse=True)
+        resPerParam = resPerParam[:3]
+        sumDiffs = reduce(lambda a, b: a + b, list(map(lambda x: abs(x[1]), resPerParam)))
 
-def findAllTweets(dates, stocks, updateObject=False):
-    print("Setting up tweets")
-    path = 'newPickled/allTweets.pkl'
-    result = readPickleObject(path)
-
-    for symbol in stocks:
-        print(symbol)
-        if (symbol not in result):
-            result[symbol] = {}
-
-        # Tweets per symbol cached in files for easy access
-        # cachedTweets = readCachedTweets(symbol)
-        for date in dates:
-            # Check if the date exists in the cached tweets
-            # AND If date not stored in current pickle object
-            if (date in result[symbol]):
-                print(date, len(result[symbol][date]))
+        returnToday = 0
+        new_res_param = []
+        for stockObj in resPerParam:
+            stock = stockObj[0]
+            stdDev = stockObj[1]
+            close_open = findCloseOpenCached(stock, date, cached_prices)
+            # print(date, stock, close_open)
+            percent_today = (stdDev / sumDiffs)
+            if (close_open == None):
                 continue
+            new_res_param.append([stockObj[0], stockObj[1], close_open[2]])
+            returnToday += (percent_today * close_open[2])
+            
+            if (stock not in accuracies):
+                accuracies[stock] = {}
+                accuracies[stock]['correct'] = 0
+                accuracies[stock]['total'] = 0
+            
+            if ((close_open[2] < 0 and stockObj[1] < 0) or (stockObj[1] > 0 and close_open[2] > 0)):
+                accuracies[stock]['correct'] += 1
+            accuracies[stock]['total'] += 1
 
-            tweets = findTweets(date, symbol, True)
-            result[symbol][date] = tweets
-            print(date, len(result[symbol][date]))
-            writeCachedTweets(symbol, tweets)
+        # print(resPerParam)
+        total += returnToday
+        mapped_stocks = list(map(lambda x: [x[0], round(x[1] / sumDiffs * 100, 2), x[2]], new_res_param))
+        print(date_string, returnToday, mapped_stocks)
 
-    if (updateObject):
-        writePickleObject(path, result)
+    total_correct = 0
+    total_total = 0
+    for s in accuracies:
+        print(s, accuracies[s])
+        total_correct += accuracies[s]['correct']
+        total_total += accuracies[s]['total']
+
+    print(total_correct, total_total)
+    print(total)
+        
+    # all_features = {}
+    # for symbol in stocks:
+    #     print(symbol)
+    #     path = 'stock_files/' + symbol + '.pkl'
+    #     tweets_per_stock = readPickleObject(path)
+    #     all_features[symbol] = {}
+    #     for date in dates[1:]:
+    #         tweets = findTweets(date, tweets_per_stock, cached_prices)
+    #         features = stockFeatures(tweets, symbol)
+    #         print(date.strftime("%Y-%m-%d"), len(tweets), features['total'])
+    #         all_features[symbol][date.strftime("%Y-%m-%d")] = features
+    # writePickleObject('newPickled/results.pkl', all_features)
+
+
+
+def findAverageStd(stocks, all_features):
+    result = {}
+    for symbol in stocks:
+        stock_features = all_features[symbol]
+        avg_std = {}
+        res = {}
+        for date in stock_features:
+            features = stock_features[date]
+            for f in features:
+                if (f not in avg_std):
+                    avg_std[f] = [features[f]]
+                else:
+                    avg_std[f].append(features[f])
+        for f in avg_std:
+            res[f] = {}
+            res[f]['std'] = statistics.stdev(avg_std[f])
+            res[f]['avg'] = statistics.mean(avg_std[f])
+
+        result[symbol] = res
     return result
 
-# Find all tweets on this given day from database
-def findTweets(date, symbol, full=False):
-    tweetsDB = constants['stocktweets_client'].get_database('tweets_db')
-    db = constants['db_client'].get_database('stocks_data_db').updated_close_open
-    dayIncrement = datetime.timedelta(days=1)
-    dateEnd = datetime.datetime(date.year, date.month, date.day, 16)
-    if (full):
-        dateEnd = datetime.datetime(date.year, date.month, date.day, 23, 59)
-    dateStart = dateEnd - dayIncrement
 
-    # find dateStart starting at dateEnd
-    testDay = db.find_one({'_id': 'AAPL ' + dateStart.strftime("%Y-%m-%d")})
+def updateAllUsers():
+    print("Setup User Info")
+    allUsers = constants['db_user_client'].get_database('user_data_db').user_accuracy_actual
+    users = allUsers.find({})
+    print(users.count())
     count = 0
-    while (testDay is None and count != 10):
-        dateStart -= dayIncrement
-        testDay = db.find_one({'_id': 'AAPL ' + dateStart.strftime("%Y-%m-%d")})
-        count += 1
+    for u in users:
+        username = u['_id']
+        path = 'user_files/' + username + '.pkl'
+        found_user = readPickleObject(path)
+        if (len(list(found_user.keys())) != 0):
+            continue
 
-    query = {"$and": [{'symbol': symbol},
-                      {"$or": [
-                            {'isBull': True},
-                            {'isBull': False}
-                      ]},
-                      {'time': {'$gte': dateStart,
-                                '$lt': dateEnd}}]}
-    tweets = list(tweetsDB.tweets.find(query))
+        writePickleObject(path, u)
+        if (count % 1000 == 0):
+            print(count)
+        count += 1
+    
+
+def writeTweets(start_date, end_date, stocks):
+    print("Setting up tweets")
+    tweetsDB = constants['stocktweets_client'].get_database('tweets_db')
+    day_increment = datetime.timedelta(days=1)
+    all_dates = findAllDays(start_date, end_date)
+    print(all_dates)
+    for symbol in stocks:
+        print(symbol)
+        path = 'stock_files/' + symbol + '.pkl'
+        tweets_per_stock = readPickleObject(path)
+
+        for date in all_dates:
+            date_string = date.strftime("%Y-%m-%d")
+            if (date_string in tweets_per_stock):
+                continue
+            
+            dateStart = datetime.datetime(date.year, date.month, date.day, 0, 0)
+            dateEnd = datetime.datetime(date.year, date.month, date.day) + day_increment
+            query = {"$and": [{'symbol': symbol},
+                                {"$or": [
+                                        {'isBull': True},
+                                        {'isBull': False}
+                                ]},
+                                {'time': {'$gte': dateStart,
+                                            '$lt': dateEnd}}]}
+            tweets = list(tweetsDB.tweets.find(query))
+            tweets_per_stock[date_string] = tweets
+            print(date_string, len(tweets_per_stock[date_string]))
+        writePickleObject(path, tweets_per_stock)
+
+
+# Find all tweets on this given day from database
+def findTweets(date, tweets_per_stock, cached_prices):
+    day_increment = datetime.timedelta(days=1)
+    date_end = datetime.datetime(date.year, date.month, date.day, 16)
+    date_start = date_end - day_increment
+    dates = [date_end, date_start]
+    while (date_start.strftime("%Y-%m-%d") not in cached_prices):
+        date_start -= day_increment
+        dates.append(date_start)
+
+    tweets = []
+    for d in dates:
+        date_string = d.strftime("%Y-%m-%d")
+        found_tweets = tweets_per_stock[date_string]
+        tweets.extend(found_tweets)
+
+    tweets = list(filter(lambda tweet: tweet['time'] > date_start and tweet['time'] < date_end, tweets))
     tweets.sort(key=lambda tweet: tweet['time'], reverse=True)
     return tweets
 
+
+def findUserInfo(username):
+    path = 'user_files/' + username + '.pkl'
+    found_user = readPickleObject(path)
+    if (len(list(found_user.keys())) == 0):
+        return None
+    return found_user
 
 # Calculate features based on list of tweets
 # Each tweet is multiplied by the weights
@@ -121,7 +242,10 @@ def stockFeatures(tweets, symbol):
         isBull = tweet['isBull']
         label = 'bull' if isBull else 'bear'
         w = findWeight(tweet['time'], function)
-        user_info = getStatsPerUser(username)
+
+        user_info = findUserInfo(username)
+        if (user_info == None):
+            continue
 
         return_unique = findFeature(user_info, '', ['returnUnique'], function, label)
         return_unique_log = findFeature(user_info, '', ['returnUniqueLog'], function, label)
@@ -140,8 +264,6 @@ def stockFeatures(tweets, symbol):
         result[label + '_return_log'] += tweet_value * return_unique_log
         result[label + '_return_s'] += tweet_value * return_unique_s
         result[label + '_return_log_s'] += tweet_value * return_unique_log_s
-
-        print(result)
 
     # Standardize by number of tweets
     try:
@@ -170,7 +292,7 @@ def stockFeatures(tweets, symbol):
     # Need to look at historical ratios to determine if this is sig diff 
     # negative means more bear than bull
     # ratio of the "sentiment" for the day
-    result['count_ratio'] = calcRatio(result['bull_unique'], result['bear_unique'])
+    result['count_ratio'] = calcRatio(result['bull'], result['bear'])
     result['return_ratio'] = calcRatio(result['bull_return'], result['bear_return'])
     return result
 
@@ -267,7 +389,9 @@ def findFeature(user, symbol, feature_names, function, bull_bear):
     feature_info = user
     # If finding general feature
     if (symbol != ''):
-        feature_info = user['perStock'][symbol]
+        # why would this happen??
+        if (symbol in user['perStock']):
+            feature_info = user['perStock'][symbol]
 
     # Not bull or bear specific feature
     if (bull_bear == None):

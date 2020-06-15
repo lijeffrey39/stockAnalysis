@@ -612,7 +612,10 @@ def getStatsPerUser(user):
             result['perStock'][symbol]['x']['numPredictions']['bear'] == 0):
             del result['perStock'][symbol]
 
-    # Insert user info
+    # Update last updated time
+    exists = userAccuracy.find({'_id': user})
+    if (exists.count() != 0):
+        return exists[0]
     userAccuracy.insert(result, check_keys=False)
 
     # Update last updated time

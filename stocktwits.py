@@ -209,15 +209,12 @@ def main():
         #         print(i)
         analyzeStocks(date, stocks)
     elif (options.prediction):
-        stocks = getTopStocks(100)
+        stocks = getTopStocks(20)
+        print(stocks)
         date = datetime.datetime(2020, 5, 5, 9, 30)
-        dateUpTo = datetime.datetime(dateNow.year, dateNow.month, dateNow.day + 1)
+        dateUpTo = datetime.datetime(dateNow.year, dateNow.month, dateNow.day)
         dates = findTradingDays(date, dateUpTo)
-        # dates = [dates[0], dates[1]]
-        dates = [datetime.datetime(2020, 5, 11, 9, 30)]
-        stocks=['TSLA']
-        prediction(dates, stocks, True)
-        # makePrediction(dateNow)
+        prediction(dates, stocks)
     elif (options.updateCloseOpens):
         updateStockCount()
         now = convertToEST(datetime.datetime.now())
