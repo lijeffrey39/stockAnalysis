@@ -46,15 +46,15 @@ constants = {
     'caps': caps,
     'scroll_pause_time': 5,
     'alpha_vantage_api_key':'URK33PG7JX4SFFXH',
-    'db_client': pymongo.MongoClient("mongodb+srv://lijeffrey39:test@cluster0"
+    'db_client': pymongo.MongoClient("mongodb+srv://test_user:test@cluster0"
                                      "-qthez.mongodb.net/test?retryWrites=true"
                                      "&w=majority",
                                      ssl_cert_reqs=ssl.CERT_NONE),
-    'db_user_client': pymongo.MongoClient("mongodb+srv://lijeffrey39:test@"
+    'db_user_client': pymongo.MongoClient("mongodb+srv://test_user:test@"
                                           "cluster0-mlfxz.mongodb.net/test?"
                                           "retryWrites=true&w=majority",
                                           ssl_cert_reqs=ssl.CERT_NONE),
-    'stocktweets_client': pymongo.MongoClient("mongodb+srv://lijeffrey39:"
+    'stocktweets_client': pymongo.MongoClient("mongodb+srv://test_user:"
                                               "test@cluster0-0x7lu."
                                               "mongodb.net/test?retryWrites"
                                               "=true&w=majority",

@@ -37,17 +37,55 @@ def getSortedStocks():
 
 
 def updateStockCount():
-    currTime = convertToEST(datetime.datetime.now())
-    prevTime = currTime - datetime.timedelta(days=60)   
-    db = constants['db_client'].get_database('stocktwits_db').stock_counts_60
+    currTime = datetime.datetime.now() - datetime.timedelta(days=30)
+    prevTime = currTime - datetime.timedelta(days=60)
     analyzedUsers = constants['stocktweets_client'].get_database('tweets_db').tweets
-    res = analyzedUsers.aggregate([{ "$match": { "time" : { '$gte' : prevTime} } }, {'$group' : { '_id' : '$symbol', 'count' : {'$sum' : 1}}}, { "$sort": { "count": 1 } },])
+    res = analyzedUsers.aggregate([{ "$match": { "time" : { '$gte' : prevTime, '$lte': currTime } } }, {'$group' : { '_id' : '$symbol', 'count' : {'$sum' : 1}}}, { "$sort": { "count": 1 } }])
     for i in res:
         # query = {'_id': i['_id']}
         # newVal = {'$set': {'count30': i['count']}}
         # db.update_one(query, newVal)
+        print(i)
+        # db.insert({'_id': i['_id'], 'count': i['count']})
 
-        db.insert({'_id': i['_id'], 'count': i['count']})
+def updateStockCountPerWeek(curr_time):
+    year_week = curr_time.isocalendar()[:2]
+    year = year_week[0]
+    week = year_week[1]
+    year_week_id = str(year) + '_' + str(week)
+    print(year_week_id)
+    prev_time = curr_time - datetime.timedelta(days=21)
+    stock_counts_collection = constants['db_client'].get_database('stocktwits_db').stock_counts_perweek_21
+    result = stock_counts_collection.find({'_id': year_week_id})
+    if (result.count() != 0):
+        print('EXISTS')
+        return
+
+    tweets_collection = constants['stocktweets_client'].get_database('tweets_db').tweets
+    res = tweets_collection.aggregate([{ "$match": { "time" : { '$gte' : prev_time, '$lte' : curr_time}}}, 
+                                    {'$group' : { '_id' : '$symbol', 'count' : {'$sum' : 1}}}, 
+                                    { "$sort": { "count": 1 } }])
+    mapped_counts = list(map(lambda document: document, res))
+    stock_counts_collection.insert({'_id': year_week_id, 'stocks': mapped_counts})
+
+
+# Get top stocks for that week given a date
+def getTopStocksforWeek(date, num):
+    year_week = date.isocalendar()[:2]
+    year = year_week[0]
+    week = year_week[1]
+    year_week_id = str(year) + '_' + str(week)
+    db = constants['db_client'].get_database('stocktwits_db').stock_counts_perweek
+    cursor = db.find({"_id" : year_week_id})
+    if (cursor.count() == 0):
+        return None
+    stock_list = cursor[0]['stocks']
+    newdict = sorted(stock_list, key=lambda k: k['count'], reverse=True)
+    newlist = list(map(lambda document: document['_id'], newdict))
+    result = newlist[:num]
+    if ('VTIQ' in result):
+        result.remove('VTIQ')
+    return result
 
 
 # Return soup object page of that stock

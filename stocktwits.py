@@ -1,16 +1,19 @@
 import datetime
 import optparse
 import matplotlib. pyplot as plt
+import matplotlib
 import math
 import yfinance as yf
 import requests
+import csv
+import holidays
 
 from modules.helpers import (convertToEST, findTradingDays, getAllStocks, recurse,
-                             insertResults, findWeight, writePickleObject, readPickleObject)
+                             insertResults, findWeight, writePickleObject, readPickleObject, isTradingDay)
 from modules.hyperparameters import constants
 from modules.prediction import (basicPrediction, findAllTweets, updateBasicStockInfo, setupUserInfos)
-from modules.stockAnalysis import (findPageStock, getTopStocks, parseStockData,
-                                   shouldParseStock, updateLastMessageTime,
+from modules.stockAnalysis import (findPageStock, getTopStocks, parseStockData, getTopStocksforWeek,
+                                   shouldParseStock, updateLastMessageTime, updateStockCountPerWeek,
                                    updateLastParsedTime, updateStockCount, getSortedStocks)
 from modules.stockPriceAPI import (updateAllCloseOpen, transferNonLabeled, findCloseOpen, closeToOpen, getUpdatedCloseOpen, 
                                     getCloseOpenInterval, updateyfinanceCloseOpen, updateAllCloseOpenYF, exportCloseOpen)
@@ -22,7 +25,7 @@ from modules.tests import (findBadMessages, removeMessagesWithStock,
                            findTopUsers, findOutliers, findAllUsers, findErrorUsers)
                         
 from modules.newPrediction import (findTweets, weightedUserPrediction, writeTweets,
-                                    prediction, findFeatures, updateAllUsers)
+                                    prediction, findFeatures, updateAllUsers, saveUserTweets)
 
 
 client = constants['db_client']
@@ -210,22 +213,31 @@ def main():
         #         print(i)
         analyzeStocks(date, stocks)
     elif (options.prediction):
-        stocks = getTopStocks(20)
-        date = datetime.datetime(2020, 1, 5, 9, 30)
-        dateUpTo = datetime.datetime(dateNow.year, dateNow.month, dateNow.day)
-        dates = findTradingDays(date, dateUpTo)
+        num_top_stocks = 20 # Choose top 20 stocks of the week to parse
+        start_date = datetime.datetime(2020, 3, 5, 9, 30)
+        end_date = datetime.datetime(dateNow.year, dateNow.month, dateNow.day)
         
         # Write all user files
         # updateAllUsers()
 
         # Write stock tweet files
-        start_date = dates[0]
-        end_date = dateUpTo - datetime.timedelta(days=1)
-        writeTweets(start_date, end_date, stocks)
+        # writeTweets(start_date, end_date, num_top_stocks)
 
         # Find features for prediction
-        found_features = findFeatures(stocks, dates, True)
+        path = 'newPickled/features_new.pkl'
+        found_features = findFeatures(start_date, end_date, num_top_stocks, path, False)
 
+        # Make prediction
+        weightings = {
+            'total': 1,
+            'return_log': 1,
+            'return_ratio': 3,
+            'return_s': 1,
+            'bull_return_s': 1,
+            'bull': 1,
+            'count_ratio': 3
+        }
+        prediction(start_date, end_date, found_features, num_top_stocks, weightings)
 
         # Optimize features
         # return, bull_return_s, return_s not useful
@@ -251,25 +263,14 @@ def main():
         # for x in bestParams[:25]:
         #     print(x[0], x[1])
 
-        # Make prediction
-        weightings = {
-            'total': 1,
-            'return_log': 1,
-            'return_ratio': 3,
-            'return_s': 1,
-            'bull_return_s': 1,
-            'bull': 1,
-            'count_ratio': 3
-        }
-        prediction(dates, stocks, found_features, weightings)
-
     elif (options.updateCloseOpens):
         now = convertToEST(datetime.datetime.now())
         #updateStockCount()
         print('stock count updated')
-        date = datetime.datetime(now.year, now.month, now.day, 12, 30)
+        date = datetime.datetime(now.year, now.month, now.day, 12, 30)-datetime.timedelta(days=2)
         dateNow = datetime.datetime(now.year, now.month, now.day, 13, 30)
         dates = findTradingDays(date, dateNow) 
+        print(dates)
         stocks = getSortedStocks()
         if len(dates) == 0:
             exit()
@@ -283,27 +284,33 @@ def main():
         dailyAnalyzeUsers(reAnalyze=True, updateUser=True, daysback=14)
     else:
         print('')
-        dateStart = datetime.datetime(2020, 1, 1, 00, 00)
-        dateEnd = datetime.datetime(2020, 6, 1, 23, 59)
-        stocks = getTopStocks(100)
-        dates = counts = []
-        for i in stocks[0:1]:
-            print(i)
-            while dateStart < dateEnd:
-                tweets = clientStockTweets.get_database('tweets_db').tweets.find({"$and": [{'symbol': i},
-                                                                                {'time': {'$gte': dateStart,
-                                                                                '$lt': dateStart+datetime.timedelta(days=1)}}]})
-                counts.append(tweets.count())
-                dates.append(dateStart)
-                dateStart = dateStart + datetime.timedelta(days=1)
-        x = dates
-        y = counts
-        # plot
-        plt.plot(x,y)
-        # beautify the x-labels
-        plt.gcf().autofmt_xdate()
+        now = convertToEST(datetime.datetime.now())-datetime.timedelta(days=3)
+        print(isTradingDay(now))
+        # holidayList = []
+        # # Print all the holidays in UnitedKingdom in year 2018 
+        # for ptr in holidays.UnitedStates(years = [2018,2019,2020]).items(): 
+        #     if ptr[1] == 'Columbus Day' or ptr[1] == 'Veterans Day':
+        #         continue
+        #     holidayList.append(str(ptr[0]))
+        # print(holidayList)
+        # #dateStart = datetime.datetime(2020, 1, 1, 00, 00)
+        # dateEnd = datetime.datetime(2020, 6, 1, 23, 59)
+        # stocks = getTopStocks(100)
+        # with open(r'test.csv', 'a', newline='') as csvfile:
+        #     fieldnames = ['Symbol','Datetime','Count']
+        #     writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        #     for i in stocks:
+        #         print(i)
+        #         dateStart = datetime.datetime(2020, 1, 1, 00, 00)
+        #         while dateStart < dateEnd:
+        #             tweets = clientStockTweets.get_database('tweets_db').tweets.find({"$and": [{'symbol': i},
+        #                                                                             {'time': {'$gte': dateStart,
+        #                                                                             '$lt': dateStart+datetime.timedelta(days=1)}}]})
+                    
+                    
+        #             writer.writerow({'Symbol':i, 'Datetime': dateStart, 'Count':tweets.count()})
+        #             dateStart = dateStart + datetime.timedelta(days=1)
 
-        plt.show()
         # currTime = convertToEST(datetime.datetime.now())
         # prevTime = currTime - datetime.timedelta(days=30)   
         # db = constants['db_client'].get_database('stocktwits_db').stock_counts_v2
@@ -444,6 +451,18 @@ def main():
         # now = convertToEST(datetime.datetime.now())
         # date = datetime.datetime(now.year, now.month, now.day - 2)
         # updateStockCount()
+
+        # saveUserTweets()
+
+
+        # now = convertToEST(datetime.datetime.now())
+        # date = datetime.datetime(2020, 1, 6)
+        # delta = datetime.timedelta(days=7)
+
+        # while (date < now - delta):
+        #     updateStockCountPerWeek(date)
+        #     date += delta
+
         # print(date)
         # stocks = getAllStocks()
         # print(len(stocks))
