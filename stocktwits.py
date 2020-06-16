@@ -2,6 +2,7 @@ import datetime
 import optparse
 import matplotlib. pyplot as plt
 import math
+import os
 import yfinance as yf
 import requests
 
@@ -13,7 +14,7 @@ from modules.stockAnalysis import (findPageStock, getTopStocks, parseStockData, 
                                    shouldParseStock, updateLastMessageTime, updateStockCountPerWeek,
                                    updateLastParsedTime, updateStockCount, getSortedStocks)
 from modules.stockPriceAPI import (updateAllCloseOpen, transferNonLabeled, findCloseOpen, closeToOpen, getUpdatedCloseOpen, 
-                                    getCloseOpenInterval, updateyfinanceCloseOpen, exportCloseOpen)
+                                    getCloseOpenInterval, updateyfinanceCloseOpen, exportCloseOpen, findCloseOpenCached)
 from modules.userAnalysis import (findPageUser, findUsers, insertUpdateError,
                                   parseUserData, shouldParseUser, getStatsPerUser,
                                   updateUserNotAnalyzed,
@@ -21,8 +22,8 @@ from modules.userAnalysis import (findPageUser, findUsers, insertUpdateError,
 from modules.tests import (findBadMessages, removeMessagesWithStock, 
                            findTopUsers, findOutliers, findAllUsers, findErrorUsers)
                         
-from modules.newPrediction import (findTweets, weightedUserPrediction, writeTweets,
-                                    prediction, findFeatures, updateAllUsers, saveUserTweets)
+from modules.newPrediction import (findTweets, weightedUserPrediction, writeTweets, calculateUserFeatures, editCachedTweets,
+                                    prediction, findFeatures, updateAllUsers, saveUserTweets, cachedUserTweets)
 
 
 client = constants['db_client']
@@ -211,8 +212,9 @@ def main():
         analyzeStocks(date, stocks)
     elif (options.prediction):
         num_top_stocks = 20 # Choose top 20 stocks of the week to parse
-        start_date = datetime.datetime(2020, 3, 5, 9, 30)
-        end_date = datetime.datetime(dateNow.year, dateNow.month, dateNow.day)
+        start_date = datetime.datetime(2020, 5, 20, 15, 30)
+        end_date = datetime.datetime(2020, 6, 9, 9, 30)
+        # end_date = datetime.datetime(dateNow.year, dateNow.month, dateNow.day - 3)
         
         # Write all user files
         # updateAllUsers()
@@ -221,20 +223,20 @@ def main():
         # writeTweets(start_date, end_date, num_top_stocks)
 
         # Find features for prediction
-        path = 'newPickled/features_new.pkl'
-        found_features = findFeatures(start_date, end_date, num_top_stocks, path, False)
+        path = 'newPickled/features_new_true.pkl'
+        found_features = findFeatures(start_date, end_date, num_top_stocks, path, True)
 
         # Make prediction
-        weightings = {
-            'total': 1,
-            'return_log': 1,
-            'return_ratio': 3,
-            'return_s': 1,
-            'bull_return_s': 1,
-            'bull': 1,
-            'count_ratio': 3
-        }
-        prediction(start_date, end_date, found_features, num_top_stocks, weightings)
+        # weightings = {
+        #     'total': 1,
+        #     'return_log': 1,
+        #     'return_ratio': 3,
+        #     'return_s': 1,
+        #     'bull_return_s': 1,
+        #     'bull': 1,
+        #     'count_ratio': 3
+        # }
+        # prediction(start_date, end_date, found_features, num_top_stocks, weightings)
 
         # Optimize features
         # return, bull_return_s, return_s not useful
@@ -276,9 +278,21 @@ def main():
     elif (options.dailyuserparser):
         dailyAnalyzeUsers(reAnalyze=True, updateUser=True, daysback=14)
     else:
+        cached_prices = readPickleObject('newPickled/averaged.pkl')
+        # for t in tweets:
+        #     print(t)
+        # for i in [1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6,1, 2, 3, 4, 5, 6,1, 2, 3, 4, 5, 6,1, 2, 3, 4, 5, 6]:
+        #     print("hi")
+        # res = calculateUserFeatures('johnyyywardyy', datetime.datetime(2020, 6, 12), cached_prices)
 
-        saveUserTweets()
-
+        # arr = os.listdir('user_tweets/')
+        # count = 0
+        # for u in arr:
+        #     username = u[:-4]
+        #     editCachedTweets(username)
+        #     count += 1
+        #     if (count % 1000 == 0):
+        #         print(count)
 
         # now = convertToEST(datetime.datetime.now())
         # date = datetime.datetime(2020, 1, 6)

@@ -25,30 +25,27 @@ currDateTimeStr = ""
 # ------------------------------------------------------------------------
 
 
+# Firnd first trading day
 def findDateString(time, cached_prices):
-    dayIncrement = datetime.timedelta(days=1)
+    day_increment = datetime.timedelta(days=1)
     count = 0
-
-    # If saturday, sunday or holiday, find first trading day to start from time
-    while (count <= 6 and time.strftime("%Y-%m-%d") not in cached_prices):
-        time = datetime.datetime(time.year, time.month, time.day)
-        time += dayIncrement
-        count += 1
 
     # Find first day if tweeted after 4pm
     # If 4:00 on Wed, first day is Thursday
     # If 4:00 on Friday, first day is Monday
-    timeDiff = time - datetime.datetime(time.year, time.month, time.day)
-    if (timeDiff.total_seconds() >= (16 * 60 * 60)):
-        time += dayIncrement
-        while (count <= 6 and time.strftime("%Y-%m-%d") not in cached_prices):
-            time += dayIncrement
-            count += 1
+    if (time.hour >= 16):
+        time += day_increment
 
-    if (count >= 6):
+    # If saturday, sunday or holiday, find first trading day to start from time
+    while (count <= 5 and '%d-%02d-%02d' % (time.year, time.month, time.day) not in cached_prices):
+        time += day_increment
+        count += 1
+
+    if (count >= 5):
         return None
 
-    return time.strftime("%Y-%m-%d")
+    return '%d-%02d-%02d' % (time.year, time.month, time.day)
+
 
 def exportCloseOpen():
     path = 'newPickled/averaged.pkl'
@@ -94,33 +91,28 @@ def findCloseOpenCached(symbol, time, cached_prices):
     dayIncrement = datetime.timedelta(days=1)
     count = 0
 
-    # If saturday, sunday or holiday, find first trading day to start from time
-    while (count <= 6 and time.strftime("%Y-%m-%d") not in cached_prices):
-        time = datetime.datetime(time.year, time.month, time.day)
-        time += dayIncrement
-        count += 1
-
     # Find first day if tweeted after 4pm
     # If 4:00 on Wed, first day is Thursday
     # If 4:00 on Friday, first day is Monday
-    timeDiff = time - datetime.datetime(time.year, time.month, time.day)
-    if (timeDiff.total_seconds() >= (16 * 60 * 60)):
+    if (time.hour >= 16):
         time += dayIncrement
-        while (count <= 6 and time.strftime("%Y-%m-%d") not in cached_prices):
-            time += dayIncrement
-            count += 1
+
+    # If saturday, sunday or holiday, find first trading day to start from time
+    while (count <= 5 and '%d-%02d-%02d' % (time.year, time.month, time.day) not in cached_prices):
+        time += dayIncrement
+        count += 1
 
     # Find next day based on the picked first day
     nextDay = time + dayIncrement
-    while (count <= 6 and nextDay.strftime("%Y-%m-%d") not in cached_prices):
+    while (count <= 5 and '%d-%02d-%02d' % (nextDay.year, nextDay.month, nextDay.day) not in cached_prices):
         nextDay += dayIncrement
         count += 1
 
-    if (count >= 6):
+    if (count >= 5):
         return None
 
-    start_str = time.strftime("%Y-%m-%d")
-    end_str = nextDay.strftime("%Y-%m-%d")
+    start_str = '%d-%02d-%02d' % (time.year, time.month, time.day)
+    end_str = '%d-%02d-%02d' % (nextDay.year, nextDay.month, nextDay.day)
     if (start_str not in cached_prices or end_str not in cached_prices or 
         symbol not in cached_prices[start_str] or 
         symbol not in cached_prices[end_str]):
@@ -130,8 +122,7 @@ def findCloseOpenCached(symbol, time, cached_prices):
     end = cached_prices[end_str][symbol]
     closePrice = start[1]
     openPrice = end[0]
-    # print(start_str, end_str)
-    return (closePrice, openPrice, round(((openPrice - closePrice) / closePrice) * 100, 3))
+    return (closePrice, openPrice, (openPrice - closePrice) * 100 / closePrice)
 
 
 # Find close open for date. Anytime before 4pm is

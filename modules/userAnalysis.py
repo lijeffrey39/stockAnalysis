@@ -453,38 +453,50 @@ def initializeResult(tweets, user):
                 result['perStock'][symbol][f][k] = {}
                 result['perStock'][symbol][f][k]['bull'] = 0
                 result['perStock'][symbol][f][k]['bear'] = 0
-
     return result
 
 
+# Initialize per stock features 
+def initializePerStockFeatures(symbol, result):
+    result['perStock'][symbol] = {}
+    keys = ['correct_predictions', 'num_predictions',
+            'unique_correct_predictions', 'unique_num_predictions', 
+            'unique_return', 'unique_return_log']
+    for k in keys:
+        result['perStock'][symbol][k] = {}
+        result['perStock'][symbol][k]['bull'] = 0
+        result['perStock'][symbol][k]['bear'] = 0
+
+
 # Update feature results for a user given close open prices
-def updateUserFeatures(result, tweet, uniqueStocks, like_comment_counts, cached_prices):
-    functions = constants['functions']
+# Not using functions for now ('1' by default)
+# TODO: pReturnCloseOpen look at price at time of posting
+def updateUserFeatures(result, tweet, uniqueStocks, cached_prices):
+    # functions = constants['functions']
     time = tweet['time']
     symbol = tweet['symbol']
     isBull = tweet['isBull']
-    # closeOpen = findCloseOpen(symbol, time)
-    # if (closeOpen is None):
-    #     # print(symbol, time, closeOpen, 'rip')
-    #     return
+    label = 'bull' if (isBull) else 'bear'
 
     closeOpen = findCloseOpenCached(symbol, time, cached_prices)
     if (closeOpen is None):
         return
 
-    pChangeCloseOpen = closeOpen[2]
-    correctPredCloseOpen = (isBull and pChangeCloseOpen >= 0) or (isBull is False and pChangeCloseOpen <= 0)
-    correctNumCloseOpen = 1 if correctPredCloseOpen else 0
-    pReturnCloseOpen = abs(pChangeCloseOpen) if correctPredCloseOpen else -abs(pChangeCloseOpen)
-    values = [pReturnCloseOpen, correctNumCloseOpen, 1]
+    percent_change = closeOpen[2]
+    correct_prediction = (isBull and percent_change >= 0) or (isBull is False and percent_change <= 0)
+    correct_prediction_num = 1 if correct_prediction else 0
 
-    like_comment_counts['likes'] += tweet['likeCount']
-    like_comment_counts['comments'] += tweet['commentCount']
-    like_comment_counts['total'] += 1
+    # Initialize perstock object
+    if (symbol not in result['perStock']):
+        initializePerStockFeatures(symbol, result)
+
+    result['correct_predictions'][label] += correct_prediction_num
+    result['perStock'][symbol]['correct_predictions'][label] += correct_prediction_num
+    result['num_predictions'][label] += 1
+    result['perStock'][symbol]['num_predictions'][label] += 1
 
     # For unique predictions per day, only count (bull/bear) if its majority
     time_string = symbol + ' ' + findDateString(time, cached_prices)
-    # print(time, closeOpen, findDateString(time, cached_prices))
     if (time_string in uniqueStocks):
         uniqueStocks[time_string]['times'].append(time)
         if (isBull):
@@ -492,11 +504,8 @@ def updateUserFeatures(result, tweet, uniqueStocks, like_comment_counts, cached_
         else:
             uniqueStocks[time_string]['bear'] += 1
     else:
-        time_result = {'times': [time],
-                        'symbol': symbol,
-                        'returnUnique': pReturnCloseOpen,
-                        'numUnique': correctNumCloseOpen,
-                        'numUniquePredictions': 1}
+        time_result = {'times': [time], 'symbol': symbol, 'percent_change': percent_change}
+        time_result['last_prediction'] = isBull
         if (isBull):
             time_result['bull'] = 1
             time_result['bear'] = 0
@@ -505,16 +514,21 @@ def updateUserFeatures(result, tweet, uniqueStocks, like_comment_counts, cached_
             time_result['bear'] = 1
         uniqueStocks[time_string] = time_result
 
-    keys = ['returnCloseOpen', 'numCloseOpen', 'numPredictions']
-    label = 'bull' if (isBull) else 'bear'
-    count = 0
-    for k in keys:
-        for f in functions:
-            w = findWeight(time, f)
-            val = w * values[count]
-            result[f][k][label] += val
-            result['perStock'][symbol][f][k][label] += val
-        count += 1
+
+    # keys = ['numCloseOpen', 'numPredictions']
+    # label = 'bull' if (isBull) else 'bear'
+    # count = 0
+    # for k in keys:
+    #     result[k][label] += values[count]
+    #     result['perStock'][symbol][k][label] += values[count]
+    #     count += 1
+
+        # for f in functions:
+        #     w = findWeight(time, f)
+        #     val = w * values[count]
+        #     result[f][k][label] += val
+        #     result['perStock'][symbol][f][k][label] += val
+        # count += 1
 
 
 # Returns stats from user info for prediction
@@ -538,19 +552,11 @@ def getStatsPerUser(user):
     labeledTweets.sort(key=lambda x: x['time'], reverse=True)
     result = initializeResult(labeledTweets, user)
     uniqueStocks = {}
-    like_comment_counts = {'likes': 0, 'comments': 0, 'total': 0}
 
     # Loop through all tweets made by user and feature extract per user
     cached_prices = readPickleObject('newPickled/averaged.pkl')
     for tweet in labeledTweets:
-        updateUserFeatures(result, tweet, uniqueStocks, like_comment_counts, cached_prices)
-
-    if (like_comment_counts['total'] == 0):
-        result['likes_per_tweet'] = 0
-        result['comments_per_tweet'] = 0
-    else:
-        result['likes_per_tweet'] = like_comment_counts['likes'] / like_comment_counts['total']
-        result['comments_per_tweet'] = like_comment_counts['comments'] / like_comment_counts['total']
+        updateUserFeatures(result, tweet, uniqueStocks, cached_prices)
 
     # Update unique predictions per day features
     for time_string in uniqueStocks:

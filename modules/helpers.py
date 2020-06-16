@@ -20,6 +20,17 @@ from .stockPriceAPI import inTradingDay
 # ------------------------------------------------------------------------
 
 
+# Find average time
+def findAverageTime(times):
+    times.sort()
+    mid = len(times) // 2
+    if (len(times) % 2 == 0):
+        delta = (times[mid] - times[mid - 1]) / 2
+        return times[mid - 1] + delta
+    else:
+        return times[mid]
+
+
 # Insert list of tweets into tweets database
 def insertResults(results):
     collection = constants['stocktweets_client'].get_database('tweets_db').tweets

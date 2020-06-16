@@ -1,5 +1,6 @@
 user_files/
 new_stock_files/
+user_tweets/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

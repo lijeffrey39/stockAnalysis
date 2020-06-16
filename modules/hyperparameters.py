@@ -76,5 +76,5 @@ constants = {
     'html_class_plus': 'st_2ceteac st_8u0ePN3',
     'html_class_official': 'st_15f6hU9 st_2Y5n_y3',
     'html_class_premium_room': 'st_3ZUModE st_2fTou_q',
-    'functions': ['1', 'x', 'x^2', 'x^4', 'log(x)']
+    'functions': ['1', 'x', 'x^2', 'log(x)']
 }
