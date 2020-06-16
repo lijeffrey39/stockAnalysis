@@ -131,7 +131,10 @@ def updatedCloseOpen(symbol, date):
     restURL = "?chartByDay=True&token=sk_c38d3babd3c144a886597ce6d014e543"
     URL = baseURL + dateString + restURL
     r = requests.get(url=URL)
-    data = r.json()
+    try:
+        data = r.json()
+    except:
+        return {}
     if (len(data) == 0):
         return {}
     data = data[0]
