@@ -5,22 +5,24 @@ import math
 import yfinance as yf
 import requests
 
-from modules.helpers import (convertToEST, findTradingDays, getAllStocks,
+from modules.helpers import (convertToEST, findTradingDays, getAllStocks, recurse,
                              insertResults, findWeight, writePickleObject, readPickleObject)
 from modules.hyperparameters import constants
-#from modules.nn import calcReturns, testing
 from modules.prediction import (basicPrediction, findAllTweets, updateBasicStockInfo, setupUserInfos)
 from modules.stockAnalysis import (findPageStock, getTopStocks, parseStockData,
                                    shouldParseStock, updateLastMessageTime,
                                    updateLastParsedTime, updateStockCount, getSortedStocks)
 from modules.stockPriceAPI import (updateAllCloseOpen, transferNonLabeled, findCloseOpen, closeToOpen, getUpdatedCloseOpen, 
-                                    getCloseOpenInterval, updateyfinanceCloseOpen, updateAllCloseOpenYF)
+                                    getCloseOpenInterval, updateyfinanceCloseOpen, updateAllCloseOpenYF, exportCloseOpen)
 from modules.userAnalysis import (findPageUser, findUsers, insertUpdateError,
                                   parseUserData, shouldParseUser, getStatsPerUser,
-                                  updateUserNotAnalyzed, getAllUserInfo,
+                                  updateUserNotAnalyzed,
                                   calculateAllUserInfo, parseOldUsers)
 from modules.tests import (findBadMessages, removeMessagesWithStock, 
                            findTopUsers, findOutliers, findAllUsers, findErrorUsers)
+                        
+from modules.newPrediction import (findTweets, weightedUserPrediction, writeTweets,
+                                    prediction, findFeatures, updateAllUsers)
 
 
 client = constants['db_client']
@@ -103,8 +105,8 @@ def analyzeUsers(reAnalyze, findNewUsers, updateUser):
             insertUpdateError(coreInfo, reAnalyze, updateUser)
             continue
 
-        insertUpdateError(coreInfo, reAnalyze, updateUser)
         insertResults(result)
+        insertUpdateError(coreInfo, reAnalyze, updateUser)
 
 def dailyAnalyzeUsers(reAnalyze, updateUser, daysback):
     users = parseOldUsers(daysback)
@@ -197,7 +199,7 @@ def main():
     dateNow = convertToEST(datetime.datetime.now())
 
     if (options.users):
-        analyzeUsers(reAnalyze=False, findNewUsers=False, updateUser=True)
+        analyzeUsers(reAnalyze=False, findNewUsers=True, updateUser=False)
     elif (options.stocks):
         now = convertToEST(datetime.datetime.now())
         date = datetime.datetime(now.year, now.month, now.day)
@@ -208,7 +210,59 @@ def main():
         #         print(i)
         analyzeStocks(date, stocks)
     elif (options.prediction):
-        makePrediction(dateNow)
+        stocks = getTopStocks(20)
+        date = datetime.datetime(2020, 1, 5, 9, 30)
+        dateUpTo = datetime.datetime(dateNow.year, dateNow.month, dateNow.day)
+        dates = findTradingDays(date, dateUpTo)
+        
+        # Write all user files
+        # updateAllUsers()
+
+        # Write stock tweet files
+        start_date = dates[0]
+        end_date = dateUpTo - datetime.timedelta(days=1)
+        writeTweets(start_date, end_date, stocks)
+
+        # Find features for prediction
+        found_features = findFeatures(stocks, dates, True)
+
+
+        # Optimize features
+        # return, bull_return_s, return_s not useful
+        # combinedResults = {}
+        # allPossibilities = []
+        # recurse([1, 1, 1, 1, 1] * 1, 0, 3, set([]), allPossibilities)
+        # print(len(allPossibilities))
+        # for combo in allPossibilities:
+        #     paramWeightings = {
+        #         'total': combo[0],
+        #         'return_log': combo[1],
+        #         'count_ratio': combo[2], 
+        #         'return_ratio': 3, 
+        #         'bull_return_s': combo[3],
+        #         'bull': combo[4]
+        #     }
+        #     (returns, accuracy) = prediction(dates, stocks, found_features, paramWeightings)
+        #     print(tuple(paramWeightings.items()), returns, accuracy)
+        #     combinedResults[tuple(paramWeightings.items())] = (returns, accuracy)
+
+        # bestParams = list(combinedResults.items())
+        # bestParams.sort(key=lambda x: x[1], reverse=True)
+        # for x in bestParams[:25]:
+        #     print(x[0], x[1])
+
+        # Make prediction
+        weightings = {
+            'total': 1,
+            'return_log': 1,
+            'return_ratio': 3,
+            'return_s': 1,
+            'bull_return_s': 1,
+            'bull': 1,
+            'count_ratio': 3
+        }
+        prediction(dates, stocks, found_features, weightings)
+
     elif (options.updateCloseOpens):
         now = convertToEST(datetime.datetime.now())
         #updateStockCount()
@@ -387,6 +441,10 @@ def main():
 
         # now = convertToEST(datetime.datetime.now())
         # date = datetime.datetime(now.year, now.month, now.day)
+        # now = convertToEST(datetime.datetime.now())
+        # date = datetime.datetime(now.year, now.month, now.day - 2)
+        # updateStockCount()
+        # print(date)
         # stocks = getAllStocks()
         # print(len(stocks))
         # for i in range(len(stocks)):
@@ -427,10 +485,17 @@ def main():
         #         print(date, findCloseOpen('AAPL', date))
         #         # print(date, round(findWeight(date, 'x'), 1))
 
-        # calculateAllUserInfo()
-        # getStatsPerUser('DaoofDow')
-        # print(getAllUserInfo('sjs7'))
 
+        # exportCloseOpen()
+        # calculateAllUserInfo()
+
+        # getStatsPerUser('Buckeye1212')
+        # print(getAllUserInfo('hirashima'))
+
+        # print(len(findTweets(date, 'AAPL')))
+
+        # getAllUserInfo('SDF9090')
+        # print(weightedUserPrediction(getAllUserInfo('SDF9090'), ''))
         # transferNonLabeled(stocks)
 
         # findBadMessages('ArmedInfidel')

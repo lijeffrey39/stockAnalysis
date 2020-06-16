@@ -1,4 +1,5 @@
-*.pkl
+user_files/
+stock_files/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

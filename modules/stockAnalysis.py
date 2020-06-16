@@ -27,8 +27,13 @@ def getTopStocks(numStocks=100):
 
 def getSortedStocks():
     stockCounts = constants['db_client'].get_database(
+<<<<<<< HEAD
         'stocktwits_db').stock_counts_v2
     cursor = stockCounts.find({ 'count': { '$gte': 1000 } })
+=======
+        'stocktwits_db').stock_counts_60
+    cursor = stockCounts.find()
+>>>>>>> prediction-v2
     stocks = list(map(lambda document: document, cursor))
     newdict = sorted(stocks, key=lambda k: k['count'], reverse=True)
     newlist = list(map(lambda document: document['_id'], newdict))
@@ -38,14 +43,16 @@ def getSortedStocks():
 
 def updateStockCount():
     currTime = convertToEST(datetime.datetime.now())
-    prevTime = currTime - datetime.timedelta(days=30)   
-    db = constants['db_client'].get_database('stocktwits_db').stock_counts_v2
+    prevTime = currTime - datetime.timedelta(days=60)   
+    db = constants['db_client'].get_database('stocktwits_db').stock_counts_60
     analyzedUsers = constants['stocktweets_client'].get_database('tweets_db').tweets
     res = analyzedUsers.aggregate([{ "$match": { "time" : { '$gte' : prevTime} } }, {'$group' : { '_id' : '$symbol', 'count' : {'$sum' : 1}}}, { "$sort": { "count": 1 } },])
     for i in res:
-        query = {'_id': i['_id']}
-        newVal = {'$set': {'count30': i['count']}}
-        db.update_one(query, newVal)
+        # query = {'_id': i['_id']}
+        # newVal = {'$set': {'count30': i['count']}}
+        # db.update_one(query, newVal)
+
+        db.insert({'_id': i['_id'], 'count': i['count']})
 
 
 # Return soup object page of that stock

@@ -17,7 +17,7 @@ from .helpers import (calcRatio, findWeight, readCachedCloseOpen,
 from .hyperparameters import constants
 from .messageExtract import *
 from .stockPriceAPI import getUpdatedCloseOpen, updateAllCloseOpen
-from .userAnalysis import getAllUserInfo, setupUserInfos
+from .userAnalysis import setupUserInfos
 
 
 # ------------------------------------------------------------------------
@@ -66,13 +66,6 @@ def buildFeatures():
                         for b in bullBear:
                             features[fx][fy][u][infoName][f][b] = {}
     return features
-
-
-# Return a number based on how reliable the users prediction is
-# Very naive metho right now
-# TODO: Ideally use features such as join date, follower following ratio etc
-def weightedUserPrediction(user):
-    return user['totalReturn'] * user['accuracy']
 
 
 # Tell whether the tweet is actually bull or bear based on historical predictions
@@ -160,7 +153,6 @@ def newCalculateSentiment(tweets, symbol, userAccDict):
     return features
 
 
-# Calculate features based on list of tweets
 def calculateSentiment(tweets, symbol, userAccDict):
     usersTweeted = {'bull': set([]), 'bear': set([])}
     result = buildResult()

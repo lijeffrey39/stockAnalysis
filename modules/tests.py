@@ -13,7 +13,7 @@ from .stockPriceAPI import (findCloseOpen,
                             inTradingDay,
                             getUpdatedCloseOpen)
 from .stockAnalysis import getTopStocks
-from .userAnalysis import getAllUserInfo
+# from .userAnalysis import getAllUserInfo
 from .helpers import (readPickleObject, writePickleObject)
 from random import shuffle
 import matplotlib.pyplot as plt
