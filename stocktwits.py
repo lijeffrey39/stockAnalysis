@@ -9,8 +9,8 @@ from modules.helpers import (convertToEST, findTradingDays, getAllStocks, recurs
                              insertResults, findWeight, writePickleObject, readPickleObject)
 from modules.hyperparameters import constants
 from modules.prediction import (basicPrediction, findAllTweets, updateBasicStockInfo, setupUserInfos)
-from modules.stockAnalysis import (findPageStock, getTopStocks, parseStockData,
-                                   shouldParseStock, updateLastMessageTime,
+from modules.stockAnalysis import (findPageStock, getTopStocks, parseStockData, getTopStocksforWeek,
+                                   shouldParseStock, updateLastMessageTime, updateStockCountPerWeek,
                                    updateLastParsedTime, updateStockCount, getSortedStocks)
 from modules.stockPriceAPI import (updateAllCloseOpen, transferNonLabeled, findCloseOpen, closeToOpen, getUpdatedCloseOpen, 
                                     getCloseOpenInterval, updateyfinanceCloseOpen, exportCloseOpen)
@@ -210,22 +210,31 @@ def main():
         #         print(i)
         analyzeStocks(date, stocks)
     elif (options.prediction):
-        stocks = getTopStocks(20)
-        date = datetime.datetime(2020, 1, 5, 9, 30)
-        dateUpTo = datetime.datetime(dateNow.year, dateNow.month, dateNow.day)
-        dates = findTradingDays(date, dateUpTo)
+        num_top_stocks = 20 # Choose top 20 stocks of the week to parse
+        start_date = datetime.datetime(2020, 3, 5, 9, 30)
+        end_date = datetime.datetime(dateNow.year, dateNow.month, dateNow.day)
         
         # Write all user files
         # updateAllUsers()
 
         # Write stock tweet files
-        start_date = dates[0]
-        end_date = dateUpTo - datetime.timedelta(days=1)
-        writeTweets(start_date, end_date, stocks)
+        # writeTweets(start_date, end_date, num_top_stocks)
 
         # Find features for prediction
-        found_features = findFeatures(stocks, dates, True)
+        path = 'newPickled/features_new.pkl'
+        found_features = findFeatures(start_date, end_date, num_top_stocks, path, False)
 
+        # Make prediction
+        weightings = {
+            'total': 1,
+            'return_log': 1,
+            'return_ratio': 3,
+            'return_s': 1,
+            'bull_return_s': 1,
+            'bull': 1,
+            'count_ratio': 3
+        }
+        prediction(start_date, end_date, found_features, num_top_stocks, weightings)
 
         # Optimize features
         # return, bull_return_s, return_s not useful
@@ -251,18 +260,6 @@ def main():
         # for x in bestParams[:25]:
         #     print(x[0], x[1])
 
-        # Make prediction
-        weightings = {
-            'total': 1,
-            'return_log': 1,
-            'return_ratio': 3,
-            'return_s': 1,
-            'bull_return_s': 1,
-            'bull': 1,
-            'count_ratio': 3
-        }
-        prediction(dates, stocks, found_features, weightings)
-
     elif (options.updateCloseOpens):
         updateStockCount()
         now = convertToEST(datetime.datetime.now())
@@ -280,8 +277,13 @@ def main():
         dailyAnalyzeUsers(reAnalyze=True, updateUser=True, daysback=14)
     else:
         now = convertToEST(datetime.datetime.now())
-        date = datetime.datetime(now.year, now.month, now.day - 2)
-        updateStockCount()
+        date = datetime.datetime(2020, 1, 6)
+        delta = datetime.timedelta(days=7)
+
+        while (date < now - delta):
+            updateStockCountPerWeek(date)
+            date += delta
+
         # print(date)
         # stocks = getAllStocks()
         # print(len(stocks))
