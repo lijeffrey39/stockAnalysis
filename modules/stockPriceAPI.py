@@ -151,7 +151,7 @@ def updateyfinanceCloseOpen(symbol, date):
         return {}
     elif len(yClose) == 0 or yClose is None:
         return {}
-    _id = symbol + ' ' + datestring
+    _id = symbol + ' ' + dateString
     result = {'_id': _id, 'open': yOpen, 'close': yClose}
     return result
 

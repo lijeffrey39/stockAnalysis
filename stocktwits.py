@@ -229,6 +229,27 @@ def main():
         dailyAnalyzeUsers(reAnalyze=True, updateUser=True, daysback=14)
     else:
         print('')
+        dateStart = datetime.datetime(2020, 1, 1, 00, 00)
+        dateEnd = datetime.datetime(2020, 6, 1, 23, 59)
+        stocks = getTopStocks(100)
+        dates = counts = []
+        for i in stocks[0:1]:
+            print(i)
+            while dateStart < dateEnd:
+                tweets = clientStockTweets.get_database('tweets_db').tweets.find({"$and": [{'symbol': i},
+                                                                                {'time': {'$gte': dateStart,
+                                                                                '$lt': dateStart+datetime.timedelta(days=1)}}]})
+                counts.append(tweets.count())
+                dates.append(dateStart)
+                dateStart = dateStart + datetime.timedelta(days=1)
+        x = dates
+        y = counts
+        # plot
+        plt.plot(x,y)
+        # beautify the x-labels
+        plt.gcf().autofmt_xdate()
+
+        plt.show()
         # currTime = convertToEST(datetime.datetime.now())
         # prevTime = currTime - datetime.timedelta(days=30)   
         # db = constants['db_client'].get_database('stocktwits_db').stock_counts_v2
