@@ -1,6 +1,8 @@
 import datetime
 import statistics
 import math
+import os
+import csv
 from functools import reduce
 from .hyperparameters import constants
 from .userAnalysis import getStatsPerUser
@@ -206,6 +208,38 @@ def findAverageStd(start_date, end_date, all_features):
             result[symbol][f] = res
 
     return result
+
+
+# Save user tweets locally (only save symbol, time, isBull)
+def saveUserTweets():
+    print("Saving all user tweets")
+    analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
+    time = datetime.datetime(2020, 6, 1)
+    query = {"$and": [{'error': ''}, 
+                      {'last_updated': {'$exists': True}},
+                      {'last_updated': {'$gte': time}}]}
+    cursor = analyzedUsers.find(query)
+    users = list(map(lambda document: document['_id'], cursor))
+    print(len(users))
+
+    for username in users:
+        path = 'user_tweets/' + username + '.csv'
+        if (os.path.exists(path)):
+            continue
+
+        print(username)
+        tweets_collection = constants['stocktweets_client'].get_database('tweets_db').tweets
+        query = {'$and': [{'user': username}, { "$or": [{'isBull': True}, {'isBull': False}] }]}
+        tweets = list(tweets_collection.find(query).sort('time', -1))
+        tweets = list(map(lambda t: [t['time'], t['symbol'], t['isBull']], tweets))
+
+        with open(path, "a") as user_file:
+            csvWriter = csv.writer(user_file, delimiter=',')
+            csvWriter.writerows(tweets)
+
+
+
+# def calculateUserFeatures(username, date)
 
 
 def updateAllUsers():

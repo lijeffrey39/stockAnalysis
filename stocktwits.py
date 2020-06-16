@@ -22,7 +22,7 @@ from modules.tests import (findBadMessages, removeMessagesWithStock,
                            findTopUsers, findOutliers, findAllUsers, findErrorUsers)
                         
 from modules.newPrediction import (findTweets, weightedUserPrediction, writeTweets,
-                                    prediction, findFeatures, updateAllUsers)
+                                    prediction, findFeatures, updateAllUsers, saveUserTweets)
 
 
 client = constants['db_client']
@@ -276,13 +276,17 @@ def main():
     elif (options.dailyuserparser):
         dailyAnalyzeUsers(reAnalyze=True, updateUser=True, daysback=14)
     else:
-        now = convertToEST(datetime.datetime.now())
-        date = datetime.datetime(2020, 1, 6)
-        delta = datetime.timedelta(days=7)
 
-        while (date < now - delta):
-            updateStockCountPerWeek(date)
-            date += delta
+        saveUserTweets()
+
+
+        # now = convertToEST(datetime.datetime.now())
+        # date = datetime.datetime(2020, 1, 6)
+        # delta = datetime.timedelta(days=7)
+
+        # while (date < now - delta):
+        #     updateStockCountPerWeek(date)
+        #     date += delta
 
         # print(date)
         # stocks = getAllStocks()
