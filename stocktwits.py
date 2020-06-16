@@ -14,7 +14,7 @@ from modules.stockAnalysis import (findPageStock, getTopStocks, parseStockData,
                                    shouldParseStock, updateLastMessageTime,
                                    updateLastParsedTime, updateStockCount, getSortedStocks)
 from modules.stockPriceAPI import (updateAllCloseOpen, transferNonLabeled, findCloseOpen, closeToOpen, getUpdatedCloseOpen, 
-                                    getCloseOpenInterval, updateyfinanceCloseOpen)
+                                    getCloseOpenInterval, updateyfinanceCloseOpen, updateAllCloseOpenYF)
 from modules.userAnalysis import (findPageUser, findUsers, insertUpdateError,
                                   parseUserData, shouldParseUser, getStatsPerUser,
                                   updateUserNotAnalyzed, getAllUserInfo,
@@ -210,14 +210,17 @@ def main():
     elif (options.prediction):
         makePrediction(dateNow)
     elif (options.updateCloseOpens):
-        updateStockCount()
         now = convertToEST(datetime.datetime.now())
+        #updateStockCount()
+        print('stock count updated')
         date = datetime.datetime(now.year, now.month, now.day, 12, 30)
         dateNow = datetime.datetime(now.year, now.month, now.day, 13, 30)
-        dates = findTradingDays(date, dateNow)
-        print(dates)
+        dates = findTradingDays(date, dateNow) 
         stocks = getSortedStocks()
+        if len(dates) == 0:
+            exit()
         updateAllCloseOpen(stocks, dates)
+        updateAllCloseOpenYF(stocks, dates)
     elif (options.hourlyparser):
         hourlyparse()
     elif (options.dailyparser):
@@ -343,18 +346,18 @@ def main():
             #print(i)
 
         # check last parsetime
-        stocks = getTopStocks(100)
-        # stocks1 = getSortedStocks()[101:551]
+        # stocks = getTopStocks(100)
+        # # stocks1 = getSortedStocks()[101:551]
 
-        db = constants['stocktweets_client'].get_database('stocks_data_db')
-        lastParsed = db.last_parsed
-        for i in stocks:
-            print(i)
-            lastTime = lastParsed.find({'_id': i})
-            try:
-                print(str(i) + ':' + str(lastTime[0]))
-            except:
-                pass
+        # db = constants['stocktweets_client'].get_database('stocks_data_db')
+        # lastParsed = db.last_parsed
+        # for i in stocks:
+        #     print(i)
+        #     lastTime = lastParsed.find({'_id': i})
+        #     try:
+        #         print(str(i) + ':' + str(lastTime[0]))
+        #     except:
+        #         pass
 
         # db = clientStockTweets.get_database('stocks_data_db')
         # errors = db.stock_tweets_errors.find()
