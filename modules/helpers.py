@@ -284,9 +284,6 @@ def findTradingDays(date, upToDate):
 # Find weight between 0-1 based on function
 def findWeight(date, function):
     time = date
-    functions = constants['functions']
-    if (function not in functions):
-        return 0
 
     # If on a weekday between Monday 4:00 and Friday 4:00
     currTime = datetime.datetime(date.year, date.month, date.day, 16)
@@ -315,6 +312,8 @@ def findWeight(date, function):
 
     if (function == '1'):
         return 1
+    elif (function == 'sqrt(x)'):
+        return math.sqrt(x)
     elif (function == 'x'):
         return x
     elif (function == 'x^2'):

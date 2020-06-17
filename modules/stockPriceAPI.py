@@ -25,10 +25,13 @@ currDateTimeStr = ""
 # ------------------------------------------------------------------------
 
 
+def isTradingDay(time):
+    return '%d-%02d-%02d' % (time.year, time.month, time.day) in constants['trading_days']
+
+
 # Firnd first trading day
 def findDateString(time, cached_prices):
     day_increment = datetime.timedelta(days=1)
-    count = 0
 
     # Find first day if tweeted after 4pm
     # If 4:00 on Wed, first day is Thursday
@@ -37,12 +40,8 @@ def findDateString(time, cached_prices):
         time += day_increment
 
     # If saturday, sunday or holiday, find first trading day to start from time
-    while (count <= 5 and '%d-%02d-%02d' % (time.year, time.month, time.day) not in cached_prices):
+    while (isTradingDay(time) == False):
         time += day_increment
-        count += 1
-
-    if (count >= 5):
-        return None
 
     return '%d-%02d-%02d' % (time.year, time.month, time.day)
 
@@ -87,32 +86,27 @@ def exportCloseOpen():
     f.close()
 
 
+# Find close open from cached files
 def findCloseOpenCached(symbol, time, cached_prices):
-    dayIncrement = datetime.timedelta(days=1)
-    count = 0
+    day_increment = datetime.timedelta(days=1)
 
     # Find first day if tweeted after 4pm
     # If 4:00 on Wed, first day is Thursday
     # If 4:00 on Friday, first day is Monday
     if (time.hour >= 16):
-        time += dayIncrement
+        time += day_increment
 
     # If saturday, sunday or holiday, find first trading day to start from time
-    while (count <= 5 and '%d-%02d-%02d' % (time.year, time.month, time.day) not in cached_prices):
-        time += dayIncrement
-        count += 1
+    while (isTradingDay(time) == False):
+        time += day_increment
 
     # Find next day based on the picked first day
-    nextDay = time + dayIncrement
-    while (count <= 5 and '%d-%02d-%02d' % (nextDay.year, nextDay.month, nextDay.day) not in cached_prices):
-        nextDay += dayIncrement
-        count += 1
-
-    if (count >= 5):
-        return None
+    end_day = time + day_increment
+    while (isTradingDay(end_day) == False):
+        end_day += day_increment
 
     start_str = '%d-%02d-%02d' % (time.year, time.month, time.day)
-    end_str = '%d-%02d-%02d' % (nextDay.year, nextDay.month, nextDay.day)
+    end_str = '%d-%02d-%02d' % (end_day.year, end_day.month, end_day.day)
     if (start_str not in cached_prices or end_str not in cached_prices or 
         symbol not in cached_prices[start_str] or 
         symbol not in cached_prices[end_str]):

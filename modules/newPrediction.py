@@ -3,21 +3,76 @@ import statistics
 import math
 import os
 import csv
+from scipy.optimize import minimize
 from functools import reduce
 from .hyperparameters import constants
 from .userAnalysis import (getStatsPerUser, initializeResult, updateUserFeatures)
 from .stockAnalysis import (findDateString, getTopStocksforWeek)
-from .stockPriceAPI import (findCloseOpenCached)
+from .stockPriceAPI import (findCloseOpenCached, isTradingDay)
 from .helpers import (calcRatio, findWeight, readPickleObject, findAllDays,
                     readCachedTweets, writeCachedTweets, writePickleObject,
                     findTradingDays, findAverageTime)
+
+
+def optimizeFN(params):
+    weightings = {
+        'count_ratio': params[0],
+        'return_log_ratio': params[1],
+        'total': params[2]
+    }
+    start_date = datetime.datetime(2020, 1, 9, 15, 30)
+    end_date = datetime.datetime(2020, 6, 9, 9, 30)
+    path = 'newPickled/features_new_sqrtx.pkl'
+    num_top_stocks = 20
+    all_features = findFeatures(start_date, end_date, num_top_stocks, path, False)
+    result = prediction(start_date, end_date, all_features, num_top_stocks, weightings)
+    param_res = list(map(lambda x: round(x, 2), params))
+    print(param_res, result)
+    return -result
+
+
+# result['total'] = result['bull'] - result['bear']
+# result['return'] = result['bull_return'] - result['bear_return']
+# result['return_log'] = result['bull_return_log'] - result['bear_return_log']
+# result['return_s'] = result['bull_return_s'] - result['bear_return_s']
+# result['return_log_s'] = result['bull_return_log_s'] - result['bear_return_log_s']
+
+# # Need to look at historical ratios to determine if this is sig diff 
+# # negative means more bear than bull
+# # ratio of the "sentiment" for the day
+# result['count_ratio'] = calcRatio(result['bull'], result['bear'])
+# result['return_ratio'] = calcRatio(result['bull_return'], result['bear_return'])
+# result['return_log_ratio'] = calcRatio(result['bull_return_log'], result['bear_return_log'])
+# result['return_s_ratio'] = calcRatio(result['bull_return_s'], result['bear_return_s'])
+# result['return_log_s_ratio'] = calcRatio(result['bull_return_log_s'], result['bear_return_log_s'])
+
+# BAD
+# bull_return_s
+# return_log
+# bull_return_log
+# bull_return_log_s
+
+
+def optimizeParams():
+    params = {
+        'count_ratio': [9, (8, 11)],
+        'return_log_ratio': [0.6, (0.5, 2)],
+        'total': [0.6, (0, 2)],
+    }
+
+    initial_values = list(map(lambda key: params[key][0], list(params.keys())))
+    bounds = list(map(lambda key: params[key][1], list(params.keys())))
+    result = minimize(optimizeFN, initial_values, method='SLSQP', options={'maxiter': 30, 'eps': 0.2}, 
+                    bounds=(bounds[0],bounds[1],bounds[2]))
+    print(result)
+
 
 
 # Make prediction by chooosing top n stocks to buy per day
 # Features are generated before hand per stock per day
 def prediction(start_date, end_date, all_features, num_top_stocks, weightings):
     # cached closeopen prices
-    cached_prices = readPickleObject('newPickled/averaged.pkl')
+    cached_prices = constants['cached_prices']
     # find avg/std for each feature per stock
     avg_std = findAverageStd(start_date, end_date, all_features)
     # trading days 
@@ -79,17 +134,17 @@ def prediction(start_date, end_date, all_features, num_top_stocks, weightings):
 
         total_return += return_today
         mapped_stocks = list(map(lambda x: [x[0], round(x[1] / sum_weights * 100, 2), x[2]], new_res_param))
-        print(date_string, return_today, mapped_stocks)
+        # print(date_string, return_today, mapped_stocks)
 
     total_correct = 0
     total_total = 0
     for s in accuracies:
         total_correct += accuracies[s]['correct']
         total_total += accuracies[s]['total']
-        print(s, accuracies[s]['correct'], accuracies[s]['total'])
+        # print(s, accuracies[s]['correct'], accuracies[s]['total'])
 
-    print(total_correct/total_total, total_return)
-    return (total_return, total_correct/total_total)
+    # print(total_correct/total_total, total_return)
+    return total_return
 
 
 # Find features of tweets per day of each stock
@@ -112,6 +167,7 @@ def findFeatures(start_date, end_date, num_top_stocks, path, update=False):
         stocks = getTopStocksforWeek(date, num_top_stocks) # top stocks for the week
         date_str = date.strftime("%Y-%m-%d")
         all_features[date_str] = {}
+        print(date.strftime("%Y-%m-%d"))
         for symbol in stocks:
             tweets_per_stock = []
             if (symbol in all_stock_tweets): 
@@ -124,7 +180,6 @@ def findFeatures(start_date, end_date, num_top_stocks, path, update=False):
             tweets = findTweets(date, tweets_per_stock, cached_prices, symbol)
             features = stockFeatures(tweets, symbol, cached_prices, user_features, all_user_tweets) # calc features based on tweets/day
             all_features[date_str][symbol] = features
-            print(date.strftime("%Y-%m-%d"), symbol, len(tweets))
 
     writePickleObject(path, all_features)
     return all_features
@@ -137,7 +192,7 @@ def findTweets(date, tweets_per_stock, cached_prices, symbol):
     date_end = datetime.datetime(date.year, date.month, date.day, 16)
     date_start = date_end - day_increment
     dates = [date_end, date_start]
-    while (date_start.strftime("%Y-%m-%d") not in cached_prices):
+    while (isTradingDay(date_start) == False):
         date_start -= day_increment
         dates.append(date_start)
 
@@ -471,7 +526,7 @@ def stockFeatures(tweets, symbol, cached_prices, all_user_features, all_user_twe
         isBull = tweet['isBull']
         tweeted_date = tweet['time']
         label = 'bull' if isBull else 'bear'
-        w = findWeight(tweeted_date, '1')
+        w = findWeight(tweeted_date, 'sqrt(x)') # weighted based on time of tweet
 
         # Get user tweets from file or locally
         user_tweets = []
@@ -533,6 +588,9 @@ def stockFeatures(tweets, symbol, cached_prices, all_user_features, all_user_twe
     # ratio of the "sentiment" for the day
     result['count_ratio'] = calcRatio(result['bull'], result['bear'])
     result['return_ratio'] = calcRatio(result['bull_return'], result['bear_return'])
+    result['return_log_ratio'] = calcRatio(result['bull_return_log'], result['bear_return_log'])
+    result['return_s_ratio'] = calcRatio(result['bull_return_s'], result['bear_return_s'])
+    result['return_log_s_ratio'] = calcRatio(result['bull_return_log_s'], result['bear_return_log_s'])
     return result
 
 

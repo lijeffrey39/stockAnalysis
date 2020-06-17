@@ -10,7 +10,7 @@ from selenium.webdriver.common.keys import Keys
 from bs4 import BeautifulSoup
 
 from . import scroll
-from .helpers import convertToEST, customHash, endDriver
+from .helpers import convertToEST, customHash, endDriver, readPickleObject, writePickleObject
 from .hyperparameters import constants
 from .messageExtract import *
 from .stockPriceAPI import *
@@ -72,20 +72,30 @@ def updateStockCountPerWeek(curr_time):
 
 # Get top stocks for that week given a date
 def getTopStocksforWeek(date, num):
+    path = 'newPickled/stockCounts.pkl'
+    cached_stockcounts = readPickleObject(path)
     year_week = date.isocalendar()[:2]
     year = year_week[0]
     week = year_week[1]
-    year_week_id = str(year) + '_' + str(week)
-    db = constants['db_client'].get_database('stocktwits_db').stock_counts_perweek
-    cursor = db.find({"_id" : year_week_id})
-    if (cursor.count() == 0):
-        return None
-    stock_list = cursor[0]['stocks']
+    year_week_id = str(year) + '_' + str(week) + '_21'
+
+    stock_list = []
+    if (year_week_id in cached_stockcounts):
+        stock_list = cached_stockcounts[year_week_id]
+    else:
+        db = constants['db_client'].get_database('stocktwits_db').stock_counts_perweek_v2
+        cursor = db.find({"_id" : year_week_id})
+        if (cursor.count() == 0):
+            return None
+        stock_list = cursor[0]['stocks']
+        cached_stockcounts[year_week_id] = stock_list
+        writePickleObject(path, cached_stockcounts)
+
     newdict = sorted(stock_list, key=lambda k: k['count'], reverse=True)
     newlist = list(map(lambda document: document['_id'], newdict))
     result = newlist[:num]
-    if ('VTIQ' in result):
-        result.remove('VTIQ')
+    if ('LK' in result):
+        result.remove('LK')
     return result
 
 

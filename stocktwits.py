@@ -5,6 +5,7 @@ import math
 import os
 import yfinance as yf
 import requests
+import itertools
 
 from modules.helpers import (convertToEST, findTradingDays, getAllStocks, recurse,
                              insertResults, findWeight, writePickleObject, readPickleObject)
@@ -23,7 +24,7 @@ from modules.tests import (findBadMessages, removeMessagesWithStock,
                            findTopUsers, findOutliers, findAllUsers, findErrorUsers)
                         
 from modules.newPrediction import (findTweets, weightedUserPrediction, writeTweets, calculateUserFeatures, editCachedTweets,
-                                    prediction, findFeatures, updateAllUsers, saveUserTweets, cachedUserTweets)
+                                    prediction, findFeatures, updateAllUsers, saveUserTweets, cachedUserTweets, optimizeParams)
 
 
 client = constants['db_client']
@@ -212,7 +213,7 @@ def main():
         analyzeStocks(date, stocks)
     elif (options.prediction):
         num_top_stocks = 20 # Choose top 20 stocks of the week to parse
-        start_date = datetime.datetime(2020, 5, 20, 15, 30)
+        start_date = datetime.datetime(2020, 1, 9, 15, 30)
         end_date = datetime.datetime(2020, 6, 9, 9, 30)
         # end_date = datetime.datetime(dateNow.year, dateNow.month, dateNow.day - 3)
         
@@ -223,43 +224,56 @@ def main():
         # writeTweets(start_date, end_date, num_top_stocks)
 
         # Find features for prediction
-        path = 'newPickled/features_new_true.pkl'
-        found_features = findFeatures(start_date, end_date, num_top_stocks, path, True)
+        path = 'newPickled/features_new_sqrtx.pkl'
+        found_features = findFeatures(start_date, end_date, num_top_stocks, path, False)
+
+        # Optimize paramters
+        optimizeParams()
 
         # Make prediction
         # weightings = {
-        #     'total': 1,
-        #     'return_log': 1,
-        #     'return_ratio': 3,
-        #     'return_s': 1,
-        #     'bull_return_s': 1,
-        #     'bull': 1,
-        #     'count_ratio': 3
+        #     'count_ratio': 9,
+        #     'return_log_ratio': 0.6,
+        #     'total': 0.6
         # }
         # prediction(start_date, end_date, found_features, num_top_stocks, weightings)
-
+        # return
         # Optimize features
-        # return, bull_return_s, return_s not useful
+        # return, bull_return_s, return_s, bull not useful
+        # total, return, return_log, bear, bull_return_log_s, bull_return, bull_return_log not useful
+        # count_ratio, return_ratio good
+
+
+
+        # return_ratio, return_s_ratio, return_log_s, return_log_s_ratio USELESS
+
+        # count_ratio: 6-10
+        # return_log_ratio: 1-3
+        # return_log: 0-2
+        # bull_return_log_s: 0-2
         # combinedResults = {}
-        # allPossibilities = []
-        # recurse([1, 1, 1, 1, 1] * 1, 0, 3, set([]), allPossibilities)
+        # a = [[6,7,8,9,10],[1,1.5,2],[0,1,2],[0,0.5,1],[0,1,2,3],[0,1,2,3]]
+        # allPossibilities = list(itertools.product(*a))
         # print(len(allPossibilities))
         # for combo in allPossibilities:
+        #     # if (combo[0] == 0 and combo[1] == 0 and combo[2] == 0):
+        #     #     continue
         #     paramWeightings = {
-        #         'total': combo[0],
-        #         'return_log': combo[1],
-        #         'count_ratio': combo[2], 
-        #         'return_ratio': 3, 
-        #         'bull_return_s': combo[3],
-        #         'bull': combo[4]
+        #         'count_ratio': combo[0],
+        #         'return_log_ratio': combo[1],
+        #         'return_log_s_ratio': combo[2],
+        #         'return_log': combo[3],
+        #         'return_log_s': combo[4],
+        #         'bull_return_log_s': combo[5]
         #     }
-        #     (returns, accuracy) = prediction(dates, stocks, found_features, paramWeightings)
+        #     (returns, accuracy) = prediction(start_date, end_date, found_features, num_top_stocks, paramWeightings)
         #     print(tuple(paramWeightings.items()), returns, accuracy)
         #     combinedResults[tuple(paramWeightings.items())] = (returns, accuracy)
 
         # bestParams = list(combinedResults.items())
         # bestParams.sort(key=lambda x: x[1], reverse=True)
-        # for x in bestParams[:25]:
+        # print("--------")
+        # for x in bestParams[:20]:
         #     print(x[0], x[1])
 
     elif (options.updateCloseOpens):
@@ -279,6 +293,10 @@ def main():
         dailyAnalyzeUsers(reAnalyze=True, updateUser=True, daysback=14)
     else:
         cached_prices = readPickleObject('newPickled/averaged.pkl')
+        # print(getTopStocksforWeek(datetime.datetime(2020, 1, 9, 15, 30), 20))
+
+        
+        # print(findCloseOpenCached('JNUG', datetime.datetime(2020, 5, 29, 15, 30), cached_prices))
         # for t in tweets:
         #     print(t)
         # for i in [1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6,1, 2, 3, 4, 5, 6,1, 2, 3, 4, 5, 6,1, 2, 3, 4, 5, 6]:
@@ -295,12 +313,12 @@ def main():
         #         print(count)
 
         # now = convertToEST(datetime.datetime.now())
-        # date = datetime.datetime(2020, 1, 6)
-        # delta = datetime.timedelta(days=7)
+        date = datetime.datetime(2020, 1, 9)
+        delta = datetime.timedelta(days=7)
 
-        # while (date < now - delta):
-        #     updateStockCountPerWeek(date)
-        #     date += delta
+        while (date < datetime.datetime(2020, 6, 9)):
+            print(getTopStocksforWeek(date, 20))
+            date += delta
 
         # print(date)
         # stocks = getAllStocks()
