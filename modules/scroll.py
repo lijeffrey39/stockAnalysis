@@ -24,7 +24,7 @@ from .messageExtract import findDateTime, findDateFromMessage
 # Scroll for # days
 def scrollFor(driver, hoursBack):
     currTime = convertToEST(datetime.datetime.now())
-    hoursBack += 0.5 # Just to be safe
+    hoursBack += 1 # Just to be safe
     compareTime = currTime - datetime.timedelta(hours=hoursBack)
     last_height = ""
     prevTime = None

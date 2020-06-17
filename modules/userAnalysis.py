@@ -59,12 +59,14 @@ def shouldParseUser(username, reAnalyze, updateUser):
         query = {'_id': username}
         result = analyzedUsers.find_one(query)
         if (result):
-            dateStart = convertToEST(datetime.datetime.now()) - datetime.timedelta(days=19)
-            lastUpdated = result['last_updated']
+            result['last_updated'] = convertToEST(datetime.datetime.now())
+            return result
             # Already updated recently
             # if (lastUpdated > dateStart):
             #     return None
 
+    if (updateUser):
+        print("should not get here")
     (coreInfo, error) = findUserInfo(username)
     currTime = convertToEST(datetime.datetime.now())
 
@@ -108,7 +110,7 @@ def findUsers(reAnalyze, findNewUsers, updateUser):
     #     return
 
 
-    # analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
+    analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
     # res = analyzedUsers.aggregate([{'$group' : { '_id' : '$error', 'count' : {'$sum' : 1}}}, { "$sort": { "count": 1 } },])
     # for i in res:
     #     print(i)
@@ -116,9 +118,8 @@ def findUsers(reAnalyze, findNewUsers, updateUser):
     cursor = None
     # Find all tweets this user posted again up till last time
     if (updateUser):
-        dateStart = convertToEST(datetime.datetime.now()) - datetime.timedelta(days=30)
-        query = {"$and": [{'error': "Len of messages was 0 ???"},
-                          {'last_updated': {'$gte': dateStart}}]}
+        dateStart = convertToEST(datetime.datetime.now()) - datetime.timedelta(days=4)
+        query = {'last_updated': {'$lte': dateStart}, 'error': ''}
         cursor = analyzedUsers.find(query)
     elif (reAnalyze):
         query = {"$or": [

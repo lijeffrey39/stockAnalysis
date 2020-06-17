@@ -18,7 +18,9 @@ def optimizeFN(params):
     weightings = {
         'count_ratio': params[0],
         'return_log_ratio': params[1],
-        'total': params[2]
+        'total': params[2],
+        'return_log_s_ratio': params[3],
+        'return_s_ratio': params[4]
     }
     start_date = datetime.datetime(2020, 1, 9, 15, 30)
     end_date = datetime.datetime(2020, 6, 9, 9, 30)
@@ -56,14 +58,16 @@ def optimizeFN(params):
 def optimizeParams():
     params = {
         'count_ratio': [9, (8, 11)],
-        'return_log_ratio': [0.6, (0.5, 2)],
-        'total': [0.6, (0, 2)],
+        'return_log_ratio': [0.7, (0.5, 2)],
+        'total': [0.3, (0, 2)],
+        'return_log_s_ratio': [0.1, (0, 1)],
+        'return_s_ratio': [0.1, (0, 1)],
     }
 
     initial_values = list(map(lambda key: params[key][0], list(params.keys())))
     bounds = list(map(lambda key: params[key][1], list(params.keys())))
-    result = minimize(optimizeFN, initial_values, method='SLSQP', options={'maxiter': 30, 'eps': 0.2}, 
-                    bounds=(bounds[0],bounds[1],bounds[2]))
+    result = minimize(optimizeFN, initial_values, method='SLSQP', options={'maxiter': 20, 'eps': 0.1}, 
+                    bounds=(bounds[0],bounds[1],bounds[2],bounds[3],bounds[4]))
     print(result)
 
 

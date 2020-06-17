@@ -52,17 +52,12 @@ def insertResults(results):
             count1 += 1
             continue
 
-        print(query['symbol'])
         try:
             collection.insert_one(r)
             count += 1
         except Exception:
             continue
-    
-    # try:
-    #     collection.insert_many(results, ordered=False)
-    # except:
-    #     pass
+
     print(count, count1, total)
 
 

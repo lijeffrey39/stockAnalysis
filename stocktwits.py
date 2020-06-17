@@ -86,7 +86,7 @@ def analyzeStocks(date, stocks):
 # findNewUsers updates user_not_analyzed table to find new users to parse/store
 # reAnalyze reanalyzes users that errored out
 def analyzeUsers(reAnalyze, findNewUsers, updateUser):
-    users = ['SDF9090']
+    users = findUsers(reAnalyze, findNewUsers, updateUser)
     print(len(users))
     for username in users:
         print(username)
@@ -201,7 +201,7 @@ def main():
     dateNow = convertToEST(datetime.datetime.now())
 
     if (options.users):
-        analyzeUsers(reAnalyze=False, findNewUsers=True, updateUser=False)
+        analyzeUsers(reAnalyze=False, findNewUsers=False, updateUser=True)
     elif (options.stocks):
         now = convertToEST(datetime.datetime.now())
         date = datetime.datetime(now.year, now.month, now.day)
