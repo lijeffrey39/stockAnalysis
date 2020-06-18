@@ -687,7 +687,7 @@ def weightedUserPrediction(user, symbol):
         return 0
 
     # (1) scale between 70-700 (general) and 1-100 (per stock)
-    scaled_num_tweets = (math.sqrt(num_tweets) - math.sqrt(70)) / (math.sqrt(700) - math.sqrt(70))
+    scaled_num_tweets = (math.sqrt(num_tweets) - math.sqrt(70)) / (math.sqrt(500) - math.sqrt(70))
     scaled_num_tweets_s = math.sqrt(num_tweets_s) / math.sqrt(50)
     if (scaled_num_tweets > 1):
         scaled_num_tweets = 1

@@ -254,25 +254,12 @@ def findAllDays(date, upToDate):
 # Return list of valid trading days from date on
 def findTradingDays(date, upToDate):
     delta = datetime.timedelta(1)
+    trading_days = constants['trading_days']
     dates = []
-    holidayList = []
-    # Print all the holidays in UnitedKingdom in year 2018 
-    for ptr in holidays.UnitedStates(years = [date.year, upToDate.year]).items(): 
-        if ptr[1] == 'Columbus Day' or ptr[1] == 'Veterans Day':
-            continue
-        holidayList.append(ptr[0])
-
     while (date < upToDate):
-        # See if it's a valid trading day
-        #holidays
-        if date.date() in holidayList:
-            date += delta
-            continue
-        #weekend
-        if (inTradingDay(date)):
+        if (date.strftime("%Y-%m-%d") in trading_days):
             dates.append(date)
         date += delta
-
     return dates
 
 

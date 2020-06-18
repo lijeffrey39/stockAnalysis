@@ -225,7 +225,7 @@ def main():
 
         # Find features for prediction
         path = 'newPickled/features_new_sqrtx_21.pkl'
-        found_features = findFeatures(start_date, end_date, num_top_stocks, path, False)
+        found_features = findFeatures(start_date, end_date, num_top_stocks, path, True)
 
         # Optimize paramters
         optimizeParams()
