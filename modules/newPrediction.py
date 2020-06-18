@@ -19,12 +19,13 @@ def optimizeFN(params):
         'count_ratio': params[0],
         'return_log_ratio': params[1],
         'total': params[2],
-        'return_log_s_ratio': params[3],
-        'return_s_ratio': params[4]
+        'return_s_ratio': params[3],
+        'bull': params[4],
+        'return_log_s_ratio': params[5],
     }
     start_date = datetime.datetime(2020, 1, 9, 15, 30)
     end_date = datetime.datetime(2020, 6, 9, 9, 30)
-    path = 'newPickled/features_new_sqrtx.pkl'
+    path = 'newPickled/features_new_sqrtx_21.pkl'
     num_top_stocks = 20
     all_features = findFeatures(start_date, end_date, num_top_stocks, path, False)
     result = prediction(start_date, end_date, all_features, num_top_stocks, weightings)
@@ -54,22 +55,24 @@ def optimizeFN(params):
 # bull_return_log
 # bull_return_log_s
 
+# return_log_s_ratio
+
 
 def optimizeParams():
     params = {
-        'count_ratio': [9, (8, 11)],
-        'return_log_ratio': [0.7, (0.5, 2)],
-        'total': [0.3, (0, 2)],
-        'return_log_s_ratio': [0.1, (0, 1)],
-        'return_s_ratio': [0.1, (0, 1)],
+        'count_ratio': [2.5, (2, 8)],
+        'return_log_ratio': [3, (3, 6)],
+        'total': [2.5, (1, 5)],
+        'return_s_ratio': [0.1, (0, 3)],
+        'bull': [0.1, (0, 3)],
+        'return_log_s_ratio': [0.1, (0, 3)]
     }
 
     initial_values = list(map(lambda key: params[key][0], list(params.keys())))
     bounds = list(map(lambda key: params[key][1], list(params.keys())))
-    result = minimize(optimizeFN, initial_values, method='SLSQP', options={'maxiter': 20, 'eps': 0.1}, 
-                    bounds=(bounds[0],bounds[1],bounds[2],bounds[3],bounds[4]))
+    result = minimize(optimizeFN, initial_values, method='SLSQP', options={'maxiter': 30, 'eps': 0.3}, 
+                    bounds=(bounds[0],bounds[1],bounds[2],bounds[3],bounds[4],bounds[5]))
     print(result)
-
 
 
 # Make prediction by chooosing top n stocks to buy per day
@@ -126,7 +129,7 @@ def prediction(start_date, end_date, all_features, num_top_stocks, weightings):
                 continue
             new_res_param.append([stock_obj[0], stock_obj[1], close_open[2]])
             return_today += (percent_today * close_open[2])
-            
+
             if (symbol not in accuracies):
                 accuracies[symbol] = {}
                 accuracies[symbol]['correct'] = 0
@@ -171,9 +174,10 @@ def findFeatures(start_date, end_date, num_top_stocks, path, update=False):
         stocks = getTopStocksforWeek(date, num_top_stocks) # top stocks for the week
         date_str = date.strftime("%Y-%m-%d")
         all_features[date_str] = {}
-        print(date.strftime("%Y-%m-%d"))
+        print(date_str)
         for symbol in stocks:
             tweets_per_stock = []
+            # store all tweets for stock in memory
             if (symbol in all_stock_tweets): 
                 tweets_per_stock = all_stock_tweets[symbol]
             else:
@@ -181,6 +185,7 @@ def findFeatures(start_date, end_date, num_top_stocks, path, update=False):
                 tweets_per_stock = readPickleObject(stock_path)
                 all_stock_tweets[symbol] = tweets_per_stock
 
+            # Find tweets used for predicting for this date
             tweets = findTweets(date, tweets_per_stock, cached_prices, symbol)
             features = stockFeatures(tweets, symbol, cached_prices, user_features, all_user_tweets) # calc features based on tweets/day
             all_features[date_str][symbol] = features
@@ -205,7 +210,7 @@ def findTweets(date, tweets_per_stock, cached_prices, symbol):
         date_string = date.strftime("%Y-%m-%d")
         # Why would this happen ??
         if (date_string not in tweets_per_stock):
-            print(date_string, symbol, "HOWHOWHOWHOW")
+            print(date_string, symbol, "fetching tweets")
             path = 'new_stock_files/' + symbol + '.pkl'
             tweets_per_stock = readPickleObject(path)
 
@@ -328,6 +333,7 @@ def editCachedTweets(username):
             csvWriter.writerows(tweets)
 
 
+# Fetch user tweets from local disk
 def cachedUserTweets(username):
     path = 'user_tweets/' + username + '.csv'
     if (os.path.exists(path) == False):
@@ -367,24 +373,28 @@ def initializeUserFeatures(user):
 
 
 # Calculate user's features based on tweets before this date
+# Loop through all tweets made by user and feature extract per user
 def calculateUserFeatures(username, date, cached_prices, all_user_features, tweets):
     date = date - datetime.timedelta(days=1) # Find all tweet/predictions before this date
     unique_stocks = {} # Keep track of unique tweets per day/stock
+    result = {} # Resulting user features
 
-    result = initializeUserFeatures(username)
     if (username in all_user_features):
-        # Filter by tweets before the current date and after last updated date
         result = all_user_features[username]
-        last_updated = result['last_updated']
-        tweets = filter(lambda tweet: tweet['time'] >= last_updated and tweet['time'] < date, tweets)
-    else:
-        # Only filter by all tweets before current date
-        tweets = filter(lambda tweet: tweet['time'] < date, tweets)
-    result['last_updated'] = date
+        last_updated = result['last_updated'] # last time that was parsed
 
-    # Loop through all tweets made by user and feature extract per user
-    for tweet in tweets:
-        updateUserFeatures(result, tweet, unique_stocks, cached_prices)
+        # Filter by tweets before the current date and after last updated date
+        for tweet in tweets:
+            if (tweet['time'] >= last_updated and tweet['time'] < date):
+                updateUserFeatures(result, tweet, unique_stocks, cached_prices)
+    else:
+        result = initializeUserFeatures(username) # initialize user features for first time
+        # Only filter by all tweets before current date
+        for tweet in tweets:
+            if (tweet['time'] < date):
+                updateUserFeatures(result, tweet, unique_stocks, cached_prices)
+
+    result['last_updated'] = date # update time it was parsed so dont have to reparse
 
     # Update unique predictions per day features
     for time_string in unique_stocks:
@@ -502,8 +512,9 @@ def findUserInfo(username):
 
 def buildStockFeatures():
     result = {}
-    labels = ['bull', 'bear']
-    features = ['return', 'return_log', 'return_s', 'return_log_s']
+    labels = ['bull', 'bear', 'bull_w', 'bear_w']
+    features = ['return', 'return_log', 'return_s', 'return_log_s',
+                'return_w', 'return_log_w', 'return_s_w', 'return_log_s_w']
     for l in labels:
         result[l] = 0
         for f in features:
@@ -517,19 +528,32 @@ def stockFeatures(tweets, symbol, cached_prices, all_user_features, all_user_twe
     result = buildStockFeatures()
     bull_count = 0
     bear_count = 0
-    seen_users = set([])
+    seen_users = {}
 
     # Assume tweets sorted from new to old
+    # Find all last predictions and counts
     for tweet in tweets:
         username = tweet['user']
-        # Only look at the most recent prediction by user
-        # Use other tweets for weighting?
-        if (username in seen_users):
-            continue
-        seen_users.add(username)
         isBull = tweet['isBull']
-        tweeted_date = tweet['time']
-        label = 'bull' if isBull else 'bear'
+        # Only look at the most recent prediction by user
+        if (username in seen_users):
+            # If previous prediction was the same as last prediction, add to weighting
+            prev_prediction = seen_users[username]['isBull']
+            if (isBull == prev_prediction):
+                seen_users[username]['count'] += 1
+            continue
+        seen_users[username] = {
+            'user': tweet['user'],
+            'isBull': isBull,
+            'count': 1,
+            'time': tweet['time']
+        }
+
+    # Look at all unique predictions and their counts
+    for user in seen_users:
+        username = seen_users[user]['user']
+        tweeted_date = seen_users[user]['time']
+        label = 'bull' if seen_users[user]['isBull'] else 'bear'
         w = findWeight(tweeted_date, 'sqrt(x)') # weighted based on time of tweet
 
         # Get user tweets from file or locally
@@ -543,6 +567,7 @@ def stockFeatures(tweets, symbol, cached_prices, all_user_features, all_user_twe
             all_user_tweets[username] = user_tweets
             if (user_tweets == None):
                 continue
+
         user_info = calculateUserFeatures(username, tweeted_date, cached_prices, all_user_features, user_tweets)
 
         return_unique = findFeature(user_info, '', ['unique_return'], label)
@@ -556,12 +581,20 @@ def stockFeatures(tweets, symbol, cached_prices, all_user_features, all_user_twe
             bull_count += 1
         else:
             bear_count += 1
-
+    
         result[label] += tweet_value
         result[label + '_return'] += tweet_value * return_unique
         result[label + '_return_log'] += tweet_value * return_unique_log
         result[label + '_return_s'] += tweet_value * return_unique_s
         result[label + '_return_log_s'] += tweet_value * return_unique_log_s
+
+        # return unique (log) Weighted by number of times posted that day
+        num_prediction_log = math.log10(seen_users[user]['count']) + 1
+        result[label + '_w'] += tweet_value * num_prediction_log
+        result[label + '_return_w'] += tweet_value * return_unique * num_prediction_log
+        result[label + '_return_log_w'] += tweet_value * return_unique_log * num_prediction_log
+        result[label + '_return_s_w'] += tweet_value * return_unique_s * num_prediction_log
+        result[label + '_return_log_s_w'] += tweet_value * return_unique_log_s * num_prediction_log
 
     # Standardize by number of tweets
     try:
@@ -574,7 +607,7 @@ def stockFeatures(tweets, symbol, cached_prices, all_user_features, all_user_twe
     try:
         for f in result:
             if ('bear' in f):
-                result[f] /= bull_count
+                result[f] /= bear_count
     except:
         pass
 
@@ -582,7 +615,9 @@ def stockFeatures(tweets, symbol, cached_prices, all_user_features, all_user_twe
     # Should be standardized between stocks since divided by total count ?
     # "sentiment" of the stock for the day
     result['total'] = result['bull'] - result['bear']
+    result['total_w'] = result['bull_w'] - result['bear_w']
     result['return'] = result['bull_return'] - result['bear_return']
+    result['return_w'] = result['bull_return_w'] - result['bear_return_w']
     result['return_log'] = result['bull_return_log'] - result['bear_return_log']
     result['return_s'] = result['bull_return_s'] - result['bear_return_s']
     result['return_log_s'] = result['bull_return_log_s'] - result['bear_return_log_s']
@@ -591,10 +626,15 @@ def stockFeatures(tweets, symbol, cached_prices, all_user_features, all_user_twe
     # negative means more bear than bull
     # ratio of the "sentiment" for the day
     result['count_ratio'] = calcRatio(result['bull'], result['bear'])
+    result['count_ratio_w'] = calcRatio(result['bull_w'], result['bear_w'])
     result['return_ratio'] = calcRatio(result['bull_return'], result['bear_return'])
+    result['return_ratio_w'] = calcRatio(result['bull_return_w'], result['bear_return_w'])
     result['return_log_ratio'] = calcRatio(result['bull_return_log'], result['bear_return_log'])
+    result['return_log_ratio_w'] = calcRatio(result['bull_return_log_w'], result['bear_return_log_w'])
     result['return_s_ratio'] = calcRatio(result['bull_return_s'], result['bear_return_s'])
+    result['return_s_ratio_w'] = calcRatio(result['bull_return_s_w'], result['bear_return_s_w'])
     result['return_log_s_ratio'] = calcRatio(result['bull_return_log_s'], result['bear_return_log_s'])
+    result['return_log_s_ratio_w'] = calcRatio(result['bull_return_log_s_w'], result['bear_return_log_s_w'])
     return result
 
 
@@ -642,7 +682,7 @@ def weightedUserPrediction(user, symbol):
     num_tweets = findFeature(user, '', ['num_predictions'], bull_bear)
     num_tweets_s = findFeature(user, symbol, ['num_predictions'], bull_bear)
 
-    # Don't consider anyone below 60 predictions
+    # Don't consider anyone below 70 predictions
     if (num_tweets < 70):
         return 0
 
@@ -667,6 +707,10 @@ def weightedUserPrediction(user, symbol):
         scaled_return_unique = 1
     if (scaled_return_unique_s > 1):
         scaled_return_unique_s = 1
+    # if (scaled_return_unique < 0):
+    #     scaled_return_unique = 0
+    # if (scaled_return_unique_s < 0):
+    #     scaled_return_unique_s = 0
 
     accuracy_x_tweets = accuracy_unique * scaled_num_tweets
     accuracy_x_tweets_s = accuracy_unique_s * scaled_num_tweets_s

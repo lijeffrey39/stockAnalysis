@@ -224,20 +224,24 @@ def main():
         # writeTweets(start_date, end_date, num_top_stocks)
 
         # Find features for prediction
-        path = 'newPickled/features_new_sqrtx.pkl'
+        path = 'newPickled/features_new_sqrtx_21.pkl'
         found_features = findFeatures(start_date, end_date, num_top_stocks, path, False)
 
         # Optimize paramters
         optimizeParams()
+        return
 
         # Make prediction
-        # weightings = {
-        #     'count_ratio': 9,
-        #     'return_log_ratio': 0.6,
-        #     'total': 0.6
-        # }
-        # prediction(start_date, end_date, found_features, num_top_stocks, weightings)
-        # return
+        weightings = {
+            'count_ratio': 1,
+            'return_log_ratio': 1.1,
+            'total': 0.3,
+            'return_s_ratio': 0.3,
+            'bull': 0.4,
+            # 'bear': 0.6
+        }
+        print(prediction(start_date, end_date, found_features, num_top_stocks, weightings))
+        return
         # Optimize features
         # return, bull_return_s, return_s, bull not useful
         # total, return, return_log, bear, bull_return_log_s, bull_return, bull_return_log not useful
@@ -313,12 +317,15 @@ def main():
         #         print(count)
 
         # now = convertToEST(datetime.datetime.now())
-        date = datetime.datetime(2020, 1, 9)
-        delta = datetime.timedelta(days=7)
-
-        while (date < datetime.datetime(2020, 6, 9)):
-            print(getTopStocksforWeek(date, 20))
-            date += delta
+        # date = datetime.datetime(2020, 1, 1)
+        # delta = datetime.timedelta(days=1)
+        # result = []
+        # while (date < datetime.datetime(2020, 7, 9)):
+        #     date += delta
+        #     string = '%d-%02d-%02d' % (date.year, date.month, date.day) 
+        #     if (string not in constants['trading_days']):
+        #         result.append(string)
+        # print(result)
 
         # print(date)
         # stocks = getAllStocks()

@@ -26,7 +26,7 @@ currDateTimeStr = ""
 
 
 def isTradingDay(time):
-    return '%d-%02d-%02d' % (time.year, time.month, time.day) in constants['trading_days']
+    return '%d-%02d-%02d' % (time.year, time.month, time.day) not in constants['not_trading_days']
 
 
 # Firnd first trading day
