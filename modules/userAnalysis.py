@@ -472,12 +472,15 @@ def initializePerStockFeatures(symbol, result):
 # Update feature results for a user given close open prices
 # Not using functions for now ('1' by default)
 # TODO: pReturnCloseOpen look at price at time of posting
-def updateUserFeatures(result, tweet, uniqueStocks, cached_prices):
+def updateUserFeatures(username, result, tweet, uniqueStocks, cached_prices):
     # functions = constants['functions']
     time = tweet['time']
     symbol = tweet['symbol']
     isBull = tweet['isBull']
     label = 'bull' if (isBull) else 'bear'
+
+    if (symbol == ''):
+        return
 
     closeOpen = findCloseOpenCached(symbol, time, cached_prices)
     if (closeOpen is None):
@@ -497,7 +500,7 @@ def updateUserFeatures(result, tweet, uniqueStocks, cached_prices):
     result['perStock'][symbol]['num_predictions'][label] += 1
 
     # For unique predictions per day, only count (bull/bear) if its majority
-    time_string = symbol + ' ' + findDateString(time, cached_prices)
+    time_string = symbol + ' ' + findDateString(time)
     if (time_string in uniqueStocks):
         uniqueStocks[time_string]['times'].append(time)
         if (isBull):

@@ -29,8 +29,8 @@ def isTradingDay(time):
     return '%d-%02d-%02d' % (time.year, time.month, time.day) not in constants['not_trading_days']
 
 
-# Firnd first trading day
-def findDateString(time, cached_prices):
+# Find first trading day
+def findDateString(time):
     day_increment = datetime.timedelta(days=1)
 
     # Find first day if tweeted after 4pm
@@ -45,12 +45,20 @@ def findDateString(time, cached_prices):
 
     return '%d-%02d-%02d' % (time.year, time.month, time.day)
 
+# Find previous trading day
+def findPreviousTradingDay(time):
+    day_increment = datetime.timedelta(days=1)
+    time -= day_increment
+    while (isTradingDay(time) == False):
+        time -= day_increment
+    return time
+
 
 def exportCloseOpen():
-    path = 'newPickled/averaged.pkl'
+    path = 'newPickled/averaged_1.pkl'
     result = {}
 
-    with open('cachedCloseOpen/close_open1.csv') as csv_file:
+    with open('cachedCloseOpen/yfinance.csv') as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=',')
         for row in csv_reader:
             first = row[0].split()
@@ -61,7 +69,7 @@ def exportCloseOpen():
                 result[date] = {}
             result[date][symbol] = res
 
-    with open('cachedCloseOpen/close_open2.csv') as csv_file:
+    with open('cachedCloseOpen/iex.csv') as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=',')
         for row in csv_reader:
             first = row[0].split()
@@ -69,6 +77,9 @@ def exportCloseOpen():
             date = first[1]
             res = [float(row[1]), float(row[2])]
             
+            if (date not in result):
+                result[date] = {}
+                print(date)
             if (symbol in result[date]):
                 prev = result[date][symbol]
                 averaged = [(float(row[1]) + prev[0]) / 2, (float(row[2]) + prev[1]) / 2]

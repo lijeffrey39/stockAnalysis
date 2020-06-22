@@ -8,7 +8,7 @@ from functools import reduce
 from .hyperparameters import constants
 from .userAnalysis import (getStatsPerUser, initializeResult, updateUserFeatures)
 from .stockAnalysis import (findDateString, getTopStocksforWeek)
-from .stockPriceAPI import (findCloseOpenCached, isTradingDay)
+from .stockPriceAPI import (findCloseOpenCached, isTradingDay, findPreviousTradingDay)
 from .helpers import (calcRatio, findWeight, readPickleObject, findAllDays,
                     readCachedTweets, writeCachedTweets, writePickleObject,
                     findTradingDays, findAverageTime)
@@ -16,12 +16,10 @@ from .helpers import (calcRatio, findWeight, readPickleObject, findAllDays,
 
 def optimizeFN(params):
     weightings = {
-        'count_ratio': params[0],
-        'return_log_ratio': params[1],
+        'count_ratio_w': params[0],
+        'return_log_ratio_w': params[1],
         'total': params[2],
-        'return_s_ratio': params[3],
-        'bull': params[4],
-        'return_log_s_ratio': params[5],
+        'return_ratio_w': params[3],
     }
     start_date = datetime.datetime(2020, 1, 9, 15, 30)
     end_date = datetime.datetime(2020, 6, 9, 9, 30)
@@ -60,18 +58,16 @@ def optimizeFN(params):
 
 def optimizeParams():
     params = {
-        'count_ratio': [2.5, (2, 8)],
-        'return_log_ratio': [3, (3, 6)],
-        'total': [2.5, (1, 5)],
-        'return_s_ratio': [0.1, (0, 3)],
-        'bull': [0.1, (0, 3)],
-        'return_log_s_ratio': [0.1, (0, 3)]
+        'count_ratio_w': [2.2, (2, 8)],
+        'return_log_ratio_w': [2.5, (1, 6)],
+        'total': [2.8, (1, 5)],
+        'return_ratio_w': [0.4, (0, 3)],
     }
 
     initial_values = list(map(lambda key: params[key][0], list(params.keys())))
     bounds = list(map(lambda key: params[key][1], list(params.keys())))
     result = minimize(optimizeFN, initial_values, method='SLSQP', options={'maxiter': 30, 'eps': 0.3}, 
-                    bounds=(bounds[0],bounds[1],bounds[2],bounds[3],bounds[4],bounds[5]))
+                    bounds=(bounds[0],bounds[1],bounds[2],bounds[3]))
     print(result)
 
 
@@ -86,6 +82,9 @@ def prediction(start_date, end_date, all_features, num_top_stocks, weightings):
     dates = findTradingDays(start_date, end_date)
     total_return = 0
     accuracies = {}
+    strong_return = 0
+    strong_correct = 0
+    strong_total = 0
 
     # Find top n stock features for each day 
     for date in dates[1:]:
@@ -141,7 +140,14 @@ def prediction(start_date, end_date, all_features, num_top_stocks, weightings):
 
         total_return += return_today
         mapped_stocks = list(map(lambda x: [x[0], round(x[1] / sum_weights * 100, 2), x[2]], new_res_param))
-        # print(date_string, return_today, mapped_stocks)
+        print(date_string, return_today, mapped_stocks)
+        if (abs(mapped_stocks[0][1]) > 60):
+            val = -1 if mapped_stocks[0][1] < 0 else 1
+            ret = val * mapped_stocks[0][2]
+            if (ret >= 0):
+                strong_correct += 1
+            strong_total += 1
+            strong_return += ret
 
     total_correct = 0
     total_total = 0
@@ -150,7 +156,8 @@ def prediction(start_date, end_date, all_features, num_top_stocks, weightings):
         total_total += accuracies[s]['total']
         # print(s, accuracies[s]['correct'], accuracies[s]['total'])
 
-    # print(total_correct/total_total, total_return)
+    print(total_correct/total_total, total_return)
+    print(strong_correct/strong_total, strong_correct, strong_total, strong_return)
     return total_return
 
 
@@ -375,7 +382,7 @@ def initializeUserFeatures(user):
 # Calculate user's features based on tweets before this date
 # Loop through all tweets made by user and feature extract per user
 def calculateUserFeatures(username, date, cached_prices, all_user_features, tweets):
-    date = date - datetime.timedelta(days=1) # Find all tweet/predictions before this date
+    # date = findPreviousTradingDay(date) # Find all tweet/predictions before this date
     unique_stocks = {} # Keep track of unique tweets per day/stock
     result = {} # Resulting user features
 
@@ -385,14 +392,18 @@ def calculateUserFeatures(username, date, cached_prices, all_user_features, twee
 
         # Filter by tweets before the current date and after last updated date
         for tweet in tweets:
+            if (tweet['symbol'] not in constants['top_stocks']):
+                continue
             if (tweet['time'] >= last_updated and tweet['time'] < date):
-                updateUserFeatures(result, tweet, unique_stocks, cached_prices)
+                updateUserFeatures(username, result, tweet, unique_stocks, cached_prices)
     else:
         result = initializeUserFeatures(username) # initialize user features for first time
         # Only filter by all tweets before current date
         for tweet in tweets:
+            if (tweet['symbol'] not in constants['top_stocks']):
+                continue
             if (tweet['time'] < date):
-                updateUserFeatures(result, tweet, unique_stocks, cached_prices)
+                updateUserFeatures(username, result, tweet, unique_stocks, cached_prices)
 
     result['last_updated'] = date # update time it was parsed so dont have to reparse
 
@@ -683,7 +694,7 @@ def weightedUserPrediction(user, symbol):
     num_tweets_s = findFeature(user, symbol, ['num_predictions'], bull_bear)
 
     # Don't consider anyone below 70 predictions
-    if (num_tweets < 70):
+    if (num_tweets < 80):
         return 0
 
     # (1) scale between 70-700 (general) and 1-100 (per stock)

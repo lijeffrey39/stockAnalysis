@@ -3,6 +3,7 @@ import optparse
 import matplotlib. pyplot as plt
 import math
 import os
+import numpy as np
 import yfinance as yf
 import requests
 import itertools
@@ -14,8 +15,8 @@ from modules.prediction import (basicPrediction, findAllTweets, updateBasicStock
 from modules.stockAnalysis import (findPageStock, getTopStocks, parseStockData, getTopStocksforWeek,
                                    shouldParseStock, updateLastMessageTime, updateStockCountPerWeek,
                                    updateLastParsedTime, updateStockCount, getSortedStocks)
-from modules.stockPriceAPI import (updateAllCloseOpen, transferNonLabeled, findCloseOpen, closeToOpen, getUpdatedCloseOpen, 
-                                    getCloseOpenInterval, updateyfinanceCloseOpen, exportCloseOpen, findCloseOpenCached)
+from modules.stockPriceAPI import (updateAllCloseOpen, transferNonLabeled, findCloseOpen, closeToOpen, getUpdatedCloseOpen, findPreviousTradingDay,
+                                    getCloseOpenInterval, updateyfinanceCloseOpen, exportCloseOpen, findCloseOpenCached, findDateString)
 from modules.userAnalysis import (findPageUser, findUsers, insertUpdateError,
                                   parseUserData, shouldParseUser, getStatsPerUser,
                                   updateUserNotAnalyzed,
@@ -25,7 +26,9 @@ from modules.tests import (findBadMessages, removeMessagesWithStock,
                         
 from modules.newPrediction import (findTweets, weightedUserPrediction, writeTweets, calculateUserFeatures, editCachedTweets,
                                     prediction, findFeatures, updateAllUsers, saveUserTweets, cachedUserTweets, optimizeParams)
-
+from modules.prediction_final import (pregenerateUserFeatures, pregenerateAllUserFeatures, findUserFeatures, generateUserFeatureMatrix,
+                                    generateUserMatrices, findUserWeightings, generateUserStockMatrices, calculateReturn,
+                                    findStockUserWeightings, findTotalUserWeightings, generateStockPredictions, generateCloseOpenMatrice)
 
 client = constants['db_client']
 clientUser = constants['db_user_client']
@@ -225,20 +228,18 @@ def main():
 
         # Find features for prediction
         path = 'newPickled/features_new_sqrtx_21.pkl'
-        found_features = findFeatures(start_date, end_date, num_top_stocks, path, True)
+        found_features = findFeatures(start_date, end_date, num_top_stocks, path, False)
 
         # Optimize paramters
-        optimizeParams()
-        return
+        # optimizeParams()
+        # return
 
         # Make prediction
         weightings = {
-            'count_ratio': 1,
-            'return_log_ratio': 1.1,
-            'total': 0.3,
-            'return_s_ratio': 0.3,
-            'bull': 0.4,
-            # 'bear': 0.6
+            'count_ratio_w': 2.2,
+            'return_log_ratio_w': 2.5,
+            'total': 2.8,
+            'return_ratio_w': 0.4
         }
         print(prediction(start_date, end_date, found_features, num_top_stocks, weightings))
         return
@@ -296,10 +297,164 @@ def main():
     elif (options.dailyuserparser):
         dailyAnalyzeUsers(reAnalyze=True, updateUser=True, daysback=14)
     else:
-        cached_prices = readPickleObject('newPickled/averaged.pkl')
-        # print(getTopStocksforWeek(datetime.datetime(2020, 1, 9, 15, 30), 20))
 
+        start_date = datetime.datetime(2020, 1, 9)
+        end_date = datetime.datetime(2020, 6, 9)
+
+        # calculateReturn(start_date, end_date)
+
+        # writeTweets(start_date, end_date, 100)
+        # generateStockPredictions(start_date, end_date)
+        # generateCloseOpenMatrice(start_date, end_date)
+        # user_matrice = np.load('user_stock_matrice.npy')
+        # weightings = np.array([2, 1, 1])
+        # findTotalUserWeightings(start_date, end_date, weightings)
+        # findUserWeightings(start_date, end_date, user_matrice, weightings)
+        # findStockUserWeightings(start_date, end_date, weightings)
+
+        # arr = os.listdir('user_tweets/')
+        # users = []
+        # for u in arr:
+        #     username = u[:-4]
+        #     users.append(username)
+        # users.sort()
+        # for i in range(len(users[:300])):
+        #     print(i, users[i])
+
+        # top_stocks = list(constants['top_stocks'])
+        # top_stocks.sort()
+        # print(top_stocks[:5])
+
+
+
+        # np.seterr(divide='ignore', invalid='ignore')
+        # non_zero_count_test = np.zeros(shape=(3, 2, 3))
+        # non_zero_count_test[0,1] = 1
+        # non_zero_count_test[1,:,2] = -1
+        # non_zero_count_test[1,0,1] = 1
+        # non_zero_count_test[2,:,1] = 1
+        # print(non_zero_count_test)
+        # count_total = np.count_nonzero(non_zero_count_test, axis=1)
+        # print(count_total)
+
+        # standardized_count = non_zero_count_test / count_total[:,None]
+        # standardized_count[np.isnan(standardized_count)] = 0
+        # print(standardized_count)
+
+    
+        # count_1d = np.apply_along_axis(np.count_nonzero, 0, non_zero_count_test)
+        # print(count_1d)
+        # count_total = count_1d.sum(axis=0)
+        # print(count_total)
+        # print(non_zero_count_test / count_total)
+
+
+        # A = np.zeros(shape=(3, 2, 3))
+        # A[0] = [[2,1,2],
+        #         [4,2,4]]
+        # B = np.zeros(shape=(3, 3, 2))
+        # B[0] = [[3,1],
+        #         [2,8],
+        #         [0,1]]
+
+        # print(np.einsum('ijk,ikj->ij', A, B))
+        # diagonal_mult = A @ B
+        # print(diagonal_mult)
+        test = np.zeros(shape=(5, 4))
+        test[0] = [1,4,2,-7]
+        test[1] = [3,-6,1,4]
+        # print(test)
+
+        test1 = np.zeros(shape=(5, 4))
+        test1[0] = [0,4,2,-7]
+        test1[1] = [3,-6,1,0]
+        print(test<=0)
+        test1[test<=0] = 0
+        print(test1)
+        sorted_index = np.argsort(-abs(test),axis=1)
+        print(sorted_index)
+        range_i = np.arange(test.shape[0])
+        top_weights = test[range_i[:,None], sorted_index][:,:2]
+        # print(top_weights)
+        # total = np.sum(abs(top_weights), axis=1)[:,None]
+        # weighted_return  = top_weights / total
+        # print(np.sum(weighted_return, axis=1))
+
+        # weightings = np.array([2, 1, 1,1])
+        # result = np.zeros(shape=(3, 2, 4, 3))
+        # result[:,:,0] = 7
+        # result[:,:,1] = 1
+        # result[:,:,2] = 3
+        # result[:,:,0] = 5
+        # result[result[:,:,:,0] <= 0] = 4
+        # result[2,1,1,0] = 5
+        # result[2,0,2,0] = 0
+        # result[2,1,2,2] = 0
+        # result[:,:,:,0] = np.power(result[:,:,:,0], 0.5)
+        # result[:,:,:,0] = np.divide(result[:,:,:,0], 2)
+        # last_date = result[-1]
+        # print(result)
+        # mean_std = np.ma.masked_equal(last_date,0)
+        # print(mean_std)
+        # print(result)
+        # summed = mean_std[:,:,0].sum(axis=1)
+        # print(mean_std[:,:,2].sum(axis=1))
+
+        # non_zero_count = np.count_nonzero(mean_std[:,:,0], axis=1)
+        # mean = summed / non_zero_count
+        # print(mean)
+
+        # std = np.std(mean_std[:,:,0], axis=1)
+        # print(std)
+
+        # print(mean[:,None])
+        # print(result[:,:,:,0])
+        # print(mean_std[:,:,0] - mean[:,None])
+        # result[:,:,:,0] = (result[:,:,:,0] - mean[:,None]) / std[:,None]
+        # result[:,:,:,0] = np.add(result[:,:,:,0], 3)
+        # result[result[:,:,:,0] <= 0] = 0
+        # result[result[:,:,:,0] > 6] = 6
+        # result[:,:,:,0] = np.divide(result[:,:,:,0], 6)
+        # print(result)
+        # result.mask = np.ma.nomask
+        # print(result)
+
+
+        # new_res = np.dot(result, weightings)
+        # print(new_res)
+
+
+        # user_features = readPickleObject('newPickled/user_features_stock.pkl')
+        # generateUserStockMatrices(start_date, end_date, user_features)
+
+        # user_features = readPickleObject('newPickled/user_features.pkl')
+        # generateUserMatrices(start_date, end_date, user_features)
+
+        # generateUserFeatureMatrix(user_features, datetime.datetime(2020, 6, 12, 18, 30))
+        # print(findPreviousTradingDay(datetime.datetime(2020, 6, 9, 15, 30)))
+        # print(len(list(user_features.keys())))
+
+        # username = '10diamonds'
+        # pregenerated = pregenerateUserFeatures(username)
+        # for d in pregenerated:
+        #     print(d, pregenerated[d])
+        # features = list(pregenerated.keys())
+        # last_date = features[0]
+        # for date in pregenerated:
+        #     del pregenerated[date]['perStock']
+        #     # print(date, pregenerated[date])
+        # pregenerated['last_tweet_date'] = datetime.datetime.strptime(last_date, '%Y-%m-%d')
+        # temp_res = {}
+        # temp_res[username] = pregenerated
+        # print(findUserFeatures(username, temp_res, datetime.datetime(2020, 2, 13, 18, 30)))
+    
+        # print(user_features['johnyyywardyy'])
+        # res = pregenerateUserFeatures('NikitaRoosevelt45')
+        # for d in res:
+        #     print(d)
         
+        # pregenerateAllUserFeatures()
+
         # print(findCloseOpenCached('JNUG', datetime.datetime(2020, 5, 29, 15, 30), cached_prices))
         # for t in tweets:
         #     print(t)
@@ -309,19 +464,30 @@ def main():
 
         # arr = os.listdir('user_tweets/')
         # count = 0
+        # s = 0
         # for u in arr:
         #     username = u[:-4]
-        #     editCachedTweets(username)
-        #     count += 1
-        #     if (count % 1000 == 0):
-        #         print(count)
+        #     dates = list(user_features[username].keys())
+        #     print(dates)
+        #     print('-__________----')
+        #     if ('2020-06-16' in user_features[username]):
+        #         s += len(list(user_features[username]['2020-06-16']['perStock'].keys()))
+        #         count += 1
+        # print(s / count)
+
+            # if (count % 1000 == 0):
+            #     print(count)
 
         # now = convertToEST(datetime.datetime.now())
-        # date = datetime.datetime(2020, 1, 1)
-        # delta = datetime.timedelta(days=1)
+        # date = datetime.datetime(2020, 1, 9)
+        # delta = datetime.timedelta(days=7)
         # result = []
         # while (date < datetime.datetime(2020, 7, 9)):
         #     date += delta
+        # stocks = getTopStocksforWeek(date, 100)
+        # print(len(stocks))
+
+
         #     string = '%d-%02d-%02d' % (date.year, date.month, date.day) 
         #     if (string not in constants['trading_days']):
         #         result.append(string)
