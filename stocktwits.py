@@ -27,8 +27,8 @@ from modules.tests import (findBadMessages, removeMessagesWithStock,
 from modules.newPrediction import (findTweets, weightedUserPrediction, writeTweets, calculateUserFeatures, editCachedTweets,
                                     prediction, findFeatures, updateAllUsers, saveUserTweets, cachedUserTweets, optimizeParams)
 from modules.prediction_final import (pregenerateUserFeatures, pregenerateAllUserFeatures, findUserFeatures, generateUserFeatureMatrix,
-                                    generateUserMatrices, findUserWeightings, generateUserStockMatrices, calculateReturn,
-                                    findStockUserWeightings, findTotalUserWeightings, generateStockPredictions, generateCloseOpenMatrice)
+                                    generateUserMatrix, preprocessUserMatrix, generateUserStockMatrix, calculateReturn,
+                                    preprocessUserStockMatrix, findTotalUserWeightings, generateStockPredictions, generateCloseOpenMatrix)
 
 client = constants['db_client']
 clientUser = constants['db_user_client']
@@ -215,71 +215,40 @@ def main():
         #         print(i)
         analyzeStocks(date, stocks)
     elif (options.prediction):
-        num_top_stocks = 20 # Choose top 20 stocks of the week to parse
-        start_date = datetime.datetime(2020, 1, 9, 15, 30)
-        end_date = datetime.datetime(2020, 6, 9, 9, 30)
-        # end_date = datetime.datetime(dateNow.year, dateNow.month, dateNow.day - 3)
+        start_date = datetime.datetime(2020, 1, 9)
+        end_date = datetime.datetime(2020, 6, 9)
+
+        # ----- STEP 1 ------
+        # Pregenerate all user features into pickled objects to be converted to matrices
+        # a. Generate GENERAL user features saved at (user_features.pkl)
+        pregenerateAllUserFeatures(True)
+
+        # b. Generate STOCK specific user features saved at (user_features_stock.pkl)
+        pregenerateAllUserFeatures(False)
+
+
+        # ----- STEP 2 ------
+        # a1. Generate GENERAL user matrix from pickled features (saved at user_matrice.npy)
+        generateUserMatrix(start_date, end_date)
+
+        # a2. Preprocess GENERAL user matrix by standardizing features (saved at user_matrice_filtered.npy)
+        preprocessUserMatrix()
+
+        # b1. Generate STOCK specific user matrix from pickled features (saved at user_stock_matrice.npy)
+        generateUserStockMatrix(start_date, end_date)
+
+        # b2. Preprocess STOCK specific user matrix by standardizing features (saved at user_stock_matrice_filtered.npy)
+        preprocessUserStockMatrix()
+
+        # c. Create close open price matrix (saved at close_open_matrice.npy)
+        generateCloseOpenMatrix(start_date, end_date)
+
+        # d. Create user prediction matrix ((saved at user_predictions.npy))
+        generateStockPredictions(start_date, end_date)
         
-        # Write all user files
-        # updateAllUsers()
+        # ----- STEP 3 ------
+        calculateReturn(start_date, end_date)
 
-        # Write stock tweet files
-        # writeTweets(start_date, end_date, num_top_stocks)
-
-        # Find features for prediction
-        path = 'newPickled/features_new_sqrtx_21.pkl'
-        found_features = findFeatures(start_date, end_date, num_top_stocks, path, False)
-
-        # Optimize paramters
-        # optimizeParams()
-        # return
-
-        # Make prediction
-        weightings = {
-            'count_ratio_w': 2.2,
-            'return_log_ratio_w': 2.5,
-            'total': 2.8,
-            'return_ratio_w': 0.4
-        }
-        print(prediction(start_date, end_date, found_features, num_top_stocks, weightings))
-        return
-        # Optimize features
-        # return, bull_return_s, return_s, bull not useful
-        # total, return, return_log, bear, bull_return_log_s, bull_return, bull_return_log not useful
-        # count_ratio, return_ratio good
-
-
-
-        # return_ratio, return_s_ratio, return_log_s, return_log_s_ratio USELESS
-
-        # count_ratio: 6-10
-        # return_log_ratio: 1-3
-        # return_log: 0-2
-        # bull_return_log_s: 0-2
-        # combinedResults = {}
-        # a = [[6,7,8,9,10],[1,1.5,2],[0,1,2],[0,0.5,1],[0,1,2,3],[0,1,2,3]]
-        # allPossibilities = list(itertools.product(*a))
-        # print(len(allPossibilities))
-        # for combo in allPossibilities:
-        #     # if (combo[0] == 0 and combo[1] == 0 and combo[2] == 0):
-        #     #     continue
-        #     paramWeightings = {
-        #         'count_ratio': combo[0],
-        #         'return_log_ratio': combo[1],
-        #         'return_log_s_ratio': combo[2],
-        #         'return_log': combo[3],
-        #         'return_log_s': combo[4],
-        #         'bull_return_log_s': combo[5]
-        #     }
-        #     (returns, accuracy) = prediction(start_date, end_date, found_features, num_top_stocks, paramWeightings)
-        #     print(tuple(paramWeightings.items()), returns, accuracy)
-        #     combinedResults[tuple(paramWeightings.items())] = (returns, accuracy)
-
-        # bestParams = list(combinedResults.items())
-        # bestParams.sort(key=lambda x: x[1], reverse=True)
-        # print("--------")
-        # for x in bestParams[:20]:
-        #     print(x[0], x[1])
 
     elif (options.updateCloseOpens):
         updateStockCount()

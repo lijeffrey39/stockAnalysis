@@ -193,7 +193,7 @@ def findFeatures(start_date, end_date, num_top_stocks, path, update=False):
                 all_stock_tweets[symbol] = tweets_per_stock
 
             # Find tweets used for predicting for this date
-            tweets = findTweets(date, tweets_per_stock, cached_prices, symbol)
+            tweets = findTweets(date, tweets_per_stock, symbol)
             features = stockFeatures(tweets, symbol, cached_prices, user_features, all_user_tweets) # calc features based on tweets/day
             all_features[date_str][symbol] = features
 
@@ -202,7 +202,7 @@ def findFeatures(start_date, end_date, num_top_stocks, path, update=False):
 
 
 # Find all tweets on this given day from database
-def findTweets(date, tweets_per_stock, cached_prices, symbol):
+def findTweets(date, tweets_per_stock, symbol):
     # Find start end and end dates for the given date
     day_increment = datetime.timedelta(days=1)
     date_end = datetime.datetime(date.year, date.month, date.day, 16)
@@ -382,7 +382,6 @@ def initializeUserFeatures(user):
 # Calculate user's features based on tweets before this date
 # Loop through all tweets made by user and feature extract per user
 def calculateUserFeatures(username, date, cached_prices, all_user_features, tweets):
-    # date = findPreviousTradingDay(date) # Find all tweet/predictions before this date
     unique_stocks = {} # Keep track of unique tweets per day/stock
     result = {} # Resulting user features
 

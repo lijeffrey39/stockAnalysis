@@ -1,50 +1,75 @@
 import os
-import datetime
-import numpy as np
 import copy
 import math
+import datetime
+import numpy as np
 from .hyperparameters import constants
 from .stockAnalysis import getTopStocksforWeek
 from .stockPriceAPI import (findCloseOpenCached, isTradingDay, findDateString)
 from .helpers import (readPickleObject, writePickleObject, findTradingDays)
-from .newPrediction import (cachedUserTweets, calculateUserFeatures, findTweets)
+from .newPrediction import (cachedUserTweets, initializeUserFeatures, findTweets)
+from .userAnalysis import updateUserFeatures
 
 
-def pregenerateAllUserFeatures():
+# Find all usernames from folder
+def findUserList():
+    users = []
     arr = os.listdir('user_tweets/')
-    count = 0
-    result = {}
     for u in arr:
         username = u[:-4]
+        users.append(username)
+    users.sort()
+    return users
+
+
+# Pregenerate all user features based off tweets
+# Extract GENEARL or STOCK specific user return, accuracy, tweet count, etc.
+def pregenerateAllUserFeatures(general=True):
+    users = findUserList()
+    result = {}
+    for i in range(len(users)):
+        username = users[i]
+        # Find user features 
         pregenerated = pregenerateUserFeatures(username)
         features = list(pregenerated.keys())
+
+        # If no dates/features were found
         if (len(features) == 0):
             continue
-        last_date = features[0]
-        # for date in pregenerated:
-        #     del pregenerated[date]['perStock']
+        last_date = features[0] # Date of last tweet
+
         pregenerated['last_tweet_date'] = datetime.datetime.strptime(last_date, '%Y-%m-%d')
-        count += 1
-        if (count % 1000 == 0):
-            print(count)
+        if (i % 1000 == 0):
+            print(i)
         result[username] = pregenerated
-    writePickleObject('newPickled/user_features_stock.pkl', result)
+
+    result_path = 'newPickled/user_features.pkl'
+    if (general == False):
+        result_path = 'newPickled/user_features_stock.pkl'
+    writePickleObject(result_path, result)
 
 
-def pregenerateUserFeatures(username):
+# Generate features from users historical tweets
+# Either return stock specific user features or general user features
+def pregenerateUserFeatures(username, general=True):
     day_increment = datetime.timedelta(days=1)
-    cached_tweets = cachedUserTweets(username)
+    cached_tweets = cachedUserTweets(username) # Tweets from user
     if (cached_tweets == None):
         return
     cached_prices = constants['cached_prices']
     top_stocks = constants['top_stocks']
-    dates = []
 
+    dates = []
+    # Extract the unique dates that the user tweeted
     for tweet in cached_tweets:
         time = tweet['time']
         symbol = tweet['symbol']
-        if (symbol not in top_stocks):
+
+        # Only look at user features that are in the top stocks to save space
+        if (general == False and symbol not in top_stocks):
             continue
+        
+        # Find the trading day the tweet corresponds to
         if (time.hour >= 16):
             time += day_increment
         while (isTradingDay(time) == False):
@@ -56,28 +81,103 @@ def pregenerateUserFeatures(username):
 
     # Go from past to present
     dates.sort()
-    buildup_result = {}
     result = {}
+    buildup_result = {} # cached result that is being built up
     for date in dates:
-        day_res = calculateUserFeatures(username, date, cached_prices, buildup_result, cached_tweets)
+        day_res = calculateUserFeatures(username, date, cached_prices, general,
+                                        buildup_result, cached_tweets)
+        
+        # Set as the next trading day's user feature
         date += day_increment
         while (isTradingDay(date) == False):
             date += day_increment
         date_string = '%d-%02d-%02d' % (date.year, date.month, date.day)
         copied_res = copy.deepcopy(day_res)
-        del copied_res['_id']
-        del copied_res['last_updated']
-        result[date_string] = copied_res['perStock']
-        if ('AAPL' in result[date_string]):
-            print(date_string, result[date_string]['AAPL'])
+
+        # Remove stock specific data for general user stats
+        if (general):
+            del copied_res['perStock']
+            del copied_res['_id']
+            del copied_res['last_updated']
+            result[date_string] = copied_res
+        else:
+            result[date_string] = copied_res['perStock']
 
     return result
 
+
+
+# Calculate user's features based on tweets before this date
+# Loop through all tweets made by user and feature extract per user
+def calculateUserFeatures(username, date, cached_prices, general, all_user_features, tweets):
+    unique_stocks = {} # Keep track of unique tweets per day/stock
+    result = {} # Resulting user features
+
+    if (username in all_user_features):
+        result = all_user_features[username]
+        last_updated = result['last_updated'] # last time that was parsed
+
+        # Filter by tweets before the current date and after last updated date
+        for tweet in tweets:
+            # Only look at user features that are in the top stocks to save space
+            if (general == False and tweet['symbol'] not in constants['top_stocks']):
+                continue
+            if (tweet['time'] >= last_updated and tweet['time'] < date):
+                updateUserFeatures(username, result, tweet, unique_stocks, cached_prices)
+    else:
+        result = initializeUserFeatures(username) # initialize user features for first time
+        # Only filter by all tweets before current date
+        for tweet in tweets:
+            # Only look at user features that are in the top stocks to save space
+            if (general == False and tweet['symbol'] not in constants['top_stocks']):
+                continue
+            if (tweet['time'] < date):
+                updateUserFeatures(username, result, tweet, unique_stocks, cached_prices)
+
+    result['last_updated'] = date # update time it was parsed so dont have to reparse
+
+    # Update unique predictions per day features
+    for time_string in unique_stocks:
+        symbol = unique_stocks[time_string]['symbol']
+        # times = unique_stocks[time_string]['times']
+        # average_time = findAverageTime(times)
+
+        # Find whether tweet was bull or bear based on majority
+        label = 'bull'
+        if (unique_stocks[time_string]['bear'] > unique_stocks[time_string]['bull']):
+            label = 'bear'
+        if (unique_stocks[time_string]['bear'] == unique_stocks[time_string]['bull']):
+            label = 'bull' if unique_stocks[time_string]['last_prediction'] else 'bear'
+
+        percent_change = unique_stocks[time_string]['percent_change']
+        correct_prediction = (label == 'bull' and percent_change >= 0) or (label == 'bear' and percent_change <= 0)
+        correct_prediction_num = 1 if correct_prediction else 0
+        percent_return = abs(percent_change) if correct_prediction else -abs(percent_change)
+
+        result['unique_correct_predictions'][label] += correct_prediction_num
+        result['perStock'][symbol]['unique_correct_predictions'][label] += correct_prediction_num
+        result['unique_num_predictions'][label] += 1
+        result['perStock'][symbol]['unique_num_predictions'][label] += 1
+        result['unique_return'][label] += percent_return
+        result['perStock'][symbol]['unique_return'][label] += percent_return
+
+        # return unique (log) Weighted by number of times posted that day
+        num_labels = unique_stocks[time_string][label]
+        val = percent_return * (math.log10(num_labels) + 1)
+        result['unique_return_log'][label] += val
+        result['perStock'][symbol]['unique_return_log'][label] += val
+
+    all_user_features[username] = result
+    return result
+
+
+# Find user features up to or before a given date
 def findUserFeatures(username, user_features, date):
     if (username not in user_features):
         return None
     features = user_features[username]
     last_tweet_date = features['last_tweet_date']
+    # If user hasn't tweeted anything yet
     if (date < last_tweet_date):
         return None
     del features['last_tweet_date']
@@ -90,31 +190,11 @@ def findUserFeatures(username, user_features, date):
     return None
 
 
-def generateUserFeatureMatrix(users, user_features, date):
-    result = np.zeros(shape=(len(users), 3))
-    for i in range(len(users)):
-        username = users[i]
-        features = findUserFeatures(username, user_features, date)
-        if (features == None):
-            continue
-        total_tweets = features['unique_num_predictions']['bull'] + features['unique_num_predictions']['bear']
-        if (total_tweets == 0):
-            continue
-        correct_tweets = features['unique_correct_predictions']['bull'] + features['unique_correct_predictions']['bear']
-        accuracy = correct_tweets / total_tweets
-        return_percent = features['unique_return']['bull'] + features['unique_return']['bear']
-        feature_array = [total_tweets, accuracy, return_percent]
-        result[i] = feature_array
-    return result
-
-
-def generateUserMatrices(start_date, end_date, user_features):
-    users = []
-    arr = os.listdir('user_tweets/')
-    for u in arr:
-        username = u[:-4]
-        users.append(username)
-    users.sort()
+# Generate user features matrice
+# Result = d(days) x u(users) x n(features)
+def generateUserMatrix(start_date, end_date):
+    user_features = readPickleObject('newPickled/user_features.pkl')
+    users = findUserList()
     dates = findTradingDays(start_date, end_date)
     result = np.zeros(shape=(len(dates), len(users), 3))
 
@@ -122,8 +202,19 @@ def generateUserMatrices(start_date, end_date, user_features):
     for i in range(len(dates)):
         date = dates[i]
         print(date)
-        user_matrix = generateUserFeatureMatrix(users, user_features, date)
-        result[i] = user_matrix
+        for j in range(len(users)):
+            username = users[j]
+            features = findUserFeatures(username, user_features, date)
+            if (features == None):
+                continue
+            total_tweets = features['unique_num_predictions']['bull'] + features['unique_num_predictions']['bear']
+            if (total_tweets == 0):
+                continue
+            correct_tweets = features['unique_correct_predictions']['bull'] + features['unique_correct_predictions']['bear']
+            accuracy = correct_tweets / total_tweets
+            return_percent = features['unique_return']['bull'] + features['unique_return']['bear']
+            result[i][j] = [total_tweets, accuracy, return_percent]
+
     np.save('user_matrice.npy', result)
 
 
@@ -149,35 +240,13 @@ def findUserStockFeatures(username, symbol, user_features, date):
     return None
 
 
-def generateUserStockFeatureMatrix(top_stocks, users, user_features, date):
-    result = np.zeros(shape=(len(top_stocks), len(users), 3))
-    for i in range(len(top_stocks)):
-        symbol = top_stocks[i]
-        for j in range(len(users)):
-            username = users[j]
-            features = findUserStockFeatures(username, symbol, user_features, date)
-            if (features == None):
-                continue
-            total_tweets = features['unique_num_predictions']['bull'] + features['unique_num_predictions']['bear']
-            if (total_tweets == 0):
-                continue
-            correct_tweets = features['unique_correct_predictions']['bull'] + features['unique_correct_predictions']['bear']
-            accuracy = correct_tweets / total_tweets
-            return_percent = features['unique_return']['bull'] + features['unique_return']['bear']
-            feature_array = [total_tweets, accuracy, return_percent]
-            result[i][j] = feature_array
-    return result
-
-
-def generateUserStockMatrices(start_date, end_date, user_features):
+# Generate stock specific user features matrice
+# Result = d(days) x s(stocks) x u(users) x n(features)
+def generateUserStockMatrix(start_date, end_date):
+    user_stock_features = readPickleObject('newPickled/user_features_stock.pkl')
     top_stocks = list(constants['top_stocks'])
     top_stocks.sort()
-    users = []
-    arr = os.listdir('user_tweets/')
-    for u in arr:
-        username = u[:-4]
-        users.append(username)
-    users.sort()
+    users = findUserList()
 
     dates = findTradingDays(start_date, end_date)
     result = np.zeros(shape=(len(dates), len(top_stocks), len(users), 3))
@@ -185,15 +254,55 @@ def generateUserStockMatrices(start_date, end_date, user_features):
     # For each user, fill in 4d matrix by date
     for i in range(len(dates)):
         date = dates[i]
-        print(date)
-        user_matrix = generateUserStockFeatureMatrix(top_stocks, users, user_features, date)
-        result[i] = user_matrix
+        for j in range(len(top_stocks)):
+            symbol = top_stocks[j]
+            for k in range(len(users)):
+                username = users[k]
+                features = findUserStockFeatures(username, symbol, user_stock_features, date)
+                if (features == None):
+                    continue
+                total_tweets = features['unique_num_predictions']['bull'] + features['unique_num_predictions']['bear']
+                if (total_tweets == 0):
+                    continue
+                correct_tweets = features['unique_correct_predictions']['bull'] + features['unique_correct_predictions']['bear']
+                accuracy = correct_tweets / total_tweets
+                return_percent = features['unique_return']['bull'] + features['unique_return']['bear']
+                result[i][j][k] = [total_tweets, accuracy, return_percent]
 
     np.save('user_stock_matrice.npy', result)
 
 
+# Preprocess user matrice by adding cutoffs and standardizing
+def preprocessUserMatrix():
+    user_matrice = np.load('user_matrice.npy')
+    # Remove all users that are below certain number of tweets
+    # Set cap at 500 tweets
+    # Standardize between 0 - 1 from 0 - 500 using sqrt function
+    min_num_tweets = 20
+    max_num_tweets = 500
+    user_matrice[user_matrice[:,:,0] <= min_num_tweets] = 0
+    user_matrice[user_matrice[:,:,0] > max_num_tweets] = max_num_tweets
+    user_matrice[:,:,0] = np.power(user_matrice[:,:,0], 0.5) # sqrt tweets
+    user_matrice[:,:,0] = np.divide(user_matrice[:,:,0], math.sqrt(max_num_tweets)) # divide by sqrt(500)
 
-def findStockUserWeightings(start_date, end_date, user_matrice):
+    # Remove all users that are below certain accuracy
+    min_accuracy = 0.3
+    user_matrice[user_matrice[:,:,1] <= min_accuracy] = 0
+
+    # Remove all users that are below certain return
+    # Set cap at 500% return
+    min_return = 0
+    max_return = 150
+    user_matrice[user_matrice[:,:,2] <= min_return] = 0
+    user_matrice[user_matrice[:,:,2] > max_return] = max_return
+    user_matrice[:,:,2] = np.divide(user_matrice[:,:,2], max_return)
+
+    np.save('user_matrice_filtered.npy', user_matrice)
+
+
+
+def preprocessUserStockMatrix():
+    user_matrice = np.load('user_stock_matrice.npy')
     # Scale tweet number between 0 and 1 based off of each stock's distribution
     # Look at most recent date to find individual stock distribution
     print("Standardizing Tweet Count")
@@ -236,78 +345,47 @@ def findStockUserWeightings(start_date, end_date, user_matrice):
     min_accuracy = 0.3
     user_matrice[user_matrice[:,:,:,1] <= min_accuracy] = 0
 
-
     np.save('user_stock_matrice_filtered.npy', user_matrice)
-    # result = np.dot(user_matrice, weightings) #100 x 79 x 50000 x 3 * 3 x 1 = 100 x 79 x 50000
-    print(user_matrice.shape)
 
 
-def findUserWeightings(start_date, end_date, user_matrice, weightings):
-    # print(user_matrice[0][:10])
-    # Remove all users that are below certain number of tweets
-    # Set cap at 500 tweets
-    # Standardize between 0 - 1 from 0 - 500 using sqrt function
-    min_num_tweets = 20
-    max_num_tweets = 500
-    user_matrice[user_matrice[:,:,0] <= min_num_tweets] = 0
-    user_matrice[user_matrice[:,:,0] > max_num_tweets] = max_num_tweets
-    user_matrice[:,:,0] = np.power(user_matrice[:,:,0], 0.5) # sqrt tweets
-    user_matrice[:,:,0] = np.divide(user_matrice[:,:,0], math.sqrt(max_num_tweets)) # divide by sqrt(500)
-
-    # Remove all users that are below certain accuracy
-    min_accuracy = 0.3
-    user_matrice[user_matrice[:,:,1] <= min_accuracy] = 0
-
-    # Remove all users that are below certain return
-    # Set cap at 500% return
-    min_return = 0
-    max_return = 150
-    user_matrice[user_matrice[:,:,2] <= min_return] = 0
-    user_matrice[user_matrice[:,:,2] > max_return] = max_return
-    user_matrice[:,:,2] = np.divide(user_matrice[:,:,2], max_return)
-
-    np.save('user_matrice_filtered.npy', user_matrice)
-
-
+# Convert user predictions to an array of 
+#  0 (no prediction)
+#  1 (bull prediction)
+# -1 (bear prediction)
+# Result = d(days) x u(users) x s(stocks)
 def generateStockPredictions(start_date, end_date):
     dates = findTradingDays(start_date, end_date)
-    cached_prices = constants['cached_prices']
     top_stocks = list(constants['top_stocks'])
     top_stocks.sort()
+    users = findUserList()
 
-    users = []
+    # user indexes for inserting predictions
     user_index = {}
-    arr = os.listdir('user_tweets/')
-    i = 0
-    for u in arr:
-        username = u[:-4]
-        users.append(username)
+    for i in range(len(users)):
+        username = users[i]
         user_index[username] = i
-        i += 1
-    users.sort()
 
+    # Cache all user tweets for quick access
     all_stock_tweets = {}
     for symbol in top_stocks:
         stock_path = 'new_stock_files/' + symbol + '.pkl'
         tweets_per_stock = readPickleObject(stock_path)
         all_stock_tweets[symbol] = tweets_per_stock
-    
 
     result = np.zeros(shape=(len(dates), len(users), len(top_stocks)))
 
+    # Loop through all dates and fill in user predictions for all d dates and s stocks
     for i in range(len(dates)):
         date = dates[i]
         print(date)
-        users_seen = set([])
         for j in range(len(top_stocks)):
+            users_seen = set([]) # use the most recent prediction per stock
             symbol = top_stocks[j]
-            tweets_per_stock = all_stock_tweets[symbol]
-            tweets = findTweets(date, tweets_per_stock, cached_prices, symbol)
-            print(symbol, len(tweets))
+            cached_tweets = all_stock_tweets[symbol] # cached tweets
+            tweets = findTweets(date, cached_tweets, symbol)
             for tweet in tweets:
                 username = tweet['user']
                 isBull = tweet['isBull']
-
                 if (username in users_seen or username not in user_index):
                     continue
                 users_seen.add(username)
@@ -318,13 +396,13 @@ def generateStockPredictions(start_date, end_date):
     np.save('user_predictions.npy', result)
 
 
-def generateCloseOpenMatrice(start_date, end_date):
+# Close open price matrix for top s stocks
+# Result = d(days) x s(stocks)
+def generateCloseOpenMatrix(start_date, end_date):
     dates = findTradingDays(start_date, end_date)
     cached_prices = constants['cached_prices']
     top_stocks = list(constants['top_stocks'])
     top_stocks.sort()
-
-    # 100 days x 78 stocks
     result = np.zeros(shape=(len(dates), len(top_stocks)))
 
     for i in range(len(dates)):
@@ -338,7 +416,6 @@ def generateCloseOpenMatrice(start_date, end_date):
                 continue
             close_open = findCloseOpenCached(symbol, date, cached_prices)
             if (close_open == None):
-                print(symbol, date)
                 continue
             result[i][j] = close_open[2]
 
@@ -346,21 +423,23 @@ def generateCloseOpenMatrice(start_date, end_date):
 
 
 
+# Find user weightings based on general user weightings and per stock user weightings
+# Result = d(days) x s(stocks) x u(users)
 def findTotalUserWeightings(start_date, end_date, user_matrice, user_stock_matrice, weightings):
     top_stocks = list(constants['top_stocks'])
-    top_stocks.sort()
 
-    # Match dimensions of user_stock matrics
+    # Match dimensions of user_stock matrics by converting 
+    # d(days) x u(users) => d(days) x s(stocks) x u(users)
     user_weighted = np.dot(user_matrice, weightings) # 104 x 57000
     repeated_user_weights = np.repeat(user_weighted[:,None], len(top_stocks), axis=1) # 104 x 78 x 57000
 
     # Calculate user stock weights
     user_stock_weighted = np.dot(user_stock_matrice, weightings) # 104 x 78 x 57000
 
+    # Add user and user-stock weightings together
     total_user_weight = repeated_user_weights + user_stock_weighted # 104 x 78 x 57000
 
     return total_user_weight
-    # print(total_user_weight.shape)
 
 
 def calculateReturn(start_date, end_date):
