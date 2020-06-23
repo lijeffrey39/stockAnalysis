@@ -247,7 +247,8 @@ def main():
         generateStockPredictions(start_date, end_date)
         
         # ----- STEP 3 ------
-        calculateReturn(start_date, end_date)
+        weightings = np.array([1, 1, 1]) # return, accuracy, and tweet num weighted equally
+        calculateReturn(start_date, end_date, weightings)
 
 
     elif (options.updateCloseOpens):

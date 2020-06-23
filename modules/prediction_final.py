@@ -442,7 +442,7 @@ def findTotalUserWeightings(start_date, end_date, user_matrice, user_stock_matri
     return total_user_weight
 
 
-def calculateReturn(start_date, end_date):
+def calculateReturn(start_date, end_date, weightings):
     np.seterr(divide='ignore', invalid='ignore')
     top_stocks = list(constants['top_stocks'])
     top_stocks.sort()
@@ -450,7 +450,6 @@ def calculateReturn(start_date, end_date):
     user_stock_matrice = np.load('user_stock_matrice_filtered.npy') # 104 days x 78 stocks x 57000 users x 3 weightings
     user_predictions = np.load('user_predictions.npy') # 104 days x 57000 users x 78 stocks
     close_open_matrice = np.load('close_open_matrice.npy') # 104 x 78
-    weightings = np.array([1, 1, 1])
 
     # 104 days x 78 stocks x 57000 users
     total_user_weight = findTotalUserWeightings(start_date, end_date, user_matrice, user_stock_matrice, weightings)
