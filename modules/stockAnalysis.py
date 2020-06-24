@@ -53,20 +53,22 @@ def updateStockCountPerWeek(curr_time):
     year_week = curr_time.isocalendar()[:2]
     year = year_week[0]
     week = year_week[1]
-    year_week_id = str(year) + '_' + str(week)
+    year_week_id = str(year) + '_' + str(week) + '_21'
     print(year_week_id)
     prev_time = curr_time - datetime.timedelta(days=21)
-    stock_counts_collection = constants['db_client'].get_database('stocktwits_db').stock_counts_perweek_21
+    stock_counts_collection = constants['db_client'].get_database('stocktwits_db').stock_counts_perweek_v2
     result = stock_counts_collection.find({'_id': year_week_id})
     if (result.count() != 0):
         print('EXISTS')
         return
 
     tweets_collection = constants['stocktweets_client'].get_database('tweets_db').tweets
-    res = tweets_collection.aggregate([{ "$match": { "time" : { '$gte' : prev_time, '$lte' : curr_time}}}, 
+    res = tweets_collection.aggregate([{ "$match": { "time" : { '$gte' : prev_time, '$lte' : curr_time}, 
+                                    'symbol': {'$in': list(constants['top_stocks'])}}}, 
                                     {'$group' : { '_id' : '$symbol', 'count' : {'$sum' : 1}}}, 
                                     { "$sort": { "count": 1 } }])
     mapped_counts = list(map(lambda document: document, res))
+    print(mapped_counts)
     stock_counts_collection.insert({'_id': year_week_id, 'stocks': mapped_counts})
 
 
@@ -93,9 +95,11 @@ def getTopStocksforWeek(date, num):
 
     newdict = sorted(stock_list, key=lambda k: k['count'], reverse=True)
     newlist = list(map(lambda document: document['_id'], newdict))
+    if ('LK' in newlist):
+        newlist.remove('LK')
+    if ('XSPA' in newlist):
+        newlist.remove('XSPA')
     result = newlist[:num]
-    if ('LK' in result):
-        result.remove('LK')
     return result
 
 

@@ -26,9 +26,10 @@ from modules.tests import (findBadMessages, removeMessagesWithStock,
                         
 from modules.newPrediction import (findTweets, weightedUserPrediction, writeTweets, calculateUserFeatures, editCachedTweets,
                                     prediction, findFeatures, updateAllUsers, saveUserTweets, cachedUserTweets, optimizeParams)
-from modules.prediction_final import (pregenerateUserFeatures, pregenerateAllUserFeatures, findUserFeatures, generateUserFeatureMatrix,
-                                    generateUserMatrix, preprocessUserMatrix, generateUserStockMatrix, calculateReturn,
-                                    preprocessUserStockMatrix, findTotalUserWeightings, generateStockPredictions, generateCloseOpenMatrix)
+from modules.prediction_final import (pregenerateUserFeatures, pregenerateAllUserFeatures, findUserFeatures, generateUserMatrix,
+                                    generateUserMatrix, preprocessUserMatrix, generateUserStockMatrix, calculateReturn,makePrediction,
+                                    preprocessUserStockMatrix, findTotalUserWeightings, generateStockPredictions, generateCloseOpenMatrix,
+                                    jankCalculateReturn, generateBullPredictions, generateBearPredictions, optimize, generateWeightedMatrix)
 
 client = constants['db_client']
 clientUser = constants['db_user_client']
@@ -174,15 +175,6 @@ def addOptions(parser):
                       help="parse through user information that havent been parsed over last x days (14)")
 
 
-# Make a prediction for given date
-def makePrediction(date):
-    dates = [datetime.datetime(date.year, date.month, date.day, 9, 30)]
-    stocks = getTopStocks(20)
-    stocks.remove('AMZN')
-    stocks = ['TSLA']
-    analyzeStocks(date, stocks)
-    # basicPrediction(dates, stocks, True, True)
-
 # Executed hourly, finds all the tweets from the top x stocks
 def hourlyparse():
     date = convertToEST(datetime.datetime.now())
@@ -218,37 +210,66 @@ def main():
         start_date = datetime.datetime(2020, 1, 9)
         end_date = datetime.datetime(2020, 6, 9)
 
+        num_top_stocks = 20
+        path = 'newPickled/features_new_sqrtx_21.pkl'
+        found_features = findFeatures(start_date, end_date, num_top_stocks, path, False)
+    
+        weightings = {
+            'count_ratio_w': 2.2,
+            'return_log_ratio_w': 2.5,
+            'total': 2.8,
+            'return_ratio_w': 0.4,
+            # 'bull': 0.4,
+            # 'bear': 0.6
+        }
+        print(prediction(start_date, end_date, found_features, num_top_stocks, weightings))
+
+        # weightings = np.array([1,1,1])
+        # user_matrice = np.load('user_matrice_filtered.npy')
+        # user_stock_matrice = np.load('user_stock_matrice_filtered.npy')
+        # user_predictions = np.load('user_predictions.npy')
+        # close_open_matrice = np.load('close_open_matrice.npy')
+        # optimize(start_date, end_date, user_predictions, user_matrice, user_stock_matrice, close_open_matrice)
+        # bull_predictions = generateBullPredictions(user_predictions)
+        # bear_predictions = generateBearPredictions(user_predictions)
+
+        # diagonal_weights = generateWeightedMatrix(weightings, bull_predictions, bear_predictions, user_matrice, user_stock_matrice)
+        # jankCalculateReturn(weightings, diagonal_weights, close_open_matrice)
+
+
         # ----- STEP 1 ------
         # Pregenerate all user features into pickled objects to be converted to matrices
         # a. Generate GENERAL user features saved at (user_features.pkl)
-        pregenerateAllUserFeatures(True)
+        # pregenerateAllUserFeatures(True)
 
         # b. Generate STOCK specific user features saved at (user_features_stock.pkl)
-        pregenerateAllUserFeatures(False)
+        # pregenerateAllUserFeatures(False)
 
+        # pregenerateUserFeatures('0PriceAction0', True)
+        # return
 
         # ----- STEP 2 ------
         # a1. Generate GENERAL user matrix from pickled features (saved at user_matrice.npy)
-        generateUserMatrix(start_date, end_date)
+        # generateUserMatrix(start_date, end_date)
 
         # a2. Preprocess GENERAL user matrix by standardizing features (saved at user_matrice_filtered.npy)
-        preprocessUserMatrix()
+        # preprocessUserMatrix()
 
         # b1. Generate STOCK specific user matrix from pickled features (saved at user_stock_matrice.npy)
-        generateUserStockMatrix(start_date, end_date)
+        # generateUserStockMatrix(start_date, end_date)
 
         # b2. Preprocess STOCK specific user matrix by standardizing features (saved at user_stock_matrice_filtered.npy)
-        preprocessUserStockMatrix()
+        # preprocessUserStockMatrix()
 
         # c. Create close open price matrix (saved at close_open_matrice.npy)
-        generateCloseOpenMatrix(start_date, end_date)
+        # generateCloseOpenMatrix(start_date, end_date)
 
         # d. Create user prediction matrix ((saved at user_predictions.npy))
-        generateStockPredictions(start_date, end_date)
+        # generateStockPredictions(start_date, end_date, True)
         
         # ----- STEP 3 ------
-        weightings = np.array([1, 1, 1]) # return, accuracy, and tweet num weighted equally
-        calculateReturn(start_date, end_date, weightings)
+        # weightings = np.array([1, 1, 1]) # return, accuracy, and tweet num weighted equally
+        # calculateReturn(start_date, end_date, weightings)
 
 
     elif (options.updateCloseOpens):
@@ -269,7 +290,12 @@ def main():
     else:
 
         start_date = datetime.datetime(2020, 1, 9)
-        end_date = datetime.datetime(2020, 6, 9)
+        end_date = datetime.datetime(2020, 6, 19)
+
+        # makePrediction(start_date, end_date)
+
+        # writeTweets(start_date, end_date, 100)
+
 
         # calculateReturn(start_date, end_date)
 
@@ -330,21 +356,21 @@ def main():
         # print(np.einsum('ijk,ikj->ij', A, B))
         # diagonal_mult = A @ B
         # print(diagonal_mult)
-        test = np.zeros(shape=(5, 4))
-        test[0] = [1,4,2,-7]
-        test[1] = [3,-6,1,4]
+        # test = np.zeros(shape=(5, 4))
+        # test[0] = [1,4,2,-7]
+        # test[1] = [3,-6,1,4]
         # print(test)
 
-        test1 = np.zeros(shape=(5, 4))
-        test1[0] = [0,4,2,-7]
-        test1[1] = [3,-6,1,0]
-        print(test<=0)
-        test1[test<=0] = 0
-        print(test1)
-        sorted_index = np.argsort(-abs(test),axis=1)
-        print(sorted_index)
-        range_i = np.arange(test.shape[0])
-        top_weights = test[range_i[:,None], sorted_index][:,:2]
+        # test1 = np.zeros(shape=(5, 4))
+        # test1[0] = [0,4,2,-7]
+        # test1[1] = [3,-6,1,0]
+        # print(test<=0)
+        # test1[test<=0] = 0
+        # print(test1)
+        # sorted_index = np.argsort(-abs(test),axis=1)
+        # print(sorted_index)
+        # range_i = np.arange(test.shape[0])
+        # top_weights = test[range_i[:,None], sorted_index][:,:2]
         # print(top_weights)
         # total = np.sum(abs(top_weights), axis=1)[:,None]
         # weighted_return  = top_weights / total
@@ -452,11 +478,16 @@ def main():
         # date = datetime.datetime(2020, 1, 9)
         # delta = datetime.timedelta(days=7)
         # result = []
-        # while (date < datetime.datetime(2020, 7, 9)):
+        # while (date < datetime.datetime(2020, 6, 24)):
         #     date += delta
-        # stocks = getTopStocksforWeek(date, 100)
-        # print(len(stocks))
+        #     top_stocks = getTopStocksforWeek(date, 20)
+        #     print(top_stocks)
+        #     for s in top_stocks:
+        #         if s not in result:
+        #             result.append(s)
 
+        # print(len(result))
+        # print(result)
 
         #     string = '%d-%02d-%02d' % (date.year, date.month, date.day) 
         #     if (string not in constants['trading_days']):

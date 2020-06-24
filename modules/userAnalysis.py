@@ -479,7 +479,7 @@ def updateUserFeatures(username, result, tweet, uniqueStocks, cached_prices):
     isBull = tweet['isBull']
     label = 'bull' if (isBull) else 'bear'
 
-    if (symbol == ''):
+    if (symbol == '' or symbol == 'BPMX'):
         return
 
     closeOpen = findCloseOpenCached(symbol, time, cached_prices)
