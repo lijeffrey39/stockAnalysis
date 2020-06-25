@@ -16,14 +16,20 @@ from .helpers import (calcRatio, findWeight, readPickleObject, findAllDays,
 
 def optimizeFN(params):
     weightings = {
-        'real_ratio': params[0],
-        'total': params[1],
-        'return_log_ratio_w': params[2],
-        'bull_weight': params[3],
-        'bear_weight': params[4],
+        'count_ratio_w': params[0],
+        'return_log_ratio_w': params[1],
+        'total_w': params[2],
+        'return_s_ratio_w': params[3],
+        'bear_w_return': params[4],
+        'bull_w_return': params[5],
+        # 'return_w1_ratio': params[6],
+        # 'bear_return_s': params[7],
+        # 'bear': params[8],
+        # 'bear_return': params[9],
+        # 'count_ratio': params[10],
     }
     start_date = datetime.datetime(2020, 1, 9, 15, 30)
-    end_date = datetime.datetime(2020, 6, 9, 9, 30)
+    end_date = datetime.datetime(2020, 6, 19, 9, 30)
     path = 'newPickled/features_new_sqrtx_21_test_aapl.pkl'
     num_top_stocks = 20
     all_features = findFeatures(start_date, end_date, num_top_stocks, path, False)
@@ -59,17 +65,23 @@ def optimizeFN(params):
 
 def optimizeParams():
     params = {
-        'real_ratio': [15, (0, 30)],
-        'total': [2, (0, 20)],
-        'return_log_ratio_w': [1.2, (0, 20)],
-        'bull_weight': [1.5, (1, 2)],
-        'bear_weight': [1.5, (1, 2)],
+        'count_ratio_w': [2.2, (0, 30)],
+        'return_log_ratio_w': [1.2, (0, 30)],
+        'total': [1.1, (0, 30)],
+        'return_s_ratio_w': [1.3, (0, 30)],
+        'bear_w_return': [1, (0, 30)],
+        'bull_w_return': [4.2, (0, 30)],
+        # 'return_w1_ratio': [1.9, (0, 30)],
+        # 'bear_return_s': [2.8, (0, 30)],
+        # 'bear': [7.7, (0, 30)],
+        # 'bear_return': [4.1, (0, 30)],
+        # 'count_ratio': [1, (0, 30)],
     }
 
     initial_values = list(map(lambda key: params[key][0], list(params.keys())))
     bounds = list(map(lambda key: params[key][1], list(params.keys())))
-    result = minimize(optimizeFN, initial_values, method='SLSQP', options={'maxiter': 30, 'eps': 0.3}, 
-                    bounds=(bounds[0],bounds[1],bounds[2],bounds[3],bounds[4]))
+    result = minimize(optimizeFN, initial_values, method='SLSQP', options={'maxiter': 30, 'eps': 0.2}, 
+                    bounds=(bounds[0],bounds[1],bounds[2],bounds[3],bounds[4],bounds[5]))
     print(result)
 
 
@@ -78,9 +90,12 @@ def editFeatures(all_features, weights):
     # print(all_features.keys())
     for d in all_features:
         for s in all_features[d]:
-            bull = weights['bull_weight'] * all_features[d][s]['bull']
-            bear = weights['bear_weight'] * all_features[d][s]['bear']
-            all_features[d][s]['real_ratio'] = calcRatio(bull, bear)
+            for f in all_features[d][s]:
+                if ('bear' in f):
+                    all_features[d][s][f] = -all_features[d][s][f]
+            # bull = weights['bull_weight'] * all_features[d][s]['bull']
+            # bear = weights['bear_weight'] * all_features[d][s]['bear']
+            # all_features[d][s]['real_ratio'] = calcRatio(bull, bear)
         # print(d,all_features[d]['AAPL']['bull_w'],all_features[d]['AAPL']['bear_w'],all_features[d]['AAPL']['count_ratio_w'])
 
     return all_features
@@ -90,7 +105,7 @@ def editFeatures(all_features, weights):
 # Features are generated before hand per stock per day
 def prediction(start_date, end_date, all_features, num_top_stocks, weightings):
 
-    # all_features = editFeatures(all_features, weightings)
+    all_features = editFeatures(all_features, weightings)
 
     # cached closeopen prices
     cached_prices = constants['cached_prices']
@@ -203,12 +218,12 @@ def findFeatures(start_date, end_date, num_top_stocks, path, update=False):
     all_stock_tweets = {} # store tweets locally for each stock
     user_features = {} # user features temp stored and built up on
     all_user_tweets = {}
-    # all_features = readPickleObject(path)
+    all_features = readPickleObject(path)
 
     # Find top stocks given the date (updated per week)
     # Use those stocks to find features based on tweets from those day
     # date_str_1 = datetime.datetime(2020, 6, 24, 9, 30).strftime("%Y-%m-%d")
-    # date_str_2 = datetime.datetime(2020, 6, 23, 9, 30).strftime("%Y-%m-%d")
+    # date_str_2 = datetime.datetime(2020, 6, 25, 9, 30).strftime("%Y-%m-%d")
     # del all_features[date_str_1]
     # del all_features[date_str_2]
 
@@ -217,8 +232,8 @@ def findFeatures(start_date, end_date, num_top_stocks, path, update=False):
         # stocks = ['AAPL']
         date_str = date.strftime("%Y-%m-%d")
         print(date_str)
-        # if (date_str in all_features):
-        #     continue
+        if (date_str in all_features):
+            continue
         all_features[date_str] = {}
         for symbol in stocks:
             tweets_per_stock = []
@@ -740,7 +755,7 @@ def weightedUserPrediction(user, symbol):
     num_tweets_s = findFeature(user, symbol, ['num_predictions'], bull_bear)
 
     # Don't consider anyone below 70 predictions
-    if (num_tweets < 60 or num_tweets_s < 5):
+    if (num_tweets < 50 or num_tweets_s < 5):
         return 0
 
     # (1) scale between 70-700 (general) and 1-100 (per stock)
@@ -753,6 +768,9 @@ def weightedUserPrediction(user, symbol):
 
     accuracy_unique = findFeature(user, '', ['unique_correct_predictions', 'unique_num_predictions'], bull_bear)
     accuracy_unique_s = findFeature(user, symbol, ['unique_correct_predictions', 'unique_num_predictions'], bull_bear)
+
+    if (accuracy_unique < 0.3 or accuracy_unique_s < 0.3):
+        return 0
 
     return_unique = findFeature(user, '', ['unique_return'], bull_bear)
     return_unique_s = findFeature(user, symbol, ['unique_return'], bull_bear)

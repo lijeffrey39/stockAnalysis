@@ -206,6 +206,7 @@ def main():
         now = convertToEST(datetime.datetime.now())
         date = datetime.datetime(now.year, now.month, now.day)
         stocks = getTopStocks(100)
+        stocks = ['SPY', 'XSPA', 'GNUS', 'BA', 'TSLA', 'SRNE', 'MARK', 'BIOC', 'IBIO', 'NIO', 'CHK', 'AAPL', 'MVIS', 'INO', 'TVIX', 'AYTU', 'TOPS', 'VISL', 'AMD', 'ROKU']
         # print(len(stocks))
         # for i in range(len(stocks)):
         #     if (stocks[i] == "SESN"):
@@ -220,14 +221,14 @@ def main():
 
         #remove tweets
         # date_str_1 = datetime.datetime(2020, 6, 24, 9, 30).strftime("%Y-%m-%d")
-        # date_str_2 = datetime.datetime(2020, 6, 23, 9, 30).strftime("%Y-%m-%d")
+        # date_str_2 = datetime.datetime(2020, 6, 25, 9, 30).strftime("%Y-%m-%d")
         # stocks = getTopStocksforWeek(end_date, num_top_stocks) # top stocks for the week
         # for symbol in stocks:
-        #     stock_path = 'new_stock_files/' + symbol + '.pkl'
+        #     stock_path = 'old_stock_files/' + symbol + '.pkl'
         #     tweets_per_stock = readPickleObject(stock_path)
-        #     del tweets_per_stock[date_str_1]
-        #     del tweets_per_stock[date_str_2]
-        #     writePickleObject(stock_path, tweets_per_stock)
+            # del tweets_per_stock[date_str_1]
+            # del tweets_per_stock[date_str_2]
+            # writePickleObject(stock_path, tweets_per_stock)
 
 
         # Write all user files
@@ -235,25 +236,30 @@ def main():
 
         # Write stock tweet files
         # writeTweets(start_date, end_date, num_top_stocks)
-
+        # return
 
         # Optimize paramters
-        # optimizeParams()
-        # return
+        optimizeParams()
+        return
 
 
         # Find features for prediction
         path = 'newPickled/features_new_sqrtx_21_test_aapl.pkl'
         found_features = findFeatures(start_date, end_date, num_top_stocks, path, False)
 
-        
+
         # Make prediction
         weightings = {
-            'count_ratio_w': 4.28,
-            'return_log_ratio_w': 2.61,
-            'total_w': 5.54,
-            'return_log': 1.88,
-            'bull_w': 2.64,
+            'count_ratio_w': 2.08,
+            'return_log_ratio_w': 1.6,
+            'total_w': 1,
+            'return_w': 3.23,
+            'bear_w_return': 1.09,
+            'bull_w_return': 2.74,
+            # 'return_w1_ratio': 1.9,
+            # 'bear_return_s': 2.8,
+            # 'bear': 7.7,
+            # 'bear_return': 4.1
         }
         print(prediction(start_date, end_date, found_features, num_top_stocks, weightings))
         # return
