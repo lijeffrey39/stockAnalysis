@@ -16,16 +16,15 @@ from .helpers import (calcRatio, findWeight, readPickleObject, findAllDays,
 
 def optimizeFN(params):
     weightings = {
-        'count_ratio': params[0],
-        'return_log_ratio': params[1],
-        'total': params[2],
-        'return_s_ratio': params[3],
-        'bull': params[4],
-        'return_log_s_ratio': params[5],
+        'real_ratio': params[0],
+        'total': params[1],
+        'return_log_ratio_w': params[2],
+        'bull_weight': params[3],
+        'bear_weight': params[4],
     }
     start_date = datetime.datetime(2020, 1, 9, 15, 30)
     end_date = datetime.datetime(2020, 6, 9, 9, 30)
-    path = 'newPickled/features_new_sqrtx_21.pkl'
+    path = 'newPickled/features_new_sqrtx_21_test_aapl.pkl'
     num_top_stocks = 20
     all_features = findFeatures(start_date, end_date, num_top_stocks, path, False)
     result = prediction(start_date, end_date, all_features, num_top_stocks, weightings)
@@ -60,24 +59,40 @@ def optimizeFN(params):
 
 def optimizeParams():
     params = {
-        'count_ratio': [2.5, (2, 8)],
-        'return_log_ratio': [3, (3, 6)],
-        'total': [2.5, (1, 5)],
-        'return_s_ratio': [0.1, (0, 3)],
-        'bull': [0.1, (0, 3)],
-        'return_log_s_ratio': [0.1, (0, 3)]
+        'real_ratio': [15, (0, 30)],
+        'total': [2, (0, 20)],
+        'return_log_ratio_w': [1.2, (0, 20)],
+        'bull_weight': [1.5, (1, 2)],
+        'bear_weight': [1.5, (1, 2)],
     }
 
     initial_values = list(map(lambda key: params[key][0], list(params.keys())))
     bounds = list(map(lambda key: params[key][1], list(params.keys())))
     result = minimize(optimizeFN, initial_values, method='SLSQP', options={'maxiter': 30, 'eps': 0.3}, 
-                    bounds=(bounds[0],bounds[1],bounds[2],bounds[3],bounds[4],bounds[5]))
+                    bounds=(bounds[0],bounds[1],bounds[2],bounds[3],bounds[4]))
     print(result)
+
+
+
+def editFeatures(all_features, weights):
+    # print(all_features.keys())
+    for d in all_features:
+        # for s in all_features[d]:
+        #     bull = weights['bull_weight'] * all_features[d][s]['bull']
+        #     bear = weights['bear_weight'] * all_features[d][s]['bear']
+        #     all_features[d][s]['real_ratio'] = calcRatio(bull, bear)
+        print(d,all_features[d]['AAPL']['bull_w'],all_features[d]['AAPL']['bear_w'],all_features[d]['AAPL']['count_ratio_w'])
+
+    return all_features
 
 
 # Make prediction by chooosing top n stocks to buy per day
 # Features are generated before hand per stock per day
 def prediction(start_date, end_date, all_features, num_top_stocks, weightings):
+
+    all_features = editFeatures(all_features, weightings)
+    return
+
     # cached closeopen prices
     cached_prices = constants['cached_prices']
     # find avg/std for each feature per stock
@@ -86,12 +101,16 @@ def prediction(start_date, end_date, all_features, num_top_stocks, weightings):
     dates = findTradingDays(start_date, end_date)
     total_return = 0
     accuracies = {}
+    strong_return = 0
+    strong_correct = 0
+    strong_total = 0
 
     # Find top n stock features for each day 
     for date in dates[1:]:
         all_features_day = {}
         date_string = date.strftime("%Y-%m-%d")
         stocks = getTopStocksforWeek(date, num_top_stocks) # top stocks for the week
+
         # Find features for each stock
         for symbol in stocks:
             # Relative to historical avg/std
@@ -99,13 +118,19 @@ def prediction(start_date, end_date, all_features, num_top_stocks, weightings):
             stock_features = all_features[date_string][symbol]
             stock_features_calibrated = {}
             for f in stock_features:
+                if (f == 'bull_weight' or f == 'bear_weight'):
+                    continue
+
                 stdDev = (stock_features[f] - stock_avgstd[f]['avg']) / stock_avgstd[f]['std']
+                # print(symbol, f, stock_features[f], stock_avgstd[f]['avg'], stock_avgstd[f]['std'], stdDev)
                 stock_features_calibrated[f] = stdDev
 
             # Weight each feature based on weight param
             result_weight = 0
             total_weight = 0
             for w in weightings:
+                if (w == 'bull_weight' or w == 'bear_weight'):
+                    continue
                 result_weight += (weightings[w] * stock_features_calibrated[w])
                 total_weight += weightings[w]
             all_features_day[symbol] = result_weight / total_weight
@@ -141,15 +166,28 @@ def prediction(start_date, end_date, all_features, num_top_stocks, weightings):
 
         total_return += return_today
         mapped_stocks = list(map(lambda x: [x[0], round(x[1] / sum_weights * 100, 2), x[2]], new_res_param))
+        # if (len(mapped_stocks) == 0):
+        #     print(date, stock_weightings)
+        #     continue
         # print(date_string, return_today, mapped_stocks)
+        if (abs(mapped_stocks[0][1]) > 60):
+            val = -1 if mapped_stocks[0][1] < 0 else 1
+            ret = val * mapped_stocks[0][2]
+            if (ret >= 0):
+                strong_correct += 1
+            strong_total += 1
+            strong_return += ret
+
+
 
     total_correct = 0
     total_total = 0
     for s in accuracies:
         total_correct += accuracies[s]['correct']
         total_total += accuracies[s]['total']
-        # print(s, accuracies[s]['correct'], accuracies[s]['total'])
+    #     print(s, accuracies[s]['correct'], accuracies[s]['total'])
 
+    # print(strong_correct/strong_total, strong_correct, strong_total, strong_return)
     # print(total_correct/total_total, total_return)
     return total_return
 
@@ -167,26 +205,35 @@ def findFeatures(start_date, end_date, num_top_stocks, path, update=False):
     all_stock_tweets = {} # store tweets locally for each stock
     user_features = {} # user features temp stored and built up on
     all_user_tweets = {}
+    # all_features = readPickleObject(path)
 
     # Find top stocks given the date (updated per week)
     # Use those stocks to find features based on tweets from those day
+    # date_str_1 = datetime.datetime(2020, 6, 24, 9, 30).strftime("%Y-%m-%d")
+    # date_str_2 = datetime.datetime(2020, 6, 23, 9, 30).strftime("%Y-%m-%d")
+    # del all_features[date_str_1]
+    # del all_features[date_str_2]
     for date in dates[1:]:
         stocks = getTopStocksforWeek(date, num_top_stocks) # top stocks for the week
+        # stocks = ['AAPL']
         date_str = date.strftime("%Y-%m-%d")
-        all_features[date_str] = {}
         print(date_str)
+        # if (date_str in all_features):
+        #     continue
+        all_features[date_str] = {}
         for symbol in stocks:
             tweets_per_stock = []
             # store all tweets for stock in memory
             if (symbol in all_stock_tweets): 
                 tweets_per_stock = all_stock_tweets[symbol]
             else:
-                stock_path = 'new_stock_files/' + symbol + '.pkl'
+                stock_path = 'old_stock_files/' + symbol + '.pkl'
                 tweets_per_stock = readPickleObject(stock_path)
                 all_stock_tweets[symbol] = tweets_per_stock
 
             # Find tweets used for predicting for this date
             tweets = findTweets(date, tweets_per_stock, cached_prices, symbol)
+            print(date_str,symbol, len(tweets))
             features = stockFeatures(tweets, symbol, cached_prices, user_features, all_user_tweets) # calc features based on tweets/day
             all_features[date_str][symbol] = features
 
@@ -211,7 +258,7 @@ def findTweets(date, tweets_per_stock, cached_prices, symbol):
         # Why would this happen ??
         if (date_string not in tweets_per_stock):
             print(date_string, symbol, "fetching tweets")
-            path = 'new_stock_files/' + symbol + '.pkl'
+            path = 'old_stock_files/' + symbol + '.pkl'
             tweets_per_stock = readPickleObject(path)
 
             # Find all tweets for the given day
@@ -513,8 +560,7 @@ def findUserInfo(username):
 def buildStockFeatures():
     result = {}
     labels = ['bull', 'bear', 'bull_w', 'bear_w']
-    features = ['return', 'return_log', 'return_s', 'return_log_s',
-                'return_w', 'return_log_w', 'return_s_w', 'return_log_s_w']
+    features = ['return', 'return_log', 'return_s', 'return_log_s']
     for l in labels:
         result[l] = 0
         for f in features:
@@ -577,11 +623,11 @@ def stockFeatures(tweets, symbol, cached_prices, all_user_features, all_user_twe
 
         user_weight = weightedUserPrediction(user_info, symbol)
         tweet_value = user_weight * w
-        if (isBull):
+        if (seen_users[user]['isBull']):
             bull_count += 1
         else:
             bear_count += 1
-    
+
         result[label] += tweet_value
         result[label + '_return'] += tweet_value * return_unique
         result[label + '_return_log'] += tweet_value * return_unique_log
@@ -591,11 +637,15 @@ def stockFeatures(tweets, symbol, cached_prices, all_user_features, all_user_twe
         # return unique (log) Weighted by number of times posted that day
         num_prediction_log = math.log10(seen_users[user]['count']) + 1
         result[label + '_w'] += tweet_value * num_prediction_log
-        result[label + '_return_w'] += tweet_value * return_unique * num_prediction_log
-        result[label + '_return_log_w'] += tweet_value * return_unique_log * num_prediction_log
-        result[label + '_return_s_w'] += tweet_value * return_unique_s * num_prediction_log
-        result[label + '_return_log_s_w'] += tweet_value * return_unique_log_s * num_prediction_log
+        result[label + '_w_return'] += tweet_value * return_unique * num_prediction_log
+        result[label + '_w_return_log'] += tweet_value * return_unique_log * num_prediction_log
+        result[label + '_w_return_s'] += tweet_value * return_unique_s * num_prediction_log
+        result[label + '_w_return_log_s'] += tweet_value * return_unique_log_s * num_prediction_log
 
+
+    # if (symbol == 'AAPL'):
+    #     print(result['bull'], result['bear'], bull_count, bear_count)
+        
     # Standardize by number of tweets
     try:
         for f in result:
@@ -617,10 +667,13 @@ def stockFeatures(tweets, symbol, cached_prices, all_user_features, all_user_twe
     result['total'] = result['bull'] - result['bear']
     result['total_w'] = result['bull_w'] - result['bear_w']
     result['return'] = result['bull_return'] - result['bear_return']
-    result['return_w'] = result['bull_return_w'] - result['bear_return_w']
+    result['return_w'] = result['bull_w_return'] - result['bear_w_return']
     result['return_log'] = result['bull_return_log'] - result['bear_return_log']
+    result['return_log_w'] = result['bull_w_return_log'] - result['bear_w_return_log']
     result['return_s'] = result['bull_return_s'] - result['bear_return_s']
+    result['return_s_w'] = result['bull_w_return_s'] - result['bear_w_return_s']
     result['return_log_s'] = result['bull_return_log_s'] - result['bear_return_log_s']
+    result['return_log_s_w'] = result['bull_w_return_log_s'] - result['bear_w_return_log_s']
 
     # Need to look at historical ratios to determine if this is sig diff 
     # negative means more bear than bull
@@ -628,13 +681,13 @@ def stockFeatures(tweets, symbol, cached_prices, all_user_features, all_user_twe
     result['count_ratio'] = calcRatio(result['bull'], result['bear'])
     result['count_ratio_w'] = calcRatio(result['bull_w'], result['bear_w'])
     result['return_ratio'] = calcRatio(result['bull_return'], result['bear_return'])
-    result['return_ratio_w'] = calcRatio(result['bull_return_w'], result['bear_return_w'])
+    result['return_ratio_w'] = calcRatio(result['bull_w_return'], result['bear_w_return'])
     result['return_log_ratio'] = calcRatio(result['bull_return_log'], result['bear_return_log'])
-    result['return_log_ratio_w'] = calcRatio(result['bull_return_log_w'], result['bear_return_log_w'])
+    result['return_log_ratio_w'] = calcRatio(result['bull_w_return_log'], result['bear_w_return_log'])
     result['return_s_ratio'] = calcRatio(result['bull_return_s'], result['bear_return_s'])
-    result['return_s_ratio_w'] = calcRatio(result['bull_return_s_w'], result['bear_return_s_w'])
+    result['return_s_ratio_w'] = calcRatio(result['bull_w_return_s'], result['bear_w_return_s'])
     result['return_log_s_ratio'] = calcRatio(result['bull_return_log_s'], result['bear_return_log_s'])
-    result['return_log_s_ratio_w'] = calcRatio(result['bull_return_log_s_w'], result['bear_return_log_s_w'])
+    result['return_log_s_ratio_w'] = calcRatio(result['bull_w_return_log_s'], result['bear_w_return_log_s'])
     return result
 
 

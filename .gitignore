@@ -1,7 +1,12 @@
 user_files/
 new_stock_files/
+old_stock_files/
 user_tweets/
 newPickled/
+
+*.npy
+*.csv
+*.pkl
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

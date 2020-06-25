@@ -214,34 +214,53 @@ def main():
     elif (options.prediction):
         num_top_stocks = 20 # Choose top 20 stocks of the week to parse
         start_date = datetime.datetime(2020, 1, 9, 15, 30)
-        end_date = datetime.datetime(2020, 6, 9, 9, 30)
+        end_date = datetime.datetime(2020, 6, 25, 9, 30)
         # end_date = datetime.datetime(dateNow.year, dateNow.month, dateNow.day - 3)
-        
+
+
+        #remove tweets
+        # date_str_1 = datetime.datetime(2020, 6, 24, 9, 30).strftime("%Y-%m-%d")
+        # date_str_2 = datetime.datetime(2020, 6, 23, 9, 30).strftime("%Y-%m-%d")
+        # stocks = getTopStocksforWeek(end_date, num_top_stocks) # top stocks for the week
+        # for symbol in stocks:
+        #     stock_path = 'new_stock_files/' + symbol + '.pkl'
+        #     tweets_per_stock = readPickleObject(stock_path)
+        #     del tweets_per_stock[date_str_1]
+        #     del tweets_per_stock[date_str_2]
+        #     writePickleObject(stock_path, tweets_per_stock)
+
+
         # Write all user files
         # updateAllUsers()
 
         # Write stock tweet files
         # writeTweets(start_date, end_date, num_top_stocks)
 
-        # Find features for prediction
-        path = 'newPickled/features_new_sqrtx_21.pkl'
-        found_features = findFeatures(start_date, end_date, num_top_stocks, path, True)
 
         # Optimize paramters
-        optimizeParams()
-        return
+        # optimizeParams()
+        # return
 
+
+        # Find features for prediction
+        path = 'newPickled/features_new_sqrtx_21_test_aapl.pkl'
+        found_features = findFeatures(start_date, end_date, num_top_stocks, path, False)
+
+        
         # Make prediction
         weightings = {
-            'count_ratio': 1,
-            'return_log_ratio': 1.1,
-            'total': 0.3,
-            'return_s_ratio': 0.3,
-            'bull': 0.4,
+            'bull_weight': 1,
+            'bear_weight': 1,
+            'real_ratio': 10,
+            # 'return_log_ratio_w': 2.5,
+            'total': 0.05,
+            # 'return_ratio_w': 0.4,
+            # 'return_s_ratio': 0.3,
+            'bull': 1.3,
             # 'bear': 0.6
         }
         print(prediction(start_date, end_date, found_features, num_top_stocks, weightings))
-        return
+        # return
         # Optimize features
         # return, bull_return_s, return_s, bull not useful
         # total, return, return_log, bear, bull_return_log_s, bull_return, bull_return_log not useful
@@ -296,8 +315,10 @@ def main():
     elif (options.dailyuserparser):
         dailyAnalyzeUsers(reAnalyze=True, updateUser=True, daysback=14)
     else:
-        cached_prices = readPickleObject('newPickled/averaged.pkl')
-        # print(getTopStocksforWeek(datetime.datetime(2020, 1, 9, 15, 30), 20))
+
+
+        # cached_prices = readPickleObject('newPickled/averaged.pkl')
+        print(getTopStocksforWeek(datetime.datetime(2019, 6, 25, 15, 30), 20))
 
         
         # print(findCloseOpenCached('JNUG', datetime.datetime(2020, 5, 29, 15, 30), cached_prices))

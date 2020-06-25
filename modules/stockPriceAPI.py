@@ -47,10 +47,10 @@ def findDateString(time, cached_prices):
 
 
 def exportCloseOpen():
-    path = 'newPickled/averaged.pkl'
+    path = 'newPickled/averaged_new.pkl'
     result = {}
 
-    with open('cachedCloseOpen/close_open1.csv') as csv_file:
+    with open('cachedCloseOpen/new2.csv') as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=',')
         for row in csv_reader:
             first = row[0].split()
@@ -61,7 +61,7 @@ def exportCloseOpen():
                 result[date] = {}
             result[date][symbol] = res
 
-    with open('cachedCloseOpen/close_open2.csv') as csv_file:
+    with open('cachedCloseOpen/new1.csv') as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=',')
         for row in csv_reader:
             first = row[0].split()
