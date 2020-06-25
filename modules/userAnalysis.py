@@ -462,7 +462,7 @@ def initializePerStockFeatures(symbol, result):
     result['perStock'][symbol] = {}
     keys = ['correct_predictions', 'num_predictions',
             'unique_correct_predictions', 'unique_num_predictions', 
-            'unique_return', 'unique_return_log']
+            'unique_return', 'unique_return_log', 'unique_return_w1']
     for k in keys:
         result['perStock'][symbol][k] = {}
         result['perStock'][symbol][k]['bull'] = 0
@@ -472,12 +472,16 @@ def initializePerStockFeatures(symbol, result):
 # Update feature results for a user given close open prices
 # Not using functions for now ('1' by default)
 # TODO: pReturnCloseOpen look at price at time of posting
-def updateUserFeatures(result, tweet, uniqueStocks, cached_prices):
+def updateUserFeatures(result, tweet, uniqueStocks):
     # functions = constants['functions']
+    cached_prices = constants['cached_prices']
     time = tweet['time']
     symbol = tweet['symbol']
     isBull = tweet['isBull']
     label = 'bull' if (isBull) else 'bear'
+
+    if (symbol == '' or symbol == 'BPMX'):
+        return
 
     closeOpen = findCloseOpenCached(symbol, time, cached_prices)
     if (closeOpen is None):
@@ -499,20 +503,14 @@ def updateUserFeatures(result, tweet, uniqueStocks, cached_prices):
     # For unique predictions per day, only count (bull/bear) if its majority
     time_string = symbol + ' ' + findDateString(time, cached_prices)
     if (time_string in uniqueStocks):
-        uniqueStocks[time_string]['times'].append(time)
-        if (isBull):
-            uniqueStocks[time_string]['bull'] += 1
-        else:
-            uniqueStocks[time_string]['bear'] += 1
+        if (isBull == uniqueStocks[time_string]['last_prediction']):
+            uniqueStocks[time_string]['count'] += 1
     else:
-        time_result = {'times': [time], 'symbol': symbol, 'percent_change': percent_change}
-        time_result['last_prediction'] = isBull
-        if (isBull):
-            time_result['bull'] = 1
-            time_result['bear'] = 0
-        else:
-            time_result['bull'] = 0
-            time_result['bear'] = 1
+        time_result = {'time': time, 
+                    'symbol': symbol, 
+                    'percent_change': percent_change,
+                    'last_prediction': isBull,
+                    'count': 1}
         uniqueStocks[time_string] = time_result
 
 

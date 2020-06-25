@@ -214,7 +214,7 @@ def main():
     elif (options.prediction):
         num_top_stocks = 20 # Choose top 20 stocks of the week to parse
         start_date = datetime.datetime(2020, 1, 9, 15, 30)
-        end_date = datetime.datetime(2020, 6, 25, 9, 30)
+        end_date = datetime.datetime(2020, 6, 19, 9, 30)
         # end_date = datetime.datetime(dateNow.year, dateNow.month, dateNow.day - 3)
 
 
@@ -249,15 +249,11 @@ def main():
         
         # Make prediction
         weightings = {
-            'bull_weight': 1,
-            'bear_weight': 1,
-            'real_ratio': 10,
-            # 'return_log_ratio_w': 2.5,
-            'total': 0.05,
-            # 'return_ratio_w': 0.4,
-            # 'return_s_ratio': 0.3,
-            'bull': 1.3,
-            # 'bear': 0.6
+            'count_ratio_w': 4.28,
+            'return_log_ratio_w': 2.61,
+            'total_w': 5.54,
+            'return_log': 1.88,
+            'bull_w': 2.64,
         }
         print(prediction(start_date, end_date, found_features, num_top_stocks, weightings))
         # return
@@ -338,7 +334,7 @@ def main():
         #         print(count)
 
         # now = convertToEST(datetime.datetime.now())
-        # date = datetime.datetime(2020, 1, 1)
+        # date = datetime.datetime(2019, 6, 1)
         # delta = datetime.timedelta(days=1)
         # result = []
         # while (date < datetime.datetime(2020, 7, 9)):
@@ -396,7 +392,8 @@ def main():
         # getStatsPerUser('Buckeye1212')
         # print(getAllUserInfo('hirashima'))
 
-        # print(len(findTweets(date, 'AAPL')))
+        # date = datetime.datetime(2019, 7, 15, 16)
+        # print(findTweets(date, {}, 'AAPL'))
 
         # getAllUserInfo('SDF9090')
         # print(weightedUserPrediction(getAllUserInfo('SDF9090'), ''))
