@@ -637,6 +637,8 @@ def stockFeatures(tweets, symbol, all_user_features, all_user_tweets):
         return_unique_w1_s = findFeature(user_info, symbol, ['unique_return_w1'], label)
 
         user_weight = weightedUserPrediction(user_info, symbol)
+        if (user_weight == 0):
+            continue
         tweet_value = user_weight * w
         if (seen_users[user]['isBull']):
             bull_count += 1
@@ -769,23 +771,22 @@ def weightedUserPrediction(user, symbol):
     accuracy_unique = findFeature(user, '', ['unique_correct_predictions', 'unique_num_predictions'], bull_bear)
     accuracy_unique_s = findFeature(user, symbol, ['unique_correct_predictions', 'unique_num_predictions'], bull_bear)
 
-    if (accuracy_unique < 0.3 or accuracy_unique_s < 0.3):
+    if (accuracy_unique < 0.5 or accuracy_unique_s < 0.5):
         return 0
 
     return_unique = findFeature(user, '', ['unique_return'], bull_bear)
     return_unique_s = findFeature(user, symbol, ['unique_return'], bull_bear)
 
+    if (return_unique < 0 or return_unique < 0):
+        return 0
+
     # (2) scale between -100 and 100 / -100 and 100
-    scaled_return_unique = (100 + return_unique) / 200
-    scaled_return_unique_s = (100 + return_unique_s) / 200
+    scaled_return_unique = return_unique / 100
+    scaled_return_unique_s = return_unique_s / 100
     if (scaled_return_unique > 1):
         scaled_return_unique = 1
     if (scaled_return_unique_s > 1):
         scaled_return_unique_s = 1
-    # if (scaled_return_unique < 0):
-    #     scaled_return_unique = 0
-    # if (scaled_return_unique_s < 0):
-    #     scaled_return_unique_s = 0
 
     accuracy_x_tweets = accuracy_unique * scaled_num_tweets
     accuracy_x_tweets_s = accuracy_unique_s * scaled_num_tweets_s
