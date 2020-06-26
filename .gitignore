@@ -1,5 +1,5 @@
 user_files/
-new_stock_files/
+new_stock_files/*.pkl
 old_stock_files/
 user_tweets/
 newPickled/
