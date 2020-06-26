@@ -239,8 +239,8 @@ def main():
         # return
 
         # Optimize paramters
-        optimizeParams()
-        return
+        # optimizeParams()
+        # return
 
 
         # Find features for prediction
@@ -250,9 +250,9 @@ def main():
 
         # Make prediction
         weightings = {
-            # 'count_ratio_w': 2,
-            'bull_w': 3,
-            'return_ratio_w': 2,
+            # 'return_w': 0.8,
+            'bull_w': 2.64,
+            'bull_return_log_s': 0.7,
             # 'return_w': 3.23,
             # 'bear_w_return': 1.09,
             # 'bull_w_return': 2.74,

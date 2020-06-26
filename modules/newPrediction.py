@@ -3,6 +3,7 @@ import statistics
 import math
 import os
 import csv
+import matplotlib. pyplot as plt
 from scipy.optimize import minimize
 from functools import reduce
 from .hyperparameters import constants
@@ -16,10 +17,11 @@ from .helpers import (calcRatio, findWeight, readPickleObject, findAllDays,
 
 def optimizeFN(params):
     weightings = {
-        # 'count_ratio_w': params[0],
-        'bull_w': params[0],
-        # 'return_ratio_w': params[2],
-        'return_ratio_w': params[1],
+        'return_w': params[0],
+        'bull_w': params[1],
+        'bull_return_log_s': params[2],
+        # 'bull_w_return': params[2],
+        # 'return_ratio_w': params[3],
         # 'return_s_ratio_w': params[3],
         # 'bear_w_return': params[4],
         # 'bull_w_return': params[5],
@@ -40,14 +42,17 @@ def optimizeFN(params):
     return -result
 
 
+# bull_w_return_w1 OK
+# bull_return_log_s OK
+# count_ratio_w useless
 
 def optimizeParams():
     params = {
-        # 'count_ratio_w': [1, (0, 30)],
-        'bull_w': [3, (0, 30)],
-        # 'bull_w': [1, (0, 30)],
-        # 'return_ratio_w': [3, (0, 30)],
-        'return_ratio_w': [2, (0, 30)],
+        'return_w': [0.8, (0, 30)],
+        'bull_w': [2.6, (0, 30)],
+        'bull_return_log_s': [0.3, (0, 30)],
+        # 'bull_w_return': [1, (0, 30)],
+        # 'return_ratio_w': [1, (0, 30)],
         # 'return_s_ratio_w': [2, (0, 30)],
         # 'bear_w_return': [1.09, (0, 30)],
         # 'bull_w_return': [2.74, (0, 30)],
@@ -60,13 +65,13 @@ def optimizeParams():
 
     initial_values = list(map(lambda key: params[key][0], list(params.keys())))
     bounds = list(map(lambda key: params[key][1], list(params.keys())))
-    result = minimize(optimizeFN, initial_values, method='SLSQP', options={'maxiter': 30, 'eps': 0.6}, 
-                    bounds=(bounds[0],bounds[1]))
+    result = minimize(optimizeFN, initial_values, method='SLSQP', options={'maxiter': 30, 'eps': 0.4}, 
+                    bounds=(bounds[0],bounds[1],bounds[2]))
     print(result)
 
 
 # Standardize all features by average stock count for bull/bear
-def editFeatures(all_features, weights):
+def editFeatures(start_date, end_date, all_features, weights):
     # Find counts of bear/bull per stock
     stock_counts = {}
     for d in all_features:
@@ -88,6 +93,8 @@ def editFeatures(all_features, weights):
         stock_counts[s]['bear_count'] /= stock_counts[s]['total']
         # print(s, stock_counts[s]['bull_count'], stock_counts[s]['bear_count'])
 
+    data = []
+    data1 = []
     for d in all_features:
         for s in all_features[d]:
             # standardize all features before using
@@ -123,14 +130,34 @@ def editFeatures(all_features, weights):
             result['return_log_s_ratio_w'] = calcRatio(result['bull_w_return_log_s'], result['bear_w_return_log_s'])
             result['return_w1_ratio'] = calcRatio(result['bull_w_return_w1'], result['bear_w_return_w1'])
             result['return_w1_s_ratio'] = calcRatio(result['bull_w_return_w1_s'], result['bear_w_return_w1_s'])
-
-            # if (s == 'AAPL'):
-            #     print(d, result['bull'], result['bear'], stock_counts[s]['bull_count'], stock_counts[s]['bear_count'], result['count_ratio'])
+            
             # Make all bear features negative
             for f in all_features[d][s]:
                 if ('bear' in f):
                     all_features[d][s][f] = -all_features[d][s][f]
 
+    # find avg/std for each feature per stock for standardization
+    avg_std = findAverageStd(start_date, end_date, all_features)
+    for d in all_features:
+        for s in all_features[d]:
+            # Relative to historical avg/std
+            stock_avgstd = avg_std[s]
+            stock_features = all_features[d][s]
+            # if (s == 'SPY'):
+            # for f in stock_features:
+            #     stdDev = (stock_features[f] - stock_avgstd[f]['avg']) / stock_avgstd[f]['std']
+            #     stock_features[f] = stdDev
+
+            # data.append(stock_features['bull'])
+            # data1.append(stock_features['bear'])
+
+
+    # fig, axs = plt.subplots(2)
+    # print(data)
+    # print(data1)
+    # axs[0].hist(data, density=False, bins=150)
+    # axs[1].hist(data1, density=False, bins=150)
+    # plt.show()
     return all_features
 
 
@@ -139,12 +166,11 @@ def editFeatures(all_features, weights):
 def prediction(start_date, end_date, all_features, num_top_stocks, weightings):
 
     # Standardize all features by their historical counts
-    all_features = editFeatures(all_features, weightings)
+    all_features = editFeatures(start_date, end_date, all_features, weightings)
 
     # cached closeopen prices
     cached_prices = constants['cached_prices']
-    # find avg/std for each feature per stock
-    avg_std = findAverageStd(start_date, end_date, all_features)
+
     # trading days 
     dates = findTradingDays(start_date, end_date)
     total_return = 0
@@ -161,25 +187,13 @@ def prediction(start_date, end_date, all_features, num_top_stocks, weightings):
 
         # Find features for each stock
         for symbol in stocks:
-            # Relative to historical avg/std
-            stock_avgstd = avg_std[symbol]
             stock_features = all_features[date_string][symbol]
-            stock_features_calibrated = {}
-            for f in stock_features:
-                if (f == 'bull_weight' or f == 'bear_weight'):
-                    continue
-
-                stdDev = (stock_features[f] - stock_avgstd[f]['avg']) / stock_avgstd[f]['std']
-                # print(symbol, f, stock_features[f], stock_avgstd[f]['avg'], stock_avgstd[f]['std'], stdDev)
-                stock_features_calibrated[f] = stdDev
 
             # Weight each feature based on weight param
             result_weight = 0
             total_weight = 0
             for w in weightings:
-                if (w == 'bull_weight' or w == 'bear_weight'):
-                    continue
-                result_weight += (weightings[w] * stock_features_calibrated[w])
+                result_weight += (weightings[w] * stock_features[w])
                 total_weight += weightings[w]
             all_features_day[symbol] = result_weight / total_weight
 
@@ -214,10 +228,10 @@ def prediction(start_date, end_date, all_features, num_top_stocks, weightings):
 
         total_return += return_today
         mapped_stocks = list(map(lambda x: [x[0], round(x[1] / sum_weights * 100, 2), x[2]], new_res_param))
-        # if (len(mapped_stocks) == 0):
-        #     print(date, stock_weightings)
-        #     continue
-        # print(date_string, return_today, mapped_stocks)
+        if (len(mapped_stocks) == 0):
+            print(date, stock_weightings)
+            continue
+        print(date_string, return_today, mapped_stocks)
         if (abs(mapped_stocks[0][1]) > 60):
             val = -1 if mapped_stocks[0][1] < 0 else 1
             ret = val * mapped_stocks[0][2]
@@ -232,10 +246,10 @@ def prediction(start_date, end_date, all_features, num_top_stocks, weightings):
     for s in accuracies:
         total_correct += accuracies[s]['correct']
         total_total += accuracies[s]['total']
-        # print(s, accuracies[s]['correct'], accuracies[s]['total'])
+        print(s, accuracies[s]['correct'], accuracies[s]['total'])
 
-    # print(strong_correct/strong_total, strong_correct, strong_total, strong_return)
-    # print(total_correct/total_total, total_return)
+    print(strong_correct/strong_total, strong_correct, strong_total, strong_return)
+    print(total_correct/total_total, total_return)
     return total_return
 
 
