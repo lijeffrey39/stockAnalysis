@@ -71,7 +71,7 @@ def calcRatio(bullNum, bearNum):
         ratio = maxVal
     else:
         ratio = maxVal * 1.0 / minVal
-    ratio -= 1 # offset by 1
+        ratio -= 1 # offset by 1
     if (bullNum < bearNum):
         ratio = -ratio
     return ratio

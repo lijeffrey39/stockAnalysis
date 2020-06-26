@@ -246,16 +246,16 @@ def main():
         # Find features for prediction
         path = 'newPickled/features_new_sqrtx_21_test_aapl.pkl'
         found_features = findFeatures(start_date, end_date, num_top_stocks, path, False)
-
+        # return
 
         # Make prediction
         weightings = {
-            'count_ratio_w': 2.08,
-            'return_log_ratio_w': 1.6,
-            'total_w': 1,
-            'return_w': 3.23,
-            'bear_w_return': 1.09,
-            'bull_w_return': 2.74,
+            # 'count_ratio_w': 2,
+            'bull_w': 3,
+            'return_ratio_w': 2,
+            # 'return_w': 3.23,
+            # 'bear_w_return': 1.09,
+            # 'bull_w_return': 2.74,
             # 'return_w1_ratio': 1.9,
             # 'bear_return_s': 2.8,
             # 'bear': 7.7,
@@ -319,8 +319,16 @@ def main():
     else:
 
 
+        bucket = readPickleObject('bucket.pkl')
+        data = list(map(lambda x: x[7], bucket['bucket']))
+        data.sort(reverse=True)
+        print(data[:20])
+        # print(len(data))
+        plt.hist(data[40:], density=False, bins=150)
+        plt.show()
+
         # cached_prices = readPickleObject('newPickled/averaged.pkl')
-        print(getTopStocksforWeek(datetime.datetime(2019, 6, 25, 15, 30), 20))
+        # print(getTopStocksforWeek(datetime.datetime(2019, 6, 25, 15, 30), 20))
 
         
         # print(findCloseOpenCached('JNUG', datetime.datetime(2020, 5, 29, 15, 30), cached_prices))
@@ -328,7 +336,14 @@ def main():
         #     print(t)
         # for i in [1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6,1, 2, 3, 4, 5, 6,1, 2, 3, 4, 5, 6,1, 2, 3, 4, 5, 6]:
         #     print("hi")
-        # res = calculateUserFeatures('johnyyywardyy', datetime.datetime(2020, 6, 12), cached_prices)
+        # Ultra_Calls
+        username = 'Ultra_Calls'
+        # user_tweets = cachedUserTweets(username)
+        # res = calculateUserFeatures(username, datetime.datetime(2020, 6, 18), {}, user_tweets)
+        # print(res['unique_return'])
+        # for s in res['perStock']:
+        #     print(s, res['perStock'][s]['unique_return'])
+        # print(res)
 
         # arr = os.listdir('user_tweets/')
         # count = 0

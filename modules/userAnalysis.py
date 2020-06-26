@@ -118,7 +118,7 @@ def findUsers(reAnalyze, findNewUsers, updateUser):
     cursor = None
     # Find all tweets this user posted again up till last time
     if (updateUser):
-        dateStart = convertToEST(datetime.datetime.now()) - datetime.timedelta(days=4)
+        dateStart = convertToEST(datetime.datetime.now()) - datetime.timedelta(days=14)
         query = {'last_updated': {'$lte': dateStart}, 'error': ''}
         cursor = analyzedUsers.find(query)
     elif (reAnalyze):
@@ -473,14 +473,13 @@ def initializePerStockFeatures(symbol, result):
 # Not using functions for now ('1' by default)
 # TODO: pReturnCloseOpen look at price at time of posting
 def updateUserFeatures(result, tweet, uniqueStocks):
-    # functions = constants['functions']
     cached_prices = constants['cached_prices']
     time = tweet['time']
     symbol = tweet['symbol']
     isBull = tweet['isBull']
     label = 'bull' if (isBull) else 'bear'
 
-    if (symbol == '' or symbol == 'BPMX'):
+    if (symbol == ''):
         return
 
     closeOpen = findCloseOpenCached(symbol, time, cached_prices)
@@ -500,34 +499,19 @@ def updateUserFeatures(result, tweet, uniqueStocks):
     result['num_predictions'][label] += 1
     result['perStock'][symbol]['num_predictions'][label] += 1
 
+    w = findWeight(time, 'log(x)')
     # For unique predictions per day, only count (bull/bear) if its majority
     time_string = symbol + ' ' + findDateString(time, cached_prices)
     if (time_string in uniqueStocks):
         if (isBull == uniqueStocks[time_string]['last_prediction']):
-            uniqueStocks[time_string]['count'] += 1
+            uniqueStocks[time_string]['count'] += w
     else:
         time_result = {'time': time, 
                     'symbol': symbol, 
                     'percent_change': percent_change,
                     'last_prediction': isBull,
-                    'count': 1}
+                    'count': w}
         uniqueStocks[time_string] = time_result
-
-
-    # keys = ['numCloseOpen', 'numPredictions']
-    # label = 'bull' if (isBull) else 'bear'
-    # count = 0
-    # for k in keys:
-    #     result[k][label] += values[count]
-    #     result['perStock'][symbol][k][label] += values[count]
-    #     count += 1
-
-        # for f in functions:
-        #     w = findWeight(time, f)
-        #     val = w * values[count]
-        #     result[f][k][label] += val
-        #     result['perStock'][symbol][f][k][label] += val
-        # count += 1
 
 
 # Returns stats from user info for prediction

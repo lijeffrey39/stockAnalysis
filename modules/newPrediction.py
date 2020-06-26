@@ -16,12 +16,13 @@ from .helpers import (calcRatio, findWeight, readPickleObject, findAllDays,
 
 def optimizeFN(params):
     weightings = {
-        'count_ratio_w': params[0],
-        'return_log_ratio_w': params[1],
-        'total_w': params[2],
-        'return_s_ratio_w': params[3],
-        'bear_w_return': params[4],
-        'bull_w_return': params[5],
+        # 'count_ratio_w': params[0],
+        'bull_w': params[0],
+        # 'return_ratio_w': params[2],
+        'return_ratio_w': params[1],
+        # 'return_s_ratio_w': params[3],
+        # 'bear_w_return': params[4],
+        # 'bull_w_return': params[5],
         # 'return_w1_ratio': params[6],
         # 'bear_return_s': params[7],
         # 'bear': params[8],
@@ -39,38 +40,17 @@ def optimizeFN(params):
     return -result
 
 
-# result['total'] = result['bull'] - result['bear']
-# result['return'] = result['bull_return'] - result['bear_return']
-# result['return_log'] = result['bull_return_log'] - result['bear_return_log']
-# result['return_s'] = result['bull_return_s'] - result['bear_return_s']
-# result['return_log_s'] = result['bull_return_log_s'] - result['bear_return_log_s']
-
-# # Need to look at historical ratios to determine if this is sig diff 
-# # negative means more bear than bull
-# # ratio of the "sentiment" for the day
-# result['count_ratio'] = calcRatio(result['bull'], result['bear'])
-# result['return_ratio'] = calcRatio(result['bull_return'], result['bear_return'])
-# result['return_log_ratio'] = calcRatio(result['bull_return_log'], result['bear_return_log'])
-# result['return_s_ratio'] = calcRatio(result['bull_return_s'], result['bear_return_s'])
-# result['return_log_s_ratio'] = calcRatio(result['bull_return_log_s'], result['bear_return_log_s'])
-
-# BAD
-# bull_return_s
-# return_log
-# bull_return_log
-# bull_return_log_s
-
-# return_log_s_ratio
-
 
 def optimizeParams():
     params = {
-        'count_ratio_w': [2.2, (0, 30)],
-        'return_log_ratio_w': [1.2, (0, 30)],
-        'total': [1.1, (0, 30)],
-        'return_s_ratio_w': [1.3, (0, 30)],
-        'bear_w_return': [1, (0, 30)],
-        'bull_w_return': [4.2, (0, 30)],
+        # 'count_ratio_w': [1, (0, 30)],
+        'bull_w': [3, (0, 30)],
+        # 'bull_w': [1, (0, 30)],
+        # 'return_ratio_w': [3, (0, 30)],
+        'return_ratio_w': [2, (0, 30)],
+        # 'return_s_ratio_w': [2, (0, 30)],
+        # 'bear_w_return': [1.09, (0, 30)],
+        # 'bull_w_return': [2.74, (0, 30)],
         # 'return_w1_ratio': [1.9, (0, 30)],
         # 'bear_return_s': [2.8, (0, 30)],
         # 'bear': [7.7, (0, 30)],
@@ -80,23 +60,76 @@ def optimizeParams():
 
     initial_values = list(map(lambda key: params[key][0], list(params.keys())))
     bounds = list(map(lambda key: params[key][1], list(params.keys())))
-    result = minimize(optimizeFN, initial_values, method='SLSQP', options={'maxiter': 30, 'eps': 0.2}, 
-                    bounds=(bounds[0],bounds[1],bounds[2],bounds[3],bounds[4],bounds[5]))
+    result = minimize(optimizeFN, initial_values, method='SLSQP', options={'maxiter': 30, 'eps': 0.6}, 
+                    bounds=(bounds[0],bounds[1]))
     print(result)
 
 
-
+# Standardize all features by average stock count for bull/bear
 def editFeatures(all_features, weights):
-    # print(all_features.keys())
+    # Find counts of bear/bull per stock
+    stock_counts = {}
     for d in all_features:
         for s in all_features[d]:
+            if (s not in stock_counts):
+                stock_counts[s] = {'bull_count': 0, 
+                                'bear_count': 0,
+                                'total': 0}
+            # print(all_features[d][s])
+            bull_count = all_features[d][s]['bull_count']
+            bear_count = all_features[d][s]['bear_count']
+            stock_counts[s]['bull_count'] += bull_count
+            stock_counts[s]['bear_count'] += bear_count
+            stock_counts[s]['total'] += 1
+
+    # Take average for each stock
+    for s in stock_counts:
+        stock_counts[s]['bull_count'] /= stock_counts[s]['total']
+        stock_counts[s]['bear_count'] /= stock_counts[s]['total']
+        # print(s, stock_counts[s]['bull_count'], stock_counts[s]['bear_count'])
+
+    for d in all_features:
+        for s in all_features[d]:
+            # standardize all features before using
+            result = all_features[d][s]
+            for f in all_features[d][s]:
+                if ('bull' in f):
+                    result[f] /= stock_counts[s]['bull_count']
+                else:
+                    result[f] /= stock_counts[s]['bear_count']
+
+            result['total'] = result['bull'] - result['bear']
+            result['total_w'] = result['bull_w'] - result['bear_w']
+            result['return'] = result['bull_return'] - result['bear_return']
+            result['return_w'] = result['bull_w_return'] - result['bear_w_return']
+            result['return_log'] = result['bull_return_log'] - result['bear_return_log']
+            result['return_log_w'] = result['bull_w_return_log'] - result['bear_w_return_log']
+            result['return_s'] = result['bull_return_s'] - result['bear_return_s']
+            result['return_s_w'] = result['bull_w_return_s'] - result['bear_w_return_s']
+            result['return_log_s'] = result['bull_return_log_s'] - result['bear_return_log_s']
+            result['return_log_s_w'] = result['bull_w_return_log_s'] - result['bear_w_return_log_s']
+            result['return_w1'] = result['bull_w_return_w1'] - result['bear_w_return_w1']
+            result['return_w1_s'] = result['bull_w_return_w1_s'] - result['bear_w_return_w1_s']
+
+            result['count_ratio'] = calcRatio(result['bull'], result['bear'])
+            result['count_ratio_w'] = calcRatio(result['bull_w'], result['bear_w'])
+            result['return_ratio'] = calcRatio(result['bull_return'], result['bear_return'])
+            result['return_ratio_w'] = calcRatio(result['bull_w_return'], result['bear_w_return'])
+            result['return_log_ratio'] = calcRatio(result['bull_return_log'], result['bear_return_log'])
+            result['return_log_ratio_w'] = calcRatio(result['bull_w_return_log'], result['bear_w_return_log'])
+            result['return_s_ratio'] = calcRatio(result['bull_return_s'], result['bear_return_s'])
+            result['return_s_ratio_w'] = calcRatio(result['bull_w_return_s'], result['bear_w_return_s'])
+            result['return_log_s_ratio'] = calcRatio(result['bull_return_log_s'], result['bear_return_log_s'])
+            result['return_log_s_ratio_w'] = calcRatio(result['bull_w_return_log_s'], result['bear_w_return_log_s'])
+            result['return_w1_ratio'] = calcRatio(result['bull_w_return_w1'], result['bear_w_return_w1'])
+            result['return_w1_s_ratio'] = calcRatio(result['bull_w_return_w1_s'], result['bear_w_return_w1_s'])
+
+            # if (s == 'AAPL'):
+            #     print(d, result['bull'], result['bear'], stock_counts[s]['bull_count'], stock_counts[s]['bear_count'], result['count_ratio'])
+            # Make all bear features negative
             for f in all_features[d][s]:
                 if ('bear' in f):
                     all_features[d][s][f] = -all_features[d][s][f]
-            # bull = weights['bull_weight'] * all_features[d][s]['bull']
-            # bear = weights['bear_weight'] * all_features[d][s]['bear']
-            # all_features[d][s]['real_ratio'] = calcRatio(bull, bear)
-        # print(d,all_features[d]['AAPL']['bull_w'],all_features[d]['AAPL']['bear_w'],all_features[d]['AAPL']['count_ratio_w'])
 
     return all_features
 
@@ -105,6 +138,7 @@ def editFeatures(all_features, weights):
 # Features are generated before hand per stock per day
 def prediction(start_date, end_date, all_features, num_top_stocks, weightings):
 
+    # Standardize all features by their historical counts
     all_features = editFeatures(all_features, weightings)
 
     # cached closeopen prices
@@ -193,13 +227,12 @@ def prediction(start_date, end_date, all_features, num_top_stocks, weightings):
             strong_return += ret
 
 
-
     total_correct = 0
     total_total = 0
     for s in accuracies:
         total_correct += accuracies[s]['correct']
         total_total += accuracies[s]['total']
-    #     print(s, accuracies[s]['correct'], accuracies[s]['total'])
+        # print(s, accuracies[s]['correct'], accuracies[s]['total'])
 
     # print(strong_correct/strong_total, strong_correct, strong_total, strong_return)
     # print(total_correct/total_total, total_return)
@@ -218,7 +251,7 @@ def findFeatures(start_date, end_date, num_top_stocks, path, update=False):
     all_stock_tweets = {} # store tweets locally for each stock
     user_features = {} # user features temp stored and built up on
     all_user_tweets = {}
-    all_features = readPickleObject(path)
+    # all_features = readPickleObject(path)
 
     # Find top stocks given the date (updated per week)
     # Use those stocks to find features based on tweets from those day
@@ -227,9 +260,9 @@ def findFeatures(start_date, end_date, num_top_stocks, path, update=False):
     # del all_features[date_str_1]
     # del all_features[date_str_2]
 
+    bucket = []
     for date in dates[1:]:
         stocks = getTopStocksforWeek(date, num_top_stocks) # top stocks for the week
-        # stocks = ['AAPL']
         date_str = date.strftime("%Y-%m-%d")
         print(date_str)
         if (date_str in all_features):
@@ -446,12 +479,14 @@ def calculateUserFeatures(username, date, all_user_features, tweets):
 
         # Filter by tweets before the current date and after last updated date
         for tweet in tweets:
+            # if (tweet['time'] >= last_updated and tweet['time'] < date and tweet['symbol'] in constants['top_stocks']):
             if (tweet['time'] >= last_updated and tweet['time'] < date):
                 updateUserFeatures(result, tweet, unique_stocks)
     else:
         result = initializeUserFeatures(username) # initialize user features for first time
         # Only filter by all tweets before current date
         for tweet in tweets:
+            # if (tweet['time'] < date and tweet['symbol'] in constants['top_stocks']):
             if (tweet['time'] < date):
                 updateUserFeatures(result, tweet, unique_stocks)
 
@@ -560,15 +595,6 @@ def findUserInfo(username):
         return None
     return found_user
 
-# Calculate features based on list of tweets
-# Each tweet is multiplied by the weights
-# number tweets
-# number unique tweets
-# bull count / ratio
-# unique bull / ratio
-# bear count / ratio
-# unique bull / ratio
-# unique return
 
 def buildStockFeatures():
     result = {}
@@ -594,17 +620,19 @@ def stockFeatures(tweets, symbol, all_user_features, all_user_tweets):
     for tweet in tweets:
         username = tweet['user']
         isBull = tweet['isBull']
+        tweeted_date = tweet['time']
+        w = findWeight(tweeted_date, 'log(x)')
         # Only look at the most recent prediction by user
         if (username in seen_users):
             # If previous prediction was the same as last prediction, add to weighting
             prev_prediction = seen_users[username]['isBull']
             if (isBull == prev_prediction):
-                seen_users[username]['count'] += 1
+                seen_users[username]['count'] += w
             continue
         seen_users[username] = {
             'user': tweet['user'],
             'isBull': isBull,
-            'count': 1,
+            'count': w,
             'time': tweet['time']
         }
 
@@ -627,23 +655,51 @@ def stockFeatures(tweets, symbol, all_user_features, all_user_tweets):
             if (user_tweets == None):
                 continue
 
+        # Find user features (return, accuracy, etc.) before tweeted date
         user_info = calculateUserFeatures(username, tweeted_date, all_user_features, user_tweets)
 
-        return_unique = findFeature(user_info, '', ['unique_return'], label)
-        return_unique_s = findFeature(user_info, symbol, ['unique_return'], label)
-        return_unique_log = findFeature(user_info, '', ['unique_return_log'], label)
-        return_unique_log_s = findFeature(user_info, symbol, ['unique_return_log'], label)
-        return_unique_w1 = findFeature(user_info, '', ['unique_return_w1'], label)
-        return_unique_w1_s = findFeature(user_info, symbol, ['unique_return_w1'], label)
+        num_tweets = findFeature(user_info, '', ['num_predictions'], None)
+        num_tweets_unique = findFeature(user_info, '', ['unique_num_predictions'], None)
+        num_tweets_s = findFeature(user_info, symbol, ['num_predictions'], None)
+        num_tweets_s_unique = findFeature(user_info, symbol, ['unique_num_predictions'], None)
 
-        user_weight = weightedUserPrediction(user_info, symbol)
-        if (user_weight == 0):
+        # Filter by number of tweets
+        if (num_tweets <= 40 or num_tweets_s <= 10 or num_tweets_unique <= 5 or num_tweets_s_unique <= 5):
             continue
-        tweet_value = user_weight * w
+
+        accuracy_unique = findFeature(user_info, '', ['unique_correct_predictions', 'unique_num_predictions'], None)
+        accuracy_unique_s = findFeature(user_info, symbol, ['unique_correct_predictions', 'unique_num_predictions'], None)
+        return_unique = findFeature(user_info, '', ['unique_return'], None)
+        return_unique_s = findFeature(user_info, symbol, ['unique_return'], None)
+        return_unique_log = findFeature(user_info, '', ['unique_return_log'], None)
+        return_unique_log_s = findFeature(user_info, symbol, ['unique_return_log'], None)
+        return_unique_w1 = findFeature(user_info, '', ['unique_return_w1'], None)
+        return_unique_w1_s = findFeature(user_info, symbol, ['unique_return_w1'], None)
+
+        # Filter by accuracy
+        if (accuracy_unique < 0.4 or accuracy_unique_s < 0.4):
+            continue
+
+        # Filter by return
+        if (return_unique < 1 or return_unique_s < 1 or return_unique_log < 1 or
+            return_unique_log_s < 1 or return_unique_w1 < 1 or return_unique_w1_s < 1):
+            continue
+
         if (seen_users[user]['isBull']):
             bull_count += 1
         else:
             bear_count += 1
+
+        return_unique = math.log10(return_unique) + 1
+        return_unique_s = math.log10(return_unique_s) + 1
+        return_unique_log = math.log10(return_unique_log) + 1
+        return_unique_log_s = math.log10(return_unique_log_s) + 1
+        return_unique_w1 = math.log10(return_unique_w1) + 1
+        return_unique_w1_s = math.log10(return_unique_w1_s) + 1
+
+        # Give user a weight between 0 and 1 and apply to all features
+        user_weight = weightedUserPrediction(user_info, symbol)
+        tweet_value = user_weight * w
 
         result[label] += tweet_value
         result[label + '_return_w1'] += tweet_value * return_unique_w1
@@ -662,66 +718,13 @@ def stockFeatures(tweets, symbol, all_user_features, all_user_tweets):
         result[label + '_w_return_log'] += tweet_value * return_unique_log * num_prediction_log
         result[label + '_w_return_s'] += tweet_value * return_unique_s * num_prediction_log
         result[label + '_w_return_log_s'] += tweet_value * return_unique_log_s * num_prediction_log
+        # bucket.append([num_tweets, num_tweets_unique, num_tweets_s, num_tweets_s_unique, accuracy_unique, accuracy_unique_s, return_unique, return_unique_s])
 
-    # Standardize by number of tweets
-    try:
-        for f in result:
-            if ('bull' in f):
-                result[f] /= bull_count
-    except:
-        pass
-    
-    try:
-        for f in result:
-            if ('bear' in f):
-                result[f] /= bear_count
-    except:
-        pass
-
-    # Average should be 0?
-    # Should be standardized between stocks since divided by total count ?
-    # "sentiment" of the stock for the day
-    result['total'] = result['bull'] - result['bear']
-    result['total_w'] = result['bull_w'] - result['bear_w']
-    result['return'] = result['bull_return'] - result['bear_return']
-    result['return_w'] = result['bull_w_return'] - result['bear_w_return']
-    result['return_log'] = result['bull_return_log'] - result['bear_return_log']
-    result['return_log_w'] = result['bull_w_return_log'] - result['bear_w_return_log']
-    result['return_s'] = result['bull_return_s'] - result['bear_return_s']
-    result['return_s_w'] = result['bull_w_return_s'] - result['bear_w_return_s']
-    result['return_log_s'] = result['bull_return_log_s'] - result['bear_return_log_s']
-    result['return_log_s_w'] = result['bull_w_return_log_s'] - result['bear_w_return_log_s']
-    result['return_w1'] = result['bull_w_return_w1'] - result['bear_w_return_w1']
-    result['return_w1_s'] = result['bull_w_return_w1_s'] - result['bear_w_return_w1_s']
-
-    # Need to look at historical ratios to determine if this is sig diff 
-    # negative means more bear than bull
-    # ratio of the "sentiment" for the day
-    result['return_w1_ratio'] = calcRatio(result['bull_w_return_w1'], result['bear_w_return_w1'])
-    result['return_w1_s_ratio'] = calcRatio(result['bull_w_return_w1_s'], result['bear_w_return_w1_s'])
-    result['count_ratio'] = calcRatio(result['bull'], result['bear'])
-    result['count_ratio_w'] = calcRatio(result['bull_w'], result['bear_w'])
-    result['return_ratio'] = calcRatio(result['bull_return'], result['bear_return'])
-    result['return_ratio_w'] = calcRatio(result['bull_w_return'], result['bear_w_return'])
-    result['return_log_ratio'] = calcRatio(result['bull_return_log'], result['bear_return_log'])
-    result['return_log_ratio_w'] = calcRatio(result['bull_w_return_log'], result['bear_w_return_log'])
-    result['return_s_ratio'] = calcRatio(result['bull_return_s'], result['bear_return_s'])
-    result['return_s_ratio_w'] = calcRatio(result['bull_w_return_s'], result['bear_w_return_s'])
-    result['return_log_s_ratio'] = calcRatio(result['bull_return_log_s'], result['bear_return_log_s'])
-    result['return_log_s_ratio_w'] = calcRatio(result['bull_w_return_log_s'], result['bear_w_return_log_s'])
+    result['bull_count'] = bull_count
+    result['bear_count'] = bear_count
+    print(result['bull_count'], result['bear_count'])
     return result
 
-
-# Find the weight of a stock based on list of features (range is from -1 to 1)
-def calcStockWeight(features, weights):
-    result = 0
-    total_weights = 0
-    for f in weights:
-        w = weights[f]
-        total_weights += w
-        result += (w * features[f])
-
-    return result / total_weights
 
 
 ##
@@ -751,59 +754,39 @@ def calcStockWeight(features, weights):
 # TODO: use return_uniquelog instead of returnUnique
 
 def weightedUserPrediction(user, symbol):
-    # function = 'log(x)'
-    bull_bear = None
-    num_tweets = findFeature(user, '', ['num_predictions'], bull_bear)
-    num_tweets_s = findFeature(user, symbol, ['num_predictions'], bull_bear)
+    num_tweets = findFeature(user, '', ['num_predictions'], None)
+    num_tweets_s = findFeature(user, symbol, ['num_predictions'], None)
 
-    # Don't consider anyone below 70 predictions
-    if (num_tweets < 50 or num_tweets_s < 5):
-        return 0
-
-    # (1) scale between 70-700 (general) and 1-100 (per stock)
-    scaled_num_tweets = (math.sqrt(num_tweets) - math.sqrt(70)) / (math.sqrt(500) - math.sqrt(70))
-    scaled_num_tweets_s = math.sqrt(num_tweets_s) / math.sqrt(50)
+    # Scale between 800 / 400
+    scaled_num_tweets = math.sqrt(num_tweets) / math.sqrt(800)
+    scaled_num_tweets_s = math.sqrt(num_tweets_s) / math.sqrt(400)
     if (scaled_num_tweets > 1):
         scaled_num_tweets = 1
     if (scaled_num_tweets_s > 1):
         scaled_num_tweets_s = 1
 
-    accuracy_unique = findFeature(user, '', ['unique_correct_predictions', 'unique_num_predictions'], bull_bear)
-    accuracy_unique_s = findFeature(user, symbol, ['unique_correct_predictions', 'unique_num_predictions'], bull_bear)
+    return_unique = findFeature(user, '', ['unique_return'], None)
+    return_unique_s = findFeature(user, symbol, ['unique_return'], None)
 
-    if (accuracy_unique < 0.5 or accuracy_unique_s < 0.5):
-        return 0
 
-    return_unique = findFeature(user, '', ['unique_return'], bull_bear)
-    return_unique_s = findFeature(user, symbol, ['unique_return'], bull_bear)
-
-    if (return_unique < 0 or return_unique < 0):
-        return 0
-
-    # (2) scale between -100 and 100 / -100 and 100
-    scaled_return_unique = return_unique / 100
-    scaled_return_unique_s = return_unique_s / 100
+    # (2) scale between 0 and 1
+    scaled_return_unique = math.sqrt(return_unique) / math.sqrt(300)
+    scaled_return_unique_s = math.sqrt(return_unique_s) / math.sqrt(150)
     if (scaled_return_unique > 1):
         scaled_return_unique = 1
     if (scaled_return_unique_s > 1):
         scaled_return_unique_s = 1
 
-    accuracy_x_tweets = accuracy_unique * scaled_num_tweets
-    accuracy_x_tweets_s = accuracy_unique_s * scaled_num_tweets_s
 
-    # (3)
-    all_features = accuracy_x_tweets * scaled_return_unique
-    all_features_s = 2 * accuracy_x_tweets_s * scaled_return_unique_s
+    # (3) all features combined (scale accuracy from 0.5 - 1 to between 0.7 - 1.2)
+    accuracy_unique = findFeature(user, '', ['unique_correct_predictions', 'unique_num_predictions'], None) + 0.2
+    accuracy_unique_s = findFeature(user, symbol, ['unique_correct_predictions', 'unique_num_predictions'], None) + 0.2
 
-    # print(scaled_num_tweets)
-    # print(scaled_num_tweets_s)
-    # print(scaled_return_unique)
-    # print(scaled_return_unique_s)
-    # print(all_features)
-    # print(all_features_s)
+    all_features = 2 * accuracy_unique * scaled_num_tweets * scaled_return_unique
+    all_features_s = 2 * accuracy_unique_s * scaled_num_tweets_s * scaled_return_unique_s
 
     return (scaled_num_tweets + scaled_num_tweets_s + scaled_return_unique +
-            scaled_return_unique_s + all_features + all_features_s) / 6
+            scaled_return_unique_s + all_features + all_features_s) / 8
 
 
 # Find feature for given user based on symbol and feature name
@@ -840,10 +823,9 @@ def findFeature(user, symbol, feature_names, bull_bear):
             return res
         # looking for a fraction
         else:
-            res_n = feature_info[feature_names[0]][bull_bear]
-            res_d = feature_info[feature_names[1]][bull_bear]
-            total_nums = res_n + res_d
+            correct = feature_info[feature_names[0]][bull_bear]
+            total_nums = feature_info[feature_names[1]][bull_bear]
             # If never tweeted about this stock
             if (total_nums == 0):
                 return findFeature(user, '', feature_names, bull_bear)
-            return res_n * 1.0 / total_nums
+            return correct * 1.0 / total_nums
