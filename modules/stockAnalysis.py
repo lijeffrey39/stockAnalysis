@@ -38,7 +38,7 @@ def getSortedStocks():
 
 
 def updateStockCount():
-    currTime = datetime.datetime.now() - datetime.timedelta(days=30)
+    currTime = datetime.datetime.now() - datetime.timedelta(days=21)
     prevTime = currTime - datetime.timedelta(days=60)
     analyzedUsers = constants['stocktweets_client'].get_database('tweets_db').tweets
     res = analyzedUsers.aggregate([{ "$match": { "time" : { '$gte' : prevTime, '$lte': currTime } } }, {'$group' : { '_id' : '$symbol', 'count' : {'$sum' : 1}}}, { "$sort": { "count": 1 } }])
@@ -72,18 +72,19 @@ def updateStockCountPerWeek(curr_time):
 
 # Get top stocks for that week given a date
 def getTopStocksforWeek(date, num):
-    path = 'newPickled/stockCounts.pkl'
+    bad_stocks = ['JCP', 'INPX', 'LK', 'HTZ', None, 'SPEX', 'NNVC', 'HSGX', 'LGCY', 'YRIV', 'MLNT', 'IFRX', 'OBLN', 'MLNT', 'MDR', 'FLKS']
+    path = 'newPickled/stock_counts.pkl'
     cached_stockcounts = readPickleObject(path)
     year_week = date.isocalendar()[:2]
     year = year_week[0]
     week = year_week[1]
-    year_week_id = str(year) + '_' + str(week) + '_21'
+    year_week_id = str(year) + '_' + str(week)
 
     stock_list = []
     if (year_week_id in cached_stockcounts):
         stock_list = cached_stockcounts[year_week_id]
     else:
-        db = constants['db_client'].get_database('stocktwits_db').stock_counts_perweek_v2
+        db = constants['db_client'].get_database('stocktwits_db').stock_counts_perweek_21
         cursor = db.find({"_id" : year_week_id})
         if (cursor.count() == 0):
             return None
@@ -92,10 +93,41 @@ def getTopStocksforWeek(date, num):
         writePickleObject(path, cached_stockcounts)
 
     newdict = sorted(stock_list, key=lambda k: k['count'], reverse=True)
-    newlist = list(map(lambda document: document['_id'], newdict))
+    filtered_dict = list(filter(lambda document: document['_id'] not in bad_stocks, newdict))
+    test = list(map(lambda document: (document['_id'], document['count']), filtered_dict))
+    # print(date, test[:num])
+    newlist = list(map(lambda document: document['_id'], filtered_dict))
     result = newlist[:num]
-    if ('LK' in result):
-        result.remove('LK')
+    # if ('XSPA' in result):
+    #     result.remove('XSPA')
+    # if ('IBIO' in result):
+    #     result.remove('IBIO')
+    # if ('VISL' in result):
+    #     result.remove('VISL')
+    # if ('AYTU' in result):
+    #     result.remove('AYTU')
+    # if ('INO' in result):
+    #     result.remove('INO')
+    # if ('GNUS' in result):
+    #     result.remove('GNUS')
+    # if ('CODX' in result):
+    #     result.remove('CODX')
+    # if ('MARK' in result):
+    #     result.remove('MARK')
+    # if ('BIOC' in result):
+    #     result.remove('BIOC')
+    # if ('SRNE' in result):
+    #     result.remove('SRNE')
+    # if ('MVIS' in result):
+    #     result.remove('MVIS')
+    # if ('TRNX' in result):
+    #     result.remove('TRNX')
+    # if ('NIO' in result):
+    #     result.remove('NIO')
+    # if ('SPCE' in result):
+    #     result.remove('SPCE')
+    # if ('TTOO' in result):
+    #     result.remove('TTOO')
     return result
 
 

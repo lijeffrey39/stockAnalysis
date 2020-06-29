@@ -80,7 +80,7 @@ constants = {
     'current_timezone': timeZoneName,
     'eastern_timezone': pytz.timezone('US/Eastern'),
     'keys': ['countRatio', 'UCountRatio', 'totalLabeledTweetsUsed', 'UtotalLabeledTweetsUsed'],
-    'top_stocks': set(['SPY', 'FCEL', 'TSLA', 'ONTX', 'AMD', 'AAPL', 'NIO', 'ACB', 'AMZN', 'VBIV', 'BA', 'B', 'ROKU', 'GHSI', 'CHK', 'IBIO', 'UGAZ', 'AMRN', 'BIOC', 'OCGN', 'SPCE', 'SRNE', 'CLVS', 'CODX', 'DIS', 'INO', 'NFLX', 'TBLT', 'VISL', 'MSFT', 'TRNX', 'BABA', 'AIM', 'HTBX', 'AYTU', 'TTOO', 'TVIX', 'GILD', 'JNUG', 'D', 'TOPS', 'USO', 'EROS', 'MARK', 'MVIS', 'GNUS', 'VSTM', 'NVAX']),
+    'top_stocks': set(['GNUS', 'SPCE', 'AMRN', 'SPY', 'BIOC', 'NFLX', 'TOPS', 'GHSI', 'BABA', 'AAPL', 'AYTU', 'AMZN', 'MSFT', 'FCEL', 'OCGN', 'PCG', 'IBIO', 'ROKU', 'BA', 'WKHS', 'JNUG', 'ONTX', 'D', 'NIO', 'AIM', 'XSPA', 'MVIS', 'CHK', 'AUPH', 'UGAZ', 'VISL', 'TVIX', 'ACB', 'INO', 'CODX', 'B', 'TSLA', 'TRNX', 'TTOO', 'EROS', 'SRNE', 'MARK', 'CLVS', 'VBIV', 'HTBX', 'DIS', 'GILD', 'AMD', 'TBLT', 'USO']),
     'html_class_user_div': 'st_CFwNYeI st_jGV698i st_PLa30pM',
     'html_class_user_info': 'st_21r0FbC st_2fTou_q',
     'html_class_plus': 'st_2ceteac st_8u0ePN3',

@@ -23,8 +23,9 @@ from modules.userAnalysis import (findPageUser, findUsers, insertUpdateError,
 from modules.tests import (findBadMessages, removeMessagesWithStock, 
                            findTopUsers, findOutliers, findAllUsers, findErrorUsers)
                         
-from modules.newPrediction import (findTweets, weightedUserPrediction, writeTweets, calculateUserFeatures, editCachedTweets,
-                                    prediction, findFeatures, updateAllUsers, saveUserTweets, cachedUserTweets, optimizeParams)
+from modules.newPrediction import (findTweets, weightedUserPrediction, writeTweets, calculateUserFeatures, 
+                                    editCachedTweets, prediction, findFeatures, pregenerateAllUserFeatures,
+                                    saveUserTweets, cachedUserTweets, optimizeParams, findStockCounts)
 
 
 client = constants['db_client']
@@ -165,20 +166,16 @@ def addOptions(parser):
     parser.add_option('-d', '--dailyparser',
                       action='store_true', dest="dailyparser",
                       help="parse through non-top x stock pages daily")
+    
+    parser.add_option('-o', '--optimizer',
+                      action='store_true', dest="optimizer",
+                      help="optimize prediction")
 
     parser.add_option('-a', '--dailyuserparser',
                       action='store_true', dest="dailyuserparser",
                       help="parse through user information that havent been parsed over last x days (14)")
 
 
-# Make a prediction for given date
-def makePrediction(date):
-    dates = [datetime.datetime(date.year, date.month, date.day, 9, 30)]
-    stocks = getTopStocks(20)
-    stocks.remove('AMZN')
-    stocks = ['TSLA']
-    analyzeStocks(date, stocks)
-    # basicPrediction(dates, stocks, True, True)
 
 # Executed hourly, finds all the tweets from the top x stocks
 def hourlyparse():
@@ -205,101 +202,37 @@ def main():
     elif (options.stocks):
         now = convertToEST(datetime.datetime.now())
         date = datetime.datetime(now.year, now.month, now.day)
-        stocks = getTopStocks(100)
-        stocks = ['SPY', 'XSPA', 'GNUS', 'BA', 'TSLA', 'SRNE', 'MARK', 'BIOC', 'IBIO', 'NIO', 'CHK', 'AAPL', 'MVIS', 'INO', 'TVIX', 'AYTU', 'TOPS', 'VISL', 'AMD', 'ROKU']
-        # print(len(stocks))
-        # for i in range(len(stocks)):
-        #     if (stocks[i] == "SESN"):
-        #         print(i)
+        stocks = getTopStocksforWeek(date, 100)
         analyzeStocks(date, stocks)
+    elif (options.optimizer):
+        optimizeParams()
     elif (options.prediction):
-        num_top_stocks = 20 # Choose top 20 stocks of the week to parse
-        start_date = datetime.datetime(2020, 1, 9, 15, 30)
-        end_date = datetime.datetime(2020, 6, 19, 9, 30)
-        # end_date = datetime.datetime(dateNow.year, dateNow.month, dateNow.day - 3)
-
-
-        #remove tweets
-        # date_str_1 = datetime.datetime(2020, 6, 24, 9, 30).strftime("%Y-%m-%d")
-        # date_str_2 = datetime.datetime(2020, 6, 25, 9, 30).strftime("%Y-%m-%d")
-        # stocks = getTopStocksforWeek(end_date, num_top_stocks) # top stocks for the week
-        # for symbol in stocks:
-        #     stock_path = 'old_stock_files/' + symbol + '.pkl'
-        #     tweets_per_stock = readPickleObject(stock_path)
-            # del tweets_per_stock[date_str_1]
-            # del tweets_per_stock[date_str_2]
-            # writePickleObject(stock_path, tweets_per_stock)
-
-
-        # Write all user files
-        # updateAllUsers()
+        num_top_stocks = 15 # Choose top 20 stocks of the week to parse
+        start_date = datetime.datetime(2019, 6, 9, 15, 30)
+        end_date = datetime.datetime(2020, 6, 28, 9, 30)
 
         # Write stock tweet files
-        # writeTweets(start_date, end_date, num_top_stocks)
+        # writeTweets(start_date, end_date, num_top_stocks, overwrite=True)
         # return
-
-        # Optimize paramters
-        # optimizeParams()
-        # return
-
 
         # Find features for prediction
-        path = 'newPickled/features_new_sqrtx_21_test_aapl.pkl'
+        path = 'newPickled/stock_features_all.pkl'
         found_features = findFeatures(start_date, end_date, num_top_stocks, path, False)
-        # return
 
         # Make prediction
         weightings = {
-            # 'return_w': 0.8,
-            'bull_w': 2.64,
-            'bull_return_log_s': 0.7,
-            # 'return_w': 3.23,
-            # 'bear_w_return': 1.09,
-            # 'bull_w_return': 2.74,
-            # 'return_w1_ratio': 1.9,
+            'bull_w': 2.84,
+            'bear_w': 1.14
+            # 'total_w': 8.5,
+            # 'return_log_s_w': 8.1,
+            # 'count_ratio_w': 3.9,
+            # 'return_ratio': 3.9,
+            # 'return_s_w': 4.2,
             # 'bear_return_s': 2.8,
             # 'bear': 7.7,
             # 'bear_return': 4.1
         }
-        print(prediction(start_date, end_date, found_features, num_top_stocks, weightings))
-        # return
-        # Optimize features
-        # return, bull_return_s, return_s, bull not useful
-        # total, return, return_log, bear, bull_return_log_s, bull_return, bull_return_log not useful
-        # count_ratio, return_ratio good
-
-
-
-        # return_ratio, return_s_ratio, return_log_s, return_log_s_ratio USELESS
-
-        # count_ratio: 6-10
-        # return_log_ratio: 1-3
-        # return_log: 0-2
-        # bull_return_log_s: 0-2
-        # combinedResults = {}
-        # a = [[6,7,8,9,10],[1,1.5,2],[0,1,2],[0,0.5,1],[0,1,2,3],[0,1,2,3]]
-        # allPossibilities = list(itertools.product(*a))
-        # print(len(allPossibilities))
-        # for combo in allPossibilities:
-        #     # if (combo[0] == 0 and combo[1] == 0 and combo[2] == 0):
-        #     #     continue
-        #     paramWeightings = {
-        #         'count_ratio': combo[0],
-        #         'return_log_ratio': combo[1],
-        #         'return_log_s_ratio': combo[2],
-        #         'return_log': combo[3],
-        #         'return_log_s': combo[4],
-        #         'bull_return_log_s': combo[5]
-        #     }
-        #     (returns, accuracy) = prediction(start_date, end_date, found_features, num_top_stocks, paramWeightings)
-        #     print(tuple(paramWeightings.items()), returns, accuracy)
-        #     combinedResults[tuple(paramWeightings.items())] = (returns, accuracy)
-
-        # bestParams = list(combinedResults.items())
-        # bestParams.sort(key=lambda x: x[1], reverse=True)
-        # print("--------")
-        # for x in bestParams[:20]:
-        #     print(x[0], x[1])
+        print(prediction(start_date, end_date, found_features, num_top_stocks, weightings, True))
 
     elif (options.updateCloseOpens):
         updateStockCount()
@@ -317,126 +250,23 @@ def main():
     elif (options.dailyuserparser):
         dailyAnalyzeUsers(reAnalyze=True, updateUser=True, daysback=14)
     else:
+        # bucket = readPickleObject('bucket.pkl')
+        # data = list(map(lambda x: x[7], bucket['bucket']))
+        # data.sort(reverse=True)
+        # print(data[:20])
+        # # print(len(data))
+        # plt.hist(data[40:], density=False, bins=150)
+        # plt.show()
 
+        now = convertToEST(datetime.datetime.now())
+        date = datetime.datetime(2020, 5, 9)
+        delta = datetime.timedelta(days=7)
+        result = []
+        while (date < datetime.datetime(2020, 6, 26)):
+            print(date, getTopStocksforWeek(date, 15))
+            date += delta
 
-        bucket = readPickleObject('bucket.pkl')
-        data = list(map(lambda x: x[7], bucket['bucket']))
-        data.sort(reverse=True)
-        print(data[:20])
-        # print(len(data))
-        plt.hist(data[40:], density=False, bins=150)
-        plt.show()
-
-        # cached_prices = readPickleObject('newPickled/averaged.pkl')
-        # print(getTopStocksforWeek(datetime.datetime(2019, 6, 25, 15, 30), 20))
-
-        
-        # print(findCloseOpenCached('JNUG', datetime.datetime(2020, 5, 29, 15, 30), cached_prices))
-        # for t in tweets:
-        #     print(t)
-        # for i in [1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6,1, 2, 3, 4, 5, 6,1, 2, 3, 4, 5, 6,1, 2, 3, 4, 5, 6]:
-        #     print("hi")
-        # Ultra_Calls
-        username = 'Ultra_Calls'
-        # user_tweets = cachedUserTweets(username)
-        # res = calculateUserFeatures(username, datetime.datetime(2020, 6, 18), {}, user_tweets)
-        # print(res['unique_return'])
-        # for s in res['perStock']:
-        #     print(s, res['perStock'][s]['unique_return'])
-        # print(res)
-
-        # arr = os.listdir('user_tweets/')
-        # count = 0
-        # for u in arr:
-        #     username = u[:-4]
-        #     editCachedTweets(username)
-        #     count += 1
-        #     if (count % 1000 == 0):
-        #         print(count)
-
-        # now = convertToEST(datetime.datetime.now())
-        # date = datetime.datetime(2019, 6, 1)
-        # delta = datetime.timedelta(days=1)
-        # result = []
-        # while (date < datetime.datetime(2020, 7, 9)):
-        #     date += delta
-        #     string = '%d-%02d-%02d' % (date.year, date.month, date.day) 
-        #     if (string not in constants['trading_days']):
-        #         result.append(string)
-        # print(result)
-
-        # print(date)
-        # stocks = getAllStocks()
-        # print(len(stocks))
-        # for i in range(len(stocks)):
-        #     if (stocks[i] == "SESN"):
-        #         print(i)
-        # analyzeStocks(date, ['SNAP'])
-
-
-        # stocks = getAllStocks()
-        # print(dates)
-        # findAllTweets(stocks, dates, True)
-        # testing(35)
-        # for i in range(5, 20):
-        #     testing(i)
-        # calcReturns(35)
-        # stocks.remove('AMZN')
-        # stocks.remove('SLS')
-        # stocks.remove('CEI')
-
-        # tweets = findAllTweets(stocks, dates)
-        # updateBasicStockInfo(dates, stocks, tweets)
-        # return
-        # basicPrediction(dates, stocks, True)
-
-        # time = datetime.datetime(2019, 12, 12, 16, 3)
-        # print(findCloseOpen('AAPL', time))
-
-        # updateAllCloseOpen(['TTNP'], dates)
-        # for d in dates:
-        #     print(d, closeToOpen('TVIX', d))
-        # date = datetime.datetime(2019, 12, 16, 16, 10) - datetime.datetime(2019, 12, 16)
-        # print(16 * 60 * 60)
-        # print(date.total_seconds())
-        # for i in range(11, 25):
-        #     for j in range(0, 23):
-        #         date = datetime.datetime(2019, 12, i, j, 10)
-        #         # findCloseOpen('AAPL', date)
-        #         print(date, findCloseOpen('AAPL', date))
-        #         # print(date, round(findWeight(date, 'x'), 1))
-
-
-        # exportCloseOpen()
-        # calculateAllUserInfo()
-
-        # getStatsPerUser('Buckeye1212')
-        # print(getAllUserInfo('hirashima'))
-
-        # date = datetime.datetime(2019, 7, 15, 16)
-        # print(findTweets(date, {}, 'AAPL'))
-
-        # getAllUserInfo('SDF9090')
-        # print(weightedUserPrediction(getAllUserInfo('SDF9090'), ''))
-        # transferNonLabeled(stocks)
-
-        # findBadMessages('ArmedInfidel')
-        # findTopUsers()
-        # removeMessagesWithStock('AAPL')
-        # findOutliers('GNCA')
-
-        # findTopUsers()
-
-        # setupUserInfos(updateObject=True)
-        # findAllUsers()
-        
-        # findErrorUsers()
-
-        # updateUserNotAnalyzed()
-        # (setup, testing) = generateFeatures(dates, stocks, True)
-        # basicPrediction(dates, stocks, False, False)
-        # neuralnet()
-        # updateBasicStockInfo(dates, stocks, findAllTweets(stocks, dates))
+        # updateStockCountPerWeek(datetime.datetime(2020, 6, 29))
 
 
 if __name__ == "__main__":
