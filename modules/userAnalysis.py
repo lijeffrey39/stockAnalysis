@@ -51,6 +51,7 @@ def insertUpdateError(coreInfo, reAnalyze, updateUser):
 # Can parse/analyze users if it is set to true
 def shouldParseUser(username, reAnalyze, updateUser):
     analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
+    updateUser = True
     if (reAnalyze is False and updateUser is False and
         analyzedUsers.count_documents({'_id': username}) != 0):
         return None
@@ -58,6 +59,17 @@ def shouldParseUser(username, reAnalyze, updateUser):
     if (updateUser):
         query = {'_id': username}
         result = analyzedUsers.find_one(query)
+
+        if 'bbcount' in result:
+            print('disguy' + username + 'done')
+            return None
+        # end_date = result['last_updated']
+        # start_date = end_date - datetime.timedelta(days = 21)
+        # tweetsDB = constants['stocktweets_client'].get_database('tweets_db').tweets.find({"$and": [{'user': username}, 
+        #                                                                                             {"$or": [{'isBull': True}, {'isBull': False}]},
+        #                                                                                             {'time': {'$gte': start_date,'$lt': end_date}}]})
+        # print(tweetsDB.count())
+        
         if (result):
             result['last_updated'] = convertToEST(datetime.datetime.now())
             return result
@@ -117,8 +129,9 @@ def findUsers(reAnalyze, findNewUsers, updateUser):
     # return
     cursor = None
     # Find all tweets this user posted again up till last time
+    updateUser = True
     if (updateUser):
-        dateStart = convertToEST(datetime.datetime.now()) - datetime.timedelta(days=14)
+        dateStart = convertToEST(datetime.datetime.now()) #- datetime.timedelta(days=21)
         query = {'last_updated': {'$lte': dateStart}, 'error': ''}
         cursor = analyzedUsers.find(query)
     elif (reAnalyze):

@@ -37,9 +37,12 @@ def insertResults(results):
     count = 0
     count1 = 0
     total = 0
+    bullbearcount = 0
     for r in results:
         total += 1
         query = copy.deepcopy(r)
+        if (((query['isBull'] is True) or (query['isBull'] is False)) and (query['time'] > (datetime.datetime.now()-datetime.timedelta(days=21)))):
+                bullbearcount+=1
         del query['_id']
         del query['likeCount']
         del query['commentCount']
@@ -51,13 +54,14 @@ def insertResults(results):
         if (len(tweet) != 0):
             count1 += 1
             continue
-
         try:
             collection.insert_one(r)
             count += 1
         except Exception:
             continue
-
+    usercollection = constants['db_user_client'].get_database('user_data_db').users
+    print(bullbearcount)
+    usercollection.update_one({'_id': results[0]['user']}, {'$set': {'bbcount': bullbearcount}})          
     print(count, count1, total)
 
 
