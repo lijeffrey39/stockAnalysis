@@ -255,8 +255,12 @@ def main():
     elif (options.dailyuserparser):
         dailyAnalyzeUsers(reAnalyze=True, updateUser=True, daysback=14)
     else:
-        now = convertToEST(datetime.datetime.now())
-        stockcount1000daily(now)
+        start_date = datetime.datetime(2019, 6, 9, 15, 30)
+        end_date = datetime.datetime(2020, 6, 28, 9, 30)
+        td = datetime.timedelta(days=1)
+        while (start_date <= end_date):
+            stockcount1000daily(start_date)
+            start_date+=td
         # usercollection = constants['db_user_client'].get_database('user_data_db').users.find({ 'bbcount': { '$exists': True }})
         # res = []
         # print(usercollection.count())
