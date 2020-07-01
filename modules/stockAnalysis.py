@@ -41,6 +41,7 @@ def stockcount1000daily(date):
     tweets = constants['stocktweets_client'].get_database('tweets_db').tweets
     prevTime = datetime.datetime(date.year, date.month, date.day, 00, 00)
     currTime = prevTime + datetime.timedelta(days = 1)
+    print(prevTime)
     res = tweets.aggregate([{ "$match": { "time" : { '$gte' : prevTime, '$lte': currTime } } }, {'$group' : { '_id' : '$symbol', 'count' : {'$sum' : 1}}}, { "$sort": { "count": 1 } }])
     mapped_counts = list(map(lambda document: document, res))
     dateString = date.strftime("%Y%m%d")
@@ -52,7 +53,7 @@ def updateStockCount():
     currTime = datetime.datetime.now() - datetime.timedelta(days=21)
     prevTime = currTime - datetime.timedelta(days=60)
     analyzedUsers = constants['stocktweets_client'].get_database('tweets_db').tweets
-    res = analyzedUsers.aggregate([{ "$match": { "time" : { '$gte' : prevTime, '$lte': currTime } } }, {'$group' : { '_id' : '$symbol', 'count' : {'$sum' : 1}}}, { "$sort": { "count": 1 } }])
+    res = analyzedUsers.aggregate([{ "$match": { "time" : { '$gte' : prevTime, '$lte': currTime } } }, {'$group' : { '_id' : '$symbol', 'count' : {'$sum' : 1}}}, { "$sort": { "time": 1} }])
     for i in res:
         # query = {'_id': i['_id']}
         # newVal = {'$set': {'count30': i['count']}}

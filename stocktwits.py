@@ -255,7 +255,7 @@ def main():
     elif (options.dailyuserparser):
         dailyAnalyzeUsers(reAnalyze=True, updateUser=True, daysback=14)
     else:
-        start_date = datetime.datetime(2019, 6, 9, 15, 30)
+        start_date = datetime.datetime(2019, 6, 10, 15, 30)
         end_date = datetime.datetime(2020, 6, 28, 9, 30)
         td = datetime.timedelta(days=1)
         while (start_date <= end_date):
