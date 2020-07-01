@@ -36,6 +36,17 @@ def getSortedStocks():
     res = [i for i in newlist if i not in remove_list] 
     return res
 
+def stockcount1000daily(date):
+    stock_counts_collection = constants['db_client'].get_database('stocktwits_db').stock_counts_daily_1000
+    tweets = constants['stocktweets_client'].get_database('tweets_db').tweets
+    prevTime = datetime.datetime(date.year, date.month, date.day, 00, 00)
+    currTime = prevTime + datetime.timedelta(days = 1)
+    res = tweets.aggregate([{ "$match": { "time" : { '$gte' : prevTime, '$lte': currTime } } }, {'$group' : { '_id' : '$symbol', 'count' : {'$sum' : 1}}}, { "$sort": { "count": 1 } }])
+    mapped_counts = list(map(lambda document: document, res))
+    dateString = date.strftime("%Y%m%d")
+    print(dateString)
+    stock_counts_collection.insert({'_id': dateString, 'stocks': mapped_counts[0:1000]})
+        
 
 def updateStockCount():
     currTime = datetime.datetime.now() - datetime.timedelta(days=21)

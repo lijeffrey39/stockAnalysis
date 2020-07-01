@@ -13,20 +13,20 @@ import ujson
 import shelve
 
 from modules.helpers import (convertToEST, findTradingDays, getAllStocks,
-                             insertResults, findWeight, writePickleObject, readPickleObject)
+                            insertResults, findWeight, writePickleObject, readPickleObject)
 from modules.hyperparameters import constants
 from modules.prediction import (basicPrediction, findAllTweets, updateBasicStockInfo, setupUserInfos)
 from modules.stockAnalysis import (findPageStock, getTopStocks, parseStockData, getTopStocksforWeek,
-                                   shouldParseStock, updateLastMessageTime, updateStockCountPerWeek,
-                                   updateLastParsedTime, updateStockCount, getSortedStocks)
+                                shouldParseStock, updateLastMessageTime, updateStockCountPerWeek,
+                                updateLastParsedTime, updateStockCount, getSortedStocks, stockcount1000daily)
 from modules.stockPriceAPI import (updateAllCloseOpen, transferNonLabeled, findCloseOpen, closeToOpen, getUpdatedCloseOpen, 
                                     getCloseOpenInterval, updateyfinanceCloseOpen, exportCloseOpen, findCloseOpenCached)
 from modules.userAnalysis import (findPageUser, findUsers, insertUpdateError,
-                                  parseUserData, shouldParseUser, getStatsPerUser,
-                                  updateUserNotAnalyzed,
-                                  calculateAllUserInfo, parseOldUsers)
+                                parseUserData, shouldParseUser, getStatsPerUser,
+                                updateUserNotAnalyzed,
+                                calculateAllUserInfo, parseOldUsers)
 from modules.tests import (findBadMessages, removeMessagesWithStock, 
-                           findTopUsers, findOutliers, findAllUsers, findErrorUsers)
+                        findTopUsers, findOutliers, findAllUsers, findErrorUsers)
                         
 from modules.newPrediction import (findTweets, weightedUserPrediction, writeTweets, calculateUserFeatures, dailyPrediction,
                                     editCachedTweets, prediction, findFeatures, pregenerateAllUserFeatures, pregenerateUserFeatures,
@@ -54,7 +54,7 @@ def analyzeStocks(date, stocks):
         (soup, errorMsg, timeElapsed) = findPageStock(symbol, hours)
         if (soup == ''):
             stockError = {'date': dateString, 'symbol': symbol,
-                          'error': errorMsg, 'timeElapsed': timeElapsed}
+                        'error': errorMsg, 'timeElapsed': timeElapsed}
             db.stock_tweets_errors.insert_one(stockError)
             continue
         
@@ -62,14 +62,14 @@ def analyzeStocks(date, stocks):
             result = parseStockData(symbol, soup)
         except Exception as e:
             stockError = {'date': dateString, 'symbol': symbol,
-                          'error': str(e), 'timeElapsed': -1}
+                        'error': str(e), 'timeElapsed': -1}
             db.stock_tweets_errors.insert_one(stockError)
             print(e)
             continue
 
         if (len(result) == 0):
             stockError = {'date': dateString, 'symbol': symbol,
-                          'error': 'Result length is 0??', 'timeElapsed': -1}
+                        'error': 'Result length is 0??', 'timeElapsed': -1}
             db.stock_tweets_errors.insert_one(stockError)
             print(stockError)
             continue
@@ -149,36 +149,36 @@ def dailyAnalyzeUsers(reAnalyze, updateUser, daysback):
 
 def addOptions(parser):
     parser.add_option('-u', '--users',
-                      action='store_true', dest="users",
-                      help="parse user information")
+                    action='store_true', dest="users",
+                    help="parse user information")
 
     parser.add_option('-s', '--stocks',
-                      action='store_true', dest="stocks",
-                      help="parse stock information")
+                    action='store_true', dest="stocks",
+                    help="parse stock information")
 
     parser.add_option('-p', '--prediction',
-                      action='store_true', dest="prediction",
-                      help="make prediction for today")
+                    action='store_true', dest="prediction",
+                    help="make prediction for today")
 
     parser.add_option('-c', '--updateCloseOpens',
-                      action='store_true', dest="updateCloseOpens",
-                      help="update Close open times")
+                    action='store_true', dest="updateCloseOpens",
+                    help="update Close open times")
 
     parser.add_option('-z', '--hourlyparser',
-                      action='store_true', dest="hourlyparser",
-                      help="parse through stock pages hourly")
+                    action='store_true', dest="hourlyparser",
+                    help="parse through stock pages hourly")
     
     parser.add_option('-d', '--dailyparser',
-                      action='store_true', dest="dailyparser",
-                      help="parse through non-top x stock pages daily")
+                    action='store_true', dest="dailyparser",
+                    help="parse through non-top x stock pages daily")
     
     parser.add_option('-o', '--optimizer',
-                      action='store_true', dest="optimizer",
-                      help="optimize prediction")
+                    action='store_true', dest="optimizer",
+                    help="optimize prediction")
 
     parser.add_option('-a', '--dailyuserparser',
-                      action='store_true', dest="dailyuserparser",
-                      help="parse through user information that havent been parsed over last x days (14)")
+                    action='store_true', dest="dailyuserparser",
+                    help="parse through user information that havent been parsed over last x days (14)")
 
 
 
@@ -255,7 +255,17 @@ def main():
     elif (options.dailyuserparser):
         dailyAnalyzeUsers(reAnalyze=True, updateUser=True, daysback=14)
     else:
-
+        now = convertToEST(datetime.datetime.now())
+        stockcount1000daily(now)
+        # usercollection = constants['db_user_client'].get_database('user_data_db').users.find({ 'bbcount': { '$exists': True }})
+        # res = []
+        # print(usercollection.count())
+        # for i in usercollection:
+        #     if i['bbcount'] > 40:
+        #         res.append(i['bbcount'])
+        # print(len(res))
+        # plt.hist(res, density=False, bins=150)
+        # plt.show()
         # res = pregenerateUserFeatures('tony93')
         # demo = dir_archive('demo', serialized=True, cached=False)
         # demo['tony93'] = res
@@ -279,7 +289,7 @@ def main():
         # pregenerateAllUserFeatures()
 
 
-        dailyPrediction(datetime.datetime(2020, 6, 30))
+        #dailyPrediction(datetime.datetime(2020, 6, 30))
 
 
         # num_tweets_unique 30
