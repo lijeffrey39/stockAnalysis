@@ -10,27 +10,83 @@ from scipy.optimize import minimize
 from functools import reduce
 from .hyperparameters import constants
 from .userAnalysis import (getStatsPerUser, initializeResult, updateUserFeatures)
-from .stockAnalysis import (findDateString, getTopStocksforWeek)
+from .stockAnalysis import (findDateString, getTopStocksforWeek, findPageStock, parseStockData,
+                            updateLastMessageTime, updateLastParsedTime)
 from .stockPriceAPI import (findCloseOpenCached, isTradingDay)
-from .helpers import (calcRatio, findWeight, readPickleObject, findAllDays,
+from .helpers import (calcRatio, findWeight, readPickleObject, findAllDays, insertResults,
                     readCachedTweets, writeCachedTweets, writePickleObject,
-                    findTradingDays, findAverageTime)
+                    findTradingDays, findAverageTime, convertToEST)
+
+
+def parseStock(symbol, date, hours):
+    date_string = date.strftime("%Y-%m-%d")
+    db = constants['stocktweets_client'].get_database('stocks_data_db')
+    (soup, errorMsg, timeElapsed) = findPageStock(symbol, hours)
+
+    if (soup == ''):
+        stockError = {'date': date_string, 'symbol': symbol,
+                        'error': errorMsg, 'timeElapsed': timeElapsed}
+        db.stock_tweets_errors.insert_one(stockError)
+        return
+
+    try:
+        result = parseStockData(symbol, soup)
+    except Exception as e:
+        stockError = {'date': date_string, 'symbol': symbol,
+                        'error': str(e), 'timeElapsed': -1}
+        db.stock_tweets_errors.insert_one(stockError)
+        print(e)
+        return
+
+    if (len(result) == 0):
+        stockError = {'date': date_string, 'symbol': symbol,
+                        'error': 'Result length is 0??', 'timeElapsed': -1}
+        db.stock_tweets_errors.insert_one(stockError)
+        print(stockError)
+        return
+
+    results = updateLastMessageTime(db, symbol, result)
+
+    # No new messages
+    if (len(results) != 0):
+        insertResults(results)
+
+    updateLastParsedTime(db, symbol)
+
+
+
+def dailyPrediction(date):
+    num_top_stocks = 15
+    stocks = getTopStocksforWeek(date, num_top_stocks)
+    last_parsed = constants['stocktweets_client'].get_database('stocks_data_db').last_parsed
+    curr_time = convertToEST(datetime.datetime.now())
+    for symbol in stocks:
+        cursor = last_parsed.find_one({'_id': symbol})
+        last_time = cursor['time']
+        hours_back = (curr_time - last_time).total_seconds() / 3600.0
+        print(symbol, hours_back)
+        # if (hours_back > 0.5):
+        #     parseStock(symbol, curr_time, hours_back)
+    writeTweets(date, date, num_top_stocks, overwrite=True)
+    all_features = findFeatures(date, date, num_top_stocks, 'newPickled/daily.pkl', False)
+    weightings = {
+        'bull': 3,
+        'bear': 1
+    }
+    prediction(date, date, all_features, num_top_stocks, weightings, True)
+
 
 
 def optimizeFN(params):
     weightings = {
-        # 'total_w': params[0],
-        # 'return_log_s_w': params[1],
-        # 'count_ratio_w': params[2],
-        # 'return_ratio': params[3],
-        # 'return_s_w': params[4],
-
-        'bull_w': params[0],
-        'bear_w': params[1],
+        'bull': params[0],
+        'bear': params[1],
+        'bull_w_return_log': params[2],
+        'bear_w_return_log': params[3],
     }
     start_date = datetime.datetime(2019, 6, 9, 15, 30)
-    end_date = datetime.datetime(2020, 6, 19, 9, 30)
-    path = 'newPickled/stock_features_all.pkl'
+    end_date = datetime.datetime(2020, 6, 25, 9, 30)
+    path = 'newPickled/stock_features_all_14.pkl'
     num_top_stocks = 20
     all_features = findFeatures(start_date, end_date, num_top_stocks, path, False)
     result = prediction(start_date, end_date, all_features, num_top_stocks, weightings, False)
@@ -86,15 +142,14 @@ def optimizeFN(params):
 def optimizeParams():
     params = {
         # 'total_w': [8, (0, 30)],
-        # 'return_log_s_w': [8, (0, 30)],
-        # 'count_ratio_w': [4, (0, 30)],
-        # 'return_ratio': [4, (0, 30)],
-        # 'return_s_w': [4, (0, 30)],
-
-        'bull_w': [2.84, (1, 3)],
-        'bear_w': [1.14, (1, 3)],
-
-        # 'count_ratio': [1, (0, 30)],
+        # 'return_log_s_w': [2, (0, 30)],
+        # 'count_ratio_w': [2, (0, 30)],
+        # 'return_ratio': [2, (0, 30)],
+        # 'return_s_w': [2, (0, 30)],
+        'bull': [4, (0, 5)],
+        'bear': [0.75, (0, 5)],
+        'bull_w_return_w1': [1.5, (0, 3)],
+        'bear_w_return_w1': [0.4, (0, 3)],
         # 'bear_w_return': [0., (0, 30)],
         # 'bear_w_return_log_s': [0, (0, 30)],
         # 'bear_w_return': [1.09, (0, 30)],
@@ -109,7 +164,7 @@ def optimizeParams():
     initial_values = list(map(lambda key: params[key][0], list(params.keys())))
     bounds = list(map(lambda key: params[key][1], list(params.keys())))
     result = minimize(optimizeFN, initial_values, method='SLSQP', options={'maxiter': 100, 'eps': 0.2}, 
-                    bounds=(bounds[0],bounds[1]))
+                    bounds=(bounds[0],bounds[1],bounds[2],bounds[3]))
     print(result)
 
 
@@ -127,7 +182,7 @@ def findUserList():
 # Find all usernames from folder
 def findValidUsers():
     users = []
-    arr = os.listdir('user_pickle_files/')
+    arr = os.listdir('user_pickle_files_new/')
     for u in arr:
         username = u[:-4]
         users.append(username)
@@ -135,12 +190,34 @@ def findValidUsers():
     return users
 
 
+def cutoffUser(user_info):
+    num_tweets = findFeature(user_info, '', ['num_predictions'], None)
+    num_tweets_unique = findFeature(user_info, '', ['unique_num_predictions'], None)
+
+    # Filter by number of tweets
+    if (num_tweets <= 50 or num_tweets_unique <= 10):
+        return False
+
+    accuracy_unique = findFeature(user_info, '', ['unique_correct_predictions', 'unique_num_predictions'], None)
+    bull_return = user_info['unique_return']['bull']
+    bear_return = user_info['unique_return']['bear']
+    return_unique = max(bull_return, bear_return)
+    # Filter by accuracy
+    if (accuracy_unique < 0.3):
+        return False
+
+    # Filter by return
+    if (return_unique < 1):
+        return False
+    
+    return True
+
+
 # Generate features from users historical tweets
 # Return stock specific user features and general user features
 def pregenerateUserFeatures(username):
     day_increment = datetime.timedelta(days=1)
     cached_tweets = cachedUserTweets(username) # Tweets from user
-    top_stocks = constants['top_stocks']
     if (cached_tweets == None):
         return
 
@@ -163,42 +240,42 @@ def pregenerateUserFeatures(username):
     dates = sorted(list(dates))
     result = {}
     buildup_result = {} # cached result that is being built up
-    num_tweets = 0
-    accuracy_unique = 0
-    return_unique = 0
+    prev_day = {}
+    count = 0
     for date in dates:
         day_res = calculateUserFeatures(username, date, buildup_result, cached_tweets)
-        if (findFeature(day_res, '', ['num_predictions'], None) == 0):
+        if (cutoffUser(day_res) == False):
             continue
 
         copied_res = copy.deepcopy(day_res)
-
-        # Remove unnecessary per stock features
-        symbols_found = list(copied_res['perStock'].keys())
-        for s in symbols_found:
-            if (s not in top_stocks):
-                del copied_res['perStock'][s]
-
+        del copied_res['_id']
+        del copied_res['last_updated']
+        if (prev_day == copied_res):
+            continue
+        prev_day = copied_res
+        # print(date)
+        count += 1
         # Store as user features at or before this date
         date_string = '%d-%02d-%02d' % (date.year, date.month, date.day)
         result[date_string] = copied_res
-
-        # Set min cut offs for users to write...Keep track of maxes
-        temp_num_tweets = findFeature(copied_res, '', ['num_predictions'], None)
-        temp_accuracy_unique = findFeature(copied_res, '', ['unique_correct_predictions', 'unique_num_predictions'], None)
-        temp_return_unique = findFeature(copied_res, '', ['unique_return'], None)
-
-        num_tweets = max(num_tweets, temp_num_tweets)
-        if (num_tweets < 15):
-            continue
-        accuracy_unique = max(accuracy_unique, temp_accuracy_unique)
-        return_unique = max(return_unique, temp_return_unique)
-
-    # Filter by number of tweets, accuracy and return
-    if (num_tweets <= 30 or accuracy_unique < 0.4 or return_unique < 1):
-        return {}
-
+    print(count)
     return result
+
+
+def insertUser():
+    valid_users = findValidUsers()
+    # user_info_collection = constants['local_client']['user_info_db']['user_info']
+    user_info_collection = constants['stocktweets_client'].get_database('user_info_db').user_info
+
+    i = 0
+    for username in valid_users:
+        i += 1
+        path = 'user_pickle_files/' + username + '.pkl'
+        user_feature = readPickleObject(path)
+        user_feature['_id'] = username
+        user_info_collection.insert_one(user_feature)
+        if (i % 1000 == 0):
+            print(i)
 
 
 # Pregenerate all user features based off tweets
@@ -222,7 +299,7 @@ def pregenerateAllUserFeatures():
 
         last_date = features[0] # Date of last tweet
         pregenerated['last_tweet_date'] = datetime.datetime.strptime(last_date, '%Y-%m-%d')
-        user_file_path = 'user_pickle_files/' + username + '.pkl'
+        user_file_path = 'user_pickle_files_new/' + username + '.pkl'
         writePickleObject(user_file_path, pregenerated)
 
 
@@ -234,15 +311,20 @@ def newCalculateUserFeatures(username, date, all_user_features, valid_users):
 
     # Add user to memory if never seen yet
     if (username not in all_user_features):
-        path = 'user_pickle_files/' + username + '.pkl'
+        path = 'user_pickle_files_new/' + username + '.pkl'
         user_feature = readPickleObject(path)
         if (len(user_feature.keys()) == 0):
             return None
         all_user_features[username] = user_feature
 
     features = all_user_features[username]
+
+    # user_info_collection = constants['local_client']['user_info_db']['user_info']
+    # features = user_info_collection.find_one({'_id': username})
+    # del features['_id']
+
     last_tweet_date = features['last_tweet_date']
-    
+
     # If last tweet is after current date, there is no previous data
     if (date < last_tweet_date):
         return None
@@ -422,7 +504,7 @@ def prediction(start_date, end_date, all_features, num_top_stocks, weightings, p
             daily_features[symbol] = result_weight / total_weight
 
         # Find percent of each stock to buy (pick top x)
-        choose_top_n = 3
+        choose_top_n = 4
         (return_today, selected_stocks) = calculateReturn(date, daily_features, choose_top_n, accuracies)
         total_return += return_today
         cash *= (1 + (return_today / 100))
@@ -460,8 +542,10 @@ def prediction(start_date, end_date, all_features, num_top_stocks, weightings, p
             print(s, accuracies[s]['correct'], accuracies[s]['total'])
 
     if (print_info):
-        print(strong_correct, strong_total, strong_return, ' ', negative_correct, negative_total, negative_return)
-        print(total_correct/total_total, total_return, cash, positive_days / len(dates))
+        if (total_total > 0):
+            print(strong_correct, strong_total, strong_return, ' ', negative_correct, negative_total, negative_return)
+            print(total_correct/total_total, total_return, cash, positive_days / len(dates))
+            print(total_correct/total_total)
     return total_return
 
 
@@ -478,6 +562,7 @@ def findFeatures(start_date, end_date, num_top_stocks, path, update=False):
     all_stock_tweets = {} # store tweets locally for each stock
     all_user_features = {}
     result = {}
+    bucket = {}
 
     for date in dates:
         date_str = date.strftime("%Y-%m-%d")
@@ -501,10 +586,11 @@ def findFeatures(start_date, end_date, num_top_stocks, path, update=False):
                 continue
             found += 1
             print(date_str, symbol, len(tweets))
-            features = stockFeatures(tweets, symbol, all_user_features, valid_users) # calc features based on tweets/day
+            features = stockFeatures(tweets, symbol, all_user_features, valid_users, bucket) # calc features based on tweets/day
             result[date_str][symbol] = features
         print(date_str, found)
 
+    writePickleObject('newPickled/bucket.pkl', bucket)
     writePickleObject(path, result)
     return result
 
@@ -745,16 +831,17 @@ def calculateUserFeatures(username, date, all_user_features, tweets):
         result['unique_num_predictions'][label] += 1
         result['unique_return'][label] += percent_return
 
-        result['perStock'][symbol]['unique_return_w1'][label] += w * percent_return
-        result['perStock'][symbol]['unique_correct_predictions'][label] += correct_prediction_num
-        result['perStock'][symbol]['unique_num_predictions'][label] += 1
-        result['perStock'][symbol]['unique_return'][label] += percent_return
-
         # return unique (log) Weighted by number of times posted that day
         num_labels = unique_stocks[time_string]['count']
         val = percent_return * (math.log10(num_labels) + 1)
         result['unique_return_log'][label] += val
-        result['perStock'][symbol]['unique_return_log'][label] += val
+
+        if (symbol in constants['top_stocks']):
+            result['perStock'][symbol]['unique_return_log'][label] += val
+            result['perStock'][symbol]['unique_return_w1'][label] += w * percent_return
+            result['perStock'][symbol]['unique_correct_predictions'][label] += correct_prediction_num
+            result['perStock'][symbol]['unique_num_predictions'][label] += 1
+            result['perStock'][symbol]['unique_return'][label] += percent_return
 
     all_user_features[username] = result
     return result
@@ -814,9 +901,10 @@ def buildStockFeatures():
     return result
 
 
+
 # Return feature parameters based on tweets for a given trading day/s
 # Builds user features as more information is seen about that user
-def stockFeatures(tweets, symbol, all_user_features, valid_users):
+def stockFeatures(tweets, symbol, all_user_features, valid_users, bucket):
     result = buildStockFeatures()
     bull_count = 0
     bear_count = 0
@@ -838,17 +926,18 @@ def stockFeatures(tweets, symbol, all_user_features, valid_users):
             continue
         seen_users[username] = {
             'user': tweet['user'],
+            'time': tweet['time'],
             'isBull': isBull,
             'count': w,
-            'time': tweet['time']
+            'tweeted_weight': w
         }
 
     # Look at all unique predictions and their counts
     for user in seen_users:
         username = seen_users[user]['user']
         tweeted_date = seen_users[user]['time']
+        w = seen_users[user]['tweeted_weight'] # weighted based on time of tweet
         label = 'bull' if seen_users[user]['isBull'] else 'bear'
-        w = findWeight(tweeted_date, 'log(x)') # weighted based on time of tweet
 
         # Find user features (return, accuracy, etc.) before tweeted date
         user_info = newCalculateUserFeatures(username, tweeted_date, all_user_features, valid_users)
@@ -861,7 +950,7 @@ def stockFeatures(tweets, symbol, all_user_features, valid_users):
         num_tweets_s_unique = findFeature(user_info, symbol, ['unique_num_predictions'], None)
 
         # Filter by number of tweets
-        if (num_tweets <= 50 or num_tweets_s <= 10 or num_tweets_unique <= 5 or num_tweets_s_unique <= 5):
+        if (num_tweets <= 50 or num_tweets_s <= 10 or num_tweets_unique <= 10 or num_tweets_s_unique <= 5):
             continue
 
         accuracy_unique = findFeature(user_info, '', ['unique_correct_predictions', 'unique_num_predictions'], label)
@@ -874,13 +963,28 @@ def stockFeatures(tweets, symbol, all_user_features, valid_users):
         return_unique_w1_s = findFeature(user_info, symbol, ['unique_return_w1'], label)
 
         # Filter by accuracy
-        if (accuracy_unique < 0.45 or accuracy_unique_s < 0.45):
+        if (accuracy_unique < 0.49 or accuracy_unique_s < 0.35):
             continue
 
         # Filter by return
-        if (return_unique < 5 or return_unique_s < 1 or return_unique_log < 1 or
+        if (return_unique < 30 or return_unique_s < 1 or return_unique_log < 1 or
             return_unique_log_s < 1 or return_unique_w1 < 1 or return_unique_w1_s < 1):
             continue
+
+        if (username not in bucket):
+            bucket_result = {
+                'accuracy_unique': accuracy_unique,
+                'accuracy_unique_s': accuracy_unique_s,
+                'num_tweets_unique': num_tweets_unique,
+                'num_tweets_s_unique': num_tweets_s_unique,
+                'return_unique': return_unique,
+                'return_unique_s': return_unique_s,
+                'return_unique_w1': return_unique_w1,
+                'return_unique_w1_s': return_unique_w1_s,
+                'return_unique_log': return_unique_log,
+                'return_unique_log_s': return_unique_log_s
+            }
+            bucket[username] = bucket_result
 
         if (seen_users[user]['isBull']):
             bull_count += 1

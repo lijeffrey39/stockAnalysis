@@ -13,7 +13,7 @@ from dateutil.parser import parse
 from dateutil.tz import *
 
 from .hyperparameters import constants
-from .stockPriceAPI import inTradingDay
+from .stockPriceAPI import (inTradingDay, isTradingDay)
 
 # ------------------------------------------------------------------------
 # ----------------------------- Functions --------------------------------
@@ -163,26 +163,6 @@ def writeCachedTweets(symbol, tweets):
     return
 
 
-# Generate all combinations
-def recurse(l, i, m, check, result):
-    if (i >= len(l)):
-        return
-
-    if (l[i] == m):
-        return
-    new = copy.deepcopy(l)
-    newStr = str(new).strip('[]')
-    if (newStr not in check):
-        check.add(newStr)
-        result.append(new)
-    new[i] += 1
-    recurse(new, i, m, check, result)
-    new1 = copy.deepcopy(l)
-    newStr = str(new1).strip('[]')
-    if (newStr not in check):
-        check.add(newStr)
-        result.append(new1)
-    recurse(new1, i + 1, m, check, result)
 
 
 # Returns list of all stocks
@@ -245,7 +225,7 @@ def convertToEST(dateTime):
 def findAllDays(date, upToDate):
     delta = datetime.timedelta(1)
     dates = []
-    while (date < upToDate):
+    while (date <= upToDate):
         dates.append(date)
         date += delta
     return dates
@@ -256,7 +236,7 @@ def findTradingDays(date, upToDate):
     delta = datetime.timedelta(1)
     trading_days = constants['trading_days']
     dates = []
-    while (date < upToDate):
+    while (date <= upToDate):
         if (date.strftime("%Y-%m-%d") in trading_days):
             dates.append(date)
         date += delta
@@ -265,32 +245,26 @@ def findTradingDays(date, upToDate):
 
 # Find weight between 0-1 based on function
 def findWeight(date, function):
-    time = date
+    day_increment = datetime.timedelta(days=1)
+    start_date = date
+    end_date = start_date - day_increment
 
-    # If on a weekday between Monday 4:00 and Friday 4:00
-    currTime = datetime.datetime(date.year, date.month, date.day, 16)
-    if (date > currTime):
-        date -= datetime.timedelta(days=1)
+    # 4pm cutoff
+    cutoff = datetime.datetime(date.year, date.month, date.day, 16)
+    if (start_date > cutoff or isTradingDay(start_date) == False):
+        end_date = start_date
+        start_date += day_increment
+        while (isTradingDay(start_date) == False):
+            start_date += day_increment
 
-    difference = currTime - date
-    secondsInDay = 86400
-    seconds = difference.seconds
-    x = 1 - (seconds / secondsInDay)
+    while (isTradingDay(end_date) == False):
+        end_date -= day_increment
 
-    dayOfWeek = time.weekday()
-    timeDiff = (time - datetime.datetime(time.year, time.month, time.day)).total_seconds()
-    fourPM = 16 * 60 * 60
-    # If it is after Friday 4pm and before Monday 4pm
-    if ((dayOfWeek == 4 and timeDiff > fourPM) or
-        (dayOfWeek == 5) or (dayOfWeek == 6) or
-        (dayOfWeek == 0 and timeDiff < fourPM)):
-        # Move currTime to 4 pm on Monday
-        while (currTime.weekday() != 0):
-            currTime += datetime.timedelta(days=1)
-
-        difference = (currTime - time).total_seconds()
-        secondsInDay *= 3
-        x = 1 - (difference / secondsInDay)
+    start_date = datetime.datetime(start_date.year, start_date.month, start_date.day, 16)
+    end_date = datetime.datetime(end_date.year, end_date.month, end_date.day, 16)
+    difference = (date - end_date).total_seconds()
+    total_seconds = (start_date - end_date).total_seconds()
+    x = difference / total_seconds
 
     if (function == '1'):
         return 1

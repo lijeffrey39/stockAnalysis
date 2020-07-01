@@ -11,7 +11,7 @@ from functools import reduce
 from dateutil.parser import parse
 
 from .helpers import (calcRatio, findWeight, readCachedCloseOpen,
-                      readCachedTweets, readPickleObject, recurse,
+                      readCachedTweets, readPickleObject,
                       writeCachedCloseOpen, writeCachedTweets,
                       writePickleObject)
 from .hyperparameters import constants

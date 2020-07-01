@@ -490,14 +490,15 @@ def updateUserFeatures(result, tweet, uniqueStocks):
     correct_prediction = (isBull and percent_change >= 0) or (isBull is False and percent_change <= 0)
     correct_prediction_num = 1 if correct_prediction else 0
 
-    # Initialize perstock object
-    if (symbol not in result['perStock']):
-        initializePerStockFeatures(symbol, result)
-
     result['correct_predictions'][label] += correct_prediction_num
-    result['perStock'][symbol]['correct_predictions'][label] += correct_prediction_num
     result['num_predictions'][label] += 1
-    result['perStock'][symbol]['num_predictions'][label] += 1
+
+    if (symbol in constants['top_stocks']):
+        # Initialize perstock object
+        if (symbol not in result['perStock']):
+            initializePerStockFeatures(symbol, result)
+        result['perStock'][symbol]['correct_predictions'][label] += correct_prediction_num
+        result['perStock'][symbol]['num_predictions'][label] += 1
 
     w = findWeight(time, 'log(x)')
     # For unique predictions per day, only count (bull/bear) if its majority

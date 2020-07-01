@@ -54,8 +54,9 @@ constants = {
     'driver_bin': driver_bin,
     'chrome_options': chrome_options,
     'caps': caps,
-    'scroll_pause_time': 5,
+    'scroll_pause_time': 8,
     'alpha_vantage_api_key':'URK33PG7JX4SFFXH',
+    'local_client': pymongo.MongoClient('mongodb://localhost:27017'),
     'db_client': pymongo.MongoClient("mongodb+srv://test_user:test@cluster0"
                                      "-qthez.mongodb.net/test?retryWrites=true"
                                      "&w=majority",
