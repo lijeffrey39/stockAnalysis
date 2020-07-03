@@ -50,10 +50,10 @@ def insertResults(all_tweets):
 
         result_insert = collection.replace_one(query, tweet, upsert=True)
         found_duplicate = result_insert.modified_count
-        if (found_duplicate == 1):
-            print("DUPLICATE:", tweet)
-        else:
-            print(tweet)
+        # if (found_duplicate == 1):
+        #     print("DUPLICATE:", tweet)
+        # else:
+        #     print(tweet)
         count += found_duplicate # number of duplicate documents
 
     print('Duplicates:', count, 'Total:', total)
