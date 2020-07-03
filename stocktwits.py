@@ -255,18 +255,23 @@ def main():
     elif (options.dailyuserparser):
         dailyAnalyzeUsers(reAnalyze=True, updateUser=True, daysback=14)
     else:
+         stock_counts_collection = constants['db_client'].get_database('stocktwits_db').stock_counts_daily_1000.find()
+         for i in stock_counts_collection:
+             print('')
+             print(i)
+
         # start_date = datetime.datetime(2019, 6, 10, 15, 30)
         # end_date = datetime.datetime(2020, 6, 28, 9, 30)
         # td = datetime.timedelta(days=1)
         # while (start_date <= end_date):
         #     stockcount1000daily(start_date)
         #     start_date+=td
-        usercollection = constants['db_user_client'].get_database('user_data_db').users.find({ 'bbcount': { '$exists': True }})
-        res = []
-        for i in usercollection:
-            if i['_id'] == 'Kirkim':
-                print(i)
-        print(usercollection.count())
+        # usercollection = constants['db_user_client'].get_database('user_data_db').users.find({ 'bbcount': { '$exists': True }})
+        # res = []
+        # for i in usercollection:
+        #     if i['_id'] == 'Kirkim':
+        #         print(i)
+        # print(usercollection.count())
         # for i in usercollection:
         #     if i['bbcount'] > 40:
         #         res.append(i['bbcount'])

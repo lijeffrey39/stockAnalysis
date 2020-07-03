@@ -46,8 +46,8 @@ def insertResults(all_tweets):
         del query['commentCount']
         del tweet['_id'] # case on attempting to replace _id for existing documents
         date = tweet['time']
-        dateStart = datetime.datetime(date.year, date.month, date.day, 0)
-        dateEnd = datetime.datetime(date.year, date.month, date.day, 23, 59)
+        dateStart = date - datetime.timedelta(minutes=5)
+        dateEnd = date + datetime.timedelta(minutes=5)
         query['time'] = {'$gte': dateStart, '$lt': dateEnd}
 
         result_insert = collection.replace_one(query, tweet, upsert=True)
