@@ -31,42 +31,36 @@ def findAverageTime(times):
         return times[mid]
 
 
-# Insert list of tweets into tweets database
-def insertResults(results):
-    print('inserting')
+def insertResults(all_tweets):
     collection = constants['stocktweets_client'].get_database('tweets_db').tweets
     count = 0
-    count1 = 0
     total = 0
-    bullbearcount = 0
-    for r in results:
+    bullbearcount = 0   
+    for tweet in all_tweets:
         total += 1
-        query = copy.deepcopy(r)
+        query = copy.deepcopy(tweet)
         if (((query['isBull'] is True) or (query['isBull'] is False)) and (query['time'] > (datetime.datetime.now()-datetime.timedelta(days=21)))):
                 bullbearcount+=1
         del query['_id']
         del query['likeCount']
         del query['commentCount']
-        date = r['time']
+        del tweet['_id'] # case on attempting to replace _id for existing documents
+        date = tweet['time']
         dateStart = datetime.datetime(date.year, date.month, date.day, 0)
         dateEnd = datetime.datetime(date.year, date.month, date.day, 23, 59)
         query['time'] = {'$gte': dateStart, '$lt': dateEnd}
-        #tweet = list(collection.find(query))
-        #if (len(tweet) != 0):
-            #count1 += 1
-            #continue
-        try:
-            wr = collection.update(r, r, {'upsert': True})
-            if wr.upserted_id is None:
-                count1+=1
-            else:
-            count += 1
-        except Exception:
-            continue
+
+        result_insert = collection.replace_one(query, tweet, upsert=True)
+        found_duplicate = result_insert.modified_count
+        # if (found_duplicate == 1):
+        #     print("DUPLICATE:", tweet)
+        # else:
+        #     print(tweet)
+        count += found_duplicate # number of duplicate documents
     usercollection = constants['db_user_client'].get_database('user_data_db').users
     print(bullbearcount)
-    usercollection.update_one({'_id': results[0]['user']}, {'$set': {'bbcount': bullbearcount}})          
-    print(count, count1, total)
+    usercollection.update_one({'_id': all_tweets[0]['user']}, {'$set': {'bbcount': bullbearcount}})   
+    print('Duplicates:', count, 'Total:', total)
 
 
 # Calculate ratio between two values

@@ -51,7 +51,6 @@ def insertUpdateError(coreInfo, reAnalyze, updateUser):
 # Can parse/analyze users if it is set to true
 def shouldParseUser(username, reAnalyze, updateUser):
     analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
-    updateUser = True
     if (reAnalyze is False and updateUser is False and
         analyzedUsers.count_documents({'_id': username}) != 0):
         return None
@@ -60,8 +59,8 @@ def shouldParseUser(username, reAnalyze, updateUser):
         query = {'_id': username}
         result = analyzedUsers.find_one(query)
         try:
-            if result['bbcount']:
-                print('disguy' + username + 'done')
+            if result['bbcount'] is not None:
+                print('disguy ' + username + ' done')
                 return None
         except:
             pass    
