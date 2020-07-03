@@ -59,10 +59,12 @@ def shouldParseUser(username, reAnalyze, updateUser):
     if (updateUser):
         query = {'_id': username}
         result = analyzedUsers.find_one(query)
-
-        if 'bbcount' in result:
-            print('disguy' + username + 'done')
-            return None
+        try:
+            if result['bbcount']:
+                print('disguy' + username + 'done')
+                return None
+        except:
+            pass    
         # end_date = result['last_updated']
         # start_date = end_date - datetime.timedelta(days = 21)
         # tweetsDB = constants['stocktweets_client'].get_database('tweets_db').tweets.find({"$and": [{'user': username}, 

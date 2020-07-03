@@ -51,12 +51,15 @@ def insertResults(results):
         dateStart = datetime.datetime(date.year, date.month, date.day, 0)
         dateEnd = datetime.datetime(date.year, date.month, date.day, 23, 59)
         query['time'] = {'$gte': dateStart, '$lt': dateEnd}
-        tweet = list(collection.find(query))
-        if (len(tweet) != 0):
-            count1 += 1
-            continue
+        #tweet = list(collection.find(query))
+        #if (len(tweet) != 0):
+            #count1 += 1
+            #continue
         try:
-            collection.insert_one(r)
+            wr = collection.update(r, r, {'upsert': True})
+            if wr.upserted_id is None:
+                count1+=1
+            else:
             count += 1
         except Exception:
             continue

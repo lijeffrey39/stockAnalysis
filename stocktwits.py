@@ -106,7 +106,7 @@ def analyzeUsers(reAnalyze, findNewUsers, updateUser):
             coreInfo['error'] = errorMsg
             insertUpdateError(coreInfo, reAnalyze, updateUser)
             continue
-        print('parsingdata')
+
         result = parseUserData(username, soup)
         if (len(result) == 0):
             coreInfo['error'] = "Empty result list"
@@ -263,6 +263,9 @@ def main():
         #     start_date+=td
         usercollection = constants['db_user_client'].get_database('user_data_db').users.find({ 'bbcount': { '$exists': True }})
         res = []
+        for i in usercollection:
+            if i['_id'] == 'Kirkim':
+                print(i)
         print(usercollection.count())
         # for i in usercollection:
         #     if i['bbcount'] > 40:
