@@ -33,6 +33,7 @@ def findAverageTime(times):
 
 # Insert list of tweets into tweets database
 def insertResults(results):
+    print('inserting')
     collection = constants['stocktweets_client'].get_database('tweets_db').tweets
     count = 0
     count1 = 0
