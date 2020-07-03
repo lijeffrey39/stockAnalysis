@@ -32,33 +32,31 @@ def findAverageTime(times):
 
 
 # Insert list of tweets into tweets database
-def insertResults(results):
+def insertResults(all_tweets):
     collection = constants['stocktweets_client'].get_database('tweets_db').tweets
     count = 0
-    count1 = 0
     total = 0
-    for r in results:
+    for tweet in all_tweets:
         total += 1
-        query = copy.deepcopy(r)
+        query = copy.deepcopy(tweet)
         del query['_id']
         del query['likeCount']
         del query['commentCount']
-        date = r['time']
+        del tweet['_id'] # case on attempting to replace _id for existing documents
+        date = tweet['time']
         dateStart = datetime.datetime(date.year, date.month, date.day, 0)
         dateEnd = datetime.datetime(date.year, date.month, date.day, 23, 59)
         query['time'] = {'$gte': dateStart, '$lt': dateEnd}
-        tweet = list(collection.find(query))
-        if (len(tweet) != 0):
-            count1 += 1
-            continue
 
-        try:
-            collection.insert_one(r)
-            count += 1
-        except Exception:
-            continue
+        result_insert = collection.replace_one(query, tweet, upsert=True)
+        found_duplicate = result_insert.modified_count
+        if (found_duplicate == 1):
+            print("DUPLICATE:", tweet)
+        else:
+            print(tweet)
+        count += found_duplicate # number of duplicate documents
 
-    print(count, count1, total)
+    print('Duplicates:', count, 'Total:', total)
 
 
 # Calculate ratio between two values
@@ -89,9 +87,8 @@ def readPickleObject(path):
 
 # Write pickled object to path
 def writePickleObject(path, result):
-    f = open(path, 'wb')
-    pickle.dump(result, f)
-    f.close()
+    with open(path, 'wb') as handle:
+        pickle.dump(result, handle, protocol=pickle.HIGHEST_PROTOCOL)
     return
 
 

@@ -94,9 +94,37 @@ def getTopStocksforWeek(date, num):
 
     newdict = sorted(stock_list, key=lambda k: k['count'], reverse=True)
     filtered_dict = list(filter(lambda document: document['_id'] not in bad_stocks, newdict))
-    # test = list(map(lambda document: (document['_id'], document['count']), filtered_dict))
+    test = list(map(lambda document: (document['_id'], document['count']), filtered_dict))
     newlist = list(map(lambda document: document['_id'], filtered_dict))
     result = newlist[:num]
+    return result
+
+
+# Get top stocks for that week given a date
+def getTopStocksCached(date, num, cached_stockcounts):
+    bad_stocks = ['JCP', 'INPX', 'LK', 'HTZ', None, 'SPEX', 'NNVC', 'HSGX', 'LGCY', 'YRIV', 'MLNT', 'IFRX', 'OBLN', 'MLNT', 'MDR', 'FLKS', 'RTTR', 'CORV', 'WORX']
+    path = 'newPickled/stock_counts_14.pkl'
+    year_week = date.isocalendar()[:2]
+    year = year_week[0]
+    week = year_week[1]
+    year_week_id = str(year) + '_' + str(week)
+
+    stock_list = []
+    if (year_week_id in cached_stockcounts):
+        stock_list = cached_stockcounts[year_week_id]
+    else:
+        db = constants['db_client'].get_database('stocktwits_db').stock_counts_perweek_14
+        cursor = db.find({"_id" : year_week_id})
+        if (cursor.count() == 0):
+            return None
+        stock_list = cursor[0]['stocks']
+        cached_stockcounts[year_week_id] = stock_list
+        writePickleObject(path, cached_stockcounts)
+
+    stock_list.sort(key=lambda k: k['count'], reverse=True)
+    filtered_dict = list(filter(lambda document: document['_id'] not in bad_stocks and document['_id'] in constants['top_stocks'], stock_list[:150]))
+    # test = list(map(lambda document: (document['_id'], document['count']), filtered_dict))
+    result = list(map(lambda document: document['_id'], filtered_dict[:num]))
     return result
 
 

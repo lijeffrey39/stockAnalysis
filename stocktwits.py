@@ -1,5 +1,6 @@
 import datetime
 import optparse
+import multiprocessing
 import matplotlib. pyplot as plt
 from klepto.archives import dir_archive
 import math
@@ -12,7 +13,7 @@ import json
 import ujson
 import shelve
 
-from modules.helpers import (convertToEST, findTradingDays, getAllStocks,
+from modules.helpers import (convertToEST, findTradingDays, getAllStocks, findAllDays,
                              insertResults, findWeight, writePickleObject, readPickleObject)
 from modules.hyperparameters import constants
 from modules.prediction import (basicPrediction, findAllTweets, updateBasicStockInfo, setupUserInfos)
@@ -28,9 +29,9 @@ from modules.userAnalysis import (findPageUser, findUsers, insertUpdateError,
 from modules.tests import (findBadMessages, removeMessagesWithStock, 
                            findTopUsers, findOutliers, findAllUsers, findErrorUsers)
                         
-from modules.newPrediction import (findTweets, weightedUserPrediction, writeTweets, calculateUserFeatures, dailyPrediction,
+from modules.newPrediction import (findTweets, weightedUserPrediction, writeTweets, calculateUserFeatures, dailyPrediction, fetchTweets,
                                     editCachedTweets, prediction, findFeatures, pregenerateAllUserFeatures, pregenerateUserFeatures,
-                                    saveUserTweets, cachedUserTweets, optimizeParams, findStockCounts, insertUser)
+                                    saveUserTweets, cachedUserTweets, optimizeParams, findStockCounts, insertUser, modifyTweets, getTopStocksCached)
 
 
 client = constants['db_client']
@@ -94,6 +95,7 @@ def analyzeStocks(date, stocks):
 def analyzeUsers(reAnalyze, findNewUsers, updateUser):
     users = findUsers(reAnalyze, findNewUsers, updateUser)
     print(len(users))
+    users = ['tony93']
     for username in users:
         print(username)
         coreInfo = shouldParseUser(username, reAnalyze, updateUser)
@@ -212,22 +214,22 @@ def main():
     elif (options.optimizer):
         optimizeParams()
     elif (options.prediction):
-        num_top_stocks = 15 # Choose top 20 stocks of the week to parse
-        start_date = datetime.datetime(2019, 6, 9, 15, 30)
-        end_date = datetime.datetime(2020, 6, 28, 9, 30)
+        num_top_stocks = 25 # Choose top 20 stocks of the week to parse
+        start_date = datetime.datetime(2019, 6, 2, 15, 30)
+        end_date = datetime.datetime(2020, 7, 1, 9, 30)
 
         # Write stock tweet files
         # writeTweets(start_date, end_date, num_top_stocks, overwrite=True)
         # return
 
         # Find features for prediction
-        path = 'newPickled/stock_features_all_14.pkl'
+        path = 'newPickled/stock_features.pkl'
         found_features = findFeatures(start_date, end_date, num_top_stocks, path, True)
-
+        # return
         # Make prediction
         weightings = {
-            'bull': 3,
-            'bear': 1,
+            'bull_w': 3,
+            'bear_w': 1,
             # 'bull_w_return_log': 0.8,
             # 'bear_w_return_log': 0.2,
             # 'count_ratio_w': 3.9,
@@ -255,8 +257,58 @@ def main():
     elif (options.dailyuserparser):
         dailyAnalyzeUsers(reAnalyze=True, updateUser=True, daysback=14)
     else:
+        # date_start = datetime.datetime(2020, 6, 27)
+        # stock_counts = readPickleObject('newPickled/stock_counts_14.pkl')
+        # print(getTopStocksCached(date_start, 40, stock_counts))
 
-        # res = pregenerateUserFeatures('tony93')
+
+
+        i = {'symbol': 'UPS', 'user': 'Discipline15', 'time': datetime.datetime(2020, 6, 29, 3, 9), 'isBull': True, 'likeCount': 3, 'commentCount': 0, 'messageText': '$UPS long to 140+ by next year.'}
+        collection = constants['stocktweets_client'].get_database('tweets_db').tweets
+
+        query = {'user': 'tony93'}
+        tweets = list(collection.find(query))
+        for t in tweets:
+            print(t)
+
+        # query = {
+        #     'symbol': 'UPS',
+        #     'user': 'Discipline15',
+        #     'time': {'$gte': datetime.datetime(2020, 6, 29), '$lt': datetime.datetime(2020, 6, 29, 23, 59)},
+        #     'isBull': True,
+        #     'messageText': '$UPS long to 140+ by next year.'
+        # }
+        # res = collection.replace_one(query, i, upsert=True)
+        # print(res.matched_count)
+        # print(res.modified_count)
+
+        # modifyTweets()
+        # path = 'stock_files/' + 'TSLA.pkl'
+        # tweets_per_stock = readPickleObject(path)
+
+        # for t in tweets_per_stock['2019-06-07']:
+        #     print(t['time'])
+        # result = readPickleObject('newPickled/user_features.pickle')
+        # for d in result['Discipline15']['general']:
+        #     print(d, result['Discipline15']['general'][d]['num_predictions'])
+
+        # date_end = datetime.datetime(2020, 6, 11)
+        # modifyTweets()
+        # tweets = list(col.find(query))
+        # tweets = list(map(lambda t: {'user': t['user'], 'time': t['time'], 'w': findWeight(t['time'], 'log(x)'), 'isBull': t['isBull']}, tweets))
+        # for t in tweets:
+        #     print(t)
+        # pregenerateAllUserFeatures()
+        # for d in res['general']:
+        #     print(d, res['general'][d]['num_predictions'])
+
+
+        # res = pregenerateUserFeatures('zredpill')
+        # for d in res['per_stock']['SPY']:
+        #     print(d, res['per_stock']['SPY'][d]['num_predictions'])
+        # for d in res['general']:
+        #     print(d, res['general'][d])
+        # writePickleObject('data_1.pkl', res)
         # demo = dir_archive('demo', serialized=True, cached=False)
         # demo['tony93'] = res
 
@@ -270,16 +322,9 @@ def main():
         # insertUser()
         # print(res)
 
-        # path = "data_file.json"
-        # with open(path, 'r') as f:
-        #     print(time.time())
-        #     x = ujson.load(f)
-        #     print(time.time())
-
-        # pregenerateAllUserFeatures()
 
 
-        dailyPrediction(datetime.datetime(2020, 6, 30))
+        # dailyPrediction(datetime.datetime(2020, 7, 1))
 
 
         # num_tweets_unique 30
@@ -316,11 +361,18 @@ def main():
         # # print(len(data))
 
         # now = convertToEST(datetime.datetime.now())
+        # date = datetime.datetime(2019, 6, 26)
         # delta = datetime.timedelta(days=7)
         # result = []
         # while (date < datetime.datetime(2020, 6, 26)):
-        #     print(date, getTopStocksforWeek(date, 15))
+        #     d = getTopStocksforWeek(date, 15)
+        #     print(date, d)
         #     date += delta
+        #     for s in d:
+        #         if (s not in result):
+        #             result.append(s)
+
+        # print(result)
         # updateStockCountPerWeek(datetime.datetime(2020, 6, 29))
         # print(findWeight(datetime.datetime(2020, 6, 23, 9), 'log(x)'))
 
