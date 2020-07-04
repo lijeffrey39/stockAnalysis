@@ -31,16 +31,16 @@ def findAverageTime(times):
         return times[mid]
 
 
+# Insert list of tweets into tweets database
 def insertResults(all_tweets):
     collection = constants['stocktweets_client'].get_database('tweets_db').tweets
     count = 0
     total = 0
-    bullbearcount = 0   
     for tweet in all_tweets:
         total += 1
         query = copy.deepcopy(tweet)
-        if (((query['isBull'] is True) or (query['isBull'] is False)) and (query['time'] > (datetime.datetime.now()-datetime.timedelta(days=21)))):
-                bullbearcount+=1
+        # if (((query['isBull'] is True) or (query['isBull'] is False)) and (query['time'] > (datetime.datetime.now()-datetime.timedelta(days=21)))):
+        #         bullbearcount+=1
         del query['_id']
         del query['likeCount']
         del query['commentCount']
@@ -57,10 +57,10 @@ def insertResults(all_tweets):
         # else:
         #     print(tweet)
         count += found_duplicate # number of duplicate documents
-    usercollection = constants['db_user_client'].get_database('user_data_db').users
-    print(bullbearcount)
-    usercollection.update_one({'_id': all_tweets[0]['user']}, {'$set': {'bbcount': bullbearcount}})   
-    print('Duplicates:', count, 'Total:', total)
+    # usercollection = constants['db_user_client'].get_database('user_data_db').users
+    # print(bullbearcount)
+    # usercollection.update_one({'_id': all_tweets[0]['user']}, {'$set': {'bbcount': bullbearcount}})   
+    # print('Duplicates:', count, 'Total:', total)
 
 
 # Calculate ratio between two values
@@ -91,9 +91,8 @@ def readPickleObject(path):
 
 # Write pickled object to path
 def writePickleObject(path, result):
-    f = open(path, 'wb')
-    pickle.dump(result, f)
-    f.close()
+    with open(path, 'wb') as handle:
+        pickle.dump(result, handle, protocol=pickle.HIGHEST_PROTOCOL)
     return
 
 
