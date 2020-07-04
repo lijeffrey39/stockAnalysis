@@ -7,6 +7,7 @@ import math
 import os
 import pickle
 import holidays
+import requests
 
 import pytz
 from dateutil.parser import parse
@@ -44,8 +45,8 @@ def insertResults(all_tweets):
         del query['commentCount']
         del tweet['_id'] # case on attempting to replace _id for existing documents
         date = tweet['time']
-        dateStart = datetime.datetime(date.year, date.month, date.day, 0)
-        dateEnd = datetime.datetime(date.year, date.month, date.day, 23, 59)
+        dateStart = date - datetime.timedelta(minutes=5)
+        dateEnd = date + datetime.timedelta(minutes=5)
         query['time'] = {'$gte': dateStart, '$lt': dateEnd}
 
         result_insert = collection.replace_one(query, tweet, upsert=True)
@@ -160,38 +161,13 @@ def writeCachedTweets(symbol, tweets):
     return
 
 
-
-
-# Returns list of all stocks
-def getAllStocks():
-    allStocks = constants['db_client'].get_database('stocktwits_db').all_stocks
-    cursor = allStocks.find()
-    stocks = list(map(lambda document: document['_id'], cursor))
-    stocks.sort()
-    stocks.remove('YRIV') # delisted
-    # stocks.remove('NAKD') # fixed
-    # stocks.remove('CEI') # fixed
-    # stocks.remove('SLS') # fixed
-    # stocks.remove('SES') # fixed ?
-    # stocks.remove('AKER') # fixed
-    # stocks.remove('ASNA') # fixed
-    # stocks.remove('TRXC') # fixed
-    # stocks.remove('TVIX') # fixed
-    # stocks.remove('GUSH') # fixed
-    # stocks.remove('PLX') # fixed
-    # stocks.remove('AMRH') # fixed
-    # stocks.remove('LODE') # fixed
-    return stocks
-
-
 # Returns actual list of all stocks
 def getActualAllStocks():
-    allStocks = constants['db_client'].get_database('stocktwits_db').actually_all_stocks
-    cursor = allStocks.find()
-    stocks = list(map(lambda document: document['_id'], cursor))
-    restStocks = getAllStocks()
-    stocks.extend(restStocks)
-    stocks.sort()
+    r = requests.get('https://finnhub.io/api/v1/stock/symbol?exchange=US&token=brvs7evrh5rcsef0e6c0')
+    response = r.json()
+    if (len(response) == 0):
+        raise Exception('STOCK PROBLEM')
+    stocks = set(map(lambda x: x['symbol'], response))
     return stocks
 
 

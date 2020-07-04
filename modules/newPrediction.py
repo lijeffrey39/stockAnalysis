@@ -83,10 +83,12 @@ def optimizeFN(params):
     weightings = {
         'bull_w': params[0],
         'bear_w': params[1],
-        # 'bull_w_return_log': params[2],
-        # 'bear_w_return_log': params[3],
+        'bull_w_return_w1': params[2],
+        'bear_w_return_w1': params[3],
+        # 'count_ratio_w': params[4],
+        # 'return_ratio_w': params[5],
     }
-    start_date = datetime.datetime(2020, 1, 2, 15, 30)
+    start_date = datetime.datetime(2019, 6, 2, 15, 30)
     end_date = datetime.datetime(2020, 7, 1, 9, 30)
     path = 'newPickled/stock_features.pkl'
     num_top_stocks = 25
@@ -145,13 +147,13 @@ def optimizeParams():
     params = {
         # 'total_w': [8, (0, 30)],
         # 'return_log_s_w': [2, (0, 30)],
-        # 'count_ratio_w': [2, (0, 30)],
-        # 'return_ratio': [2, (0, 30)],
         # 'return_s_w': [2, (0, 30)],
         'bull_w': [3, (0, 5)],
-        'bear_w': [1, (0, 5)],
-        # 'bull_w_return_w1': [1.5, (0, 3)],
-        # 'bear_w_return_w1': [0.4, (0, 3)],
+        'bear_w': [0.8, (0, 5)],
+        'bull_w_return_w1': [1.2, (0, 3)],
+        'bear_w_return_w1': [0.5, (0, 3)],
+        # 'count_ratio_w': [0.5, (0, 30)],
+        # 'return_ratio_w': [0.5, (0, 30)],
         # 'bear_w_return': [0., (0, 30)],
         # 'bear_w_return_log_s': [0, (0, 30)],
         # 'bear_w_return': [1.09, (0, 30)],
@@ -166,7 +168,7 @@ def optimizeParams():
     initial_values = list(map(lambda key: params[key][0], list(params.keys())))
     bounds = list(map(lambda key: params[key][1], list(params.keys())))
     result = minimize(optimizeFN, initial_values, method='SLSQP', options={'maxiter': 100, 'eps': 0.2}, 
-                    bounds=(bounds[0],bounds[1]))
+                    bounds=(bounds[0],bounds[1],bounds[2],bounds[3]))
     print(result)
 
 
@@ -575,6 +577,7 @@ def prediction(start_date, end_date, all_features, num_top_stocks, weightings, p
             print(total_correct/total_total, total_return, cash, positive_days / len(dates))
             print(total_correct/total_total)
     return total_return
+    return total_correct/total_total
 
 
 
@@ -596,7 +599,7 @@ def findFeatures(start_date, end_date, num_top_stocks, path, update=False):
         result[date_str] = {}
         found = 0
         stocks = getTopStocksCached(date, num_top_stocks, cached_stockcounts) # top stocks for the week
-        print(stocks)
+        # stocks = ['B', 'SPY', 'PTN', 'TSLA', 'AMD', 'MU', 'VBIV', 'NIO', 'FB', 'SLS', 'OSTK', 'ROKU', 'WKHS', 'DPW', 'AMZN', 'SHOP', 'AAPL', 'WORK', 'JNUG', 'FCEL', 'BA', 'CEI', 'TRNX', 'DIS', 'AMRN', 'CHK', 'ACB', 'TBLT', 'NFLX', 'UGAZ', 'BABA', 'SNAP', 'TVIX', 'SQ', 'NVDA', 'GE', 'BIOC', 'XSPA', 'SRNE', 'MSFT']
         for symbol in stocks:
             tweets_per_stock = {}
             if (symbol not in all_stock_tweets):
@@ -608,10 +611,10 @@ def findFeatures(start_date, end_date, num_top_stocks, path, update=False):
             tweets = findTweets(date, tweets_per_stock, symbol) # Find tweets used for predicting for this date
 
             # ignore all stock with less than 200 tweets
-            if (len(tweets) < 100):
+            if (len(tweets) < 50):
                 continue
             found += 1
-            print(date_str, symbol, len(tweets))
+            print(symbol, len(tweets))
             features = stockFeatures(tweets, symbol, all_user_features) # calc features based on tweets/day
             result[date_str][symbol] = features
         print(date_str, found)
@@ -1044,7 +1047,7 @@ def stockFeatures(tweets, symbol, all_user_features):
         accuracy_unique_s = findFeature(user_info, symbol, 'accuracy', label)
 
         # Filter by accuracy
-        if (accuracy_unique < 0.49 or accuracy_unique_s < 0.35):
+        if (accuracy_unique < 0.49 or accuracy_unique_s < 0.4):
             continue
 
         num_tweets = user_info['num_predictions']['bull'] + user_info['num_predictions']['bear']
