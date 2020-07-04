@@ -17,7 +17,6 @@ from .helpers import (convertToEST,
                       getActualAllStocks,
                       findWeight,
                       findJoinDate,
-                      getAllStocks,
                       readPickleObject)
 from .hyperparameters import constants
 from .messageExtract import *
@@ -58,12 +57,15 @@ def shouldParseUser(username, reAnalyze, updateUser):
     if (updateUser):
         query = {'_id': username}
         result = analyzedUsers.find_one(query)
-        try:
-            if result['bbcount'] is not None:
-                print('disguy ' + username + ' done')
-                return None
-        except:
-            pass    
+        if result['last_updated'] > datetime.datetime(2020, 7, 4, 3, 00):
+            print('done already')
+            return None
+        # try:
+        #     if result['bbcount'] is not None:
+        #         print('disguy ' + username + ' done')
+        #         return None
+        # except:
+        #     pass    
         # end_date = result['last_updated']
         # start_date = end_date - datetime.timedelta(days = 21)
         # tweetsDB = constants['stocktweets_client'].get_database('tweets_db').tweets.find({"$and": [{'user': username}, 

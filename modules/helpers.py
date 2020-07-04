@@ -7,6 +7,7 @@ import math
 import os
 import pickle
 import holidays
+import requests
 
 import pytz
 from dateutil.parser import parse
@@ -60,7 +61,7 @@ def insertResults(all_tweets):
     # usercollection = constants['db_user_client'].get_database('user_data_db').users
     # print(bullbearcount)
     # usercollection.update_one({'_id': all_tweets[0]['user']}, {'$set': {'bbcount': bullbearcount}})   
-    # print('Duplicates:', count, 'Total:', total)
+    print('Duplicates:', count, 'Total:', total)
 
 
 # Calculate ratio between two values
@@ -164,38 +165,13 @@ def writeCachedTweets(symbol, tweets):
     return
 
 
-
-
-# Returns list of all stocks
-def getAllStocks():
-    allStocks = constants['db_client'].get_database('stocktwits_db').all_stocks
-    cursor = allStocks.find()
-    stocks = list(map(lambda document: document['_id'], cursor))
-    stocks.sort()
-    # stocks.remove('YRIV') # delisted
-    # stocks.remove('NAKD') # fixed
-    # stocks.remove('CEI') # fixed
-    # stocks.remove('SLS') # fixed
-    # stocks.remove('SES') # fixed ?
-    # stocks.remove('AKER') # fixed
-    # stocks.remove('ASNA') # fixed
-    # stocks.remove('TRXC') # fixed
-    # stocks.remove('TVIX') # fixed
-    # stocks.remove('GUSH') # fixed
-    # stocks.remove('PLX') # fixed
-    # stocks.remove('AMRH') # fixed
-    # stocks.remove('LODE') # fixed
-    return stocks
-
-
 # Returns actual list of all stocks
 def getActualAllStocks():
-    allStocks = constants['db_client'].get_database('stocktwits_db').actually_all_stocks
-    cursor = allStocks.find()
-    stocks = list(map(lambda document: document['_id'], cursor))
-    restStocks = getAllStocks()
-    stocks.extend(restStocks)
-    stocks.sort()
+    r = requests.get('https://finnhub.io/api/v1/stock/symbol?exchange=US&token=brvs7evrh5rcsef0e6c0')
+    response = r.json()
+    if (len(response) == 0):
+        raise Exception('STOCK PROBLEM')
+    stocks = set(map(lambda x: x['symbol'], response))
     return stocks
 
 
