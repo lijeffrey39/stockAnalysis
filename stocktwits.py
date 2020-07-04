@@ -270,9 +270,13 @@ def main():
         dailyAnalyzeUsers(reAnalyze=True, updateUser=True, daysback=14)
     else:
         print()
-        userdb = constants['db_user_client'].get_database('user_data_db').users.find({'_id': 'ZenTrends'})
-        for i in userdb:
+        now = convertToEST(datetime.datetime.now())
+        collection = constants['stocktweets_client'].get_database('tweets_db').tweets.find({'$and': [{'symbol': 'SPY'}, {'time': {'$gte': now - datetime.timedelta(hours=3)}}]})
+        for i in collection:
             print(i)
+        # userdb = constants['db_user_client'].get_database('user_data_db').users.find({'_id': 'ZenTrends'})
+        # for i in userdb:
+        #     print(i)
         # x = constants['stocktweets_client'].get_database('tweets_db').tweets.find()
         # for i in x:
         #     print(i)
