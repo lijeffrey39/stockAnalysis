@@ -436,7 +436,7 @@ def editFeatures(start_date, end_date, all_features, weights):
             result['return_log_s_ratio_w'] = calcRatio(result['bull_w_return_log_s'], result['bear_w_return_log_s'])
             result['return_w1_ratio'] = calcRatio(result['bull_w_return_w1'], result['bear_w_return_w1'])
             result['return_w1_s_ratio'] = calcRatio(result['bull_w_return_w1_s'], result['bear_w_return_w1_s'])
-            
+
             # Make all bear features negative
             for f in all_features[d][s]:
                 if ('bear' in f):

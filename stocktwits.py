@@ -215,8 +215,8 @@ def main():
         optimizeParams()
     elif (options.prediction):
         num_top_stocks = 30 # Choose top 20 stocks of the week to parse
-        start_date = datetime.datetime(2019, 7, 21, 15, 30)
-        end_date = datetime.datetime(2019, 7, 23, 9, 30)
+        start_date = datetime.datetime(2019, 6, 3, 15, 30)
+        end_date = datetime.datetime(2020, 7, 1, 9, 30)
 
         # Write stock tweet files
         # writeTweets(start_date, end_date, num_top_stocks, overwrite=True)
@@ -224,7 +224,7 @@ def main():
 
         # Find features for prediction
         path = 'newPickled/stock_features.pkl'
-        found_features = findFeatures(start_date, end_date, num_top_stocks, path, True)
+        found_features = findFeatures(start_date, end_date, num_top_stocks, path, False)
         # return
         # Make prediction
         weightings = {
@@ -267,7 +267,6 @@ def main():
         # date_start = datetime.datetime(2019, 6, 27)
         # stock_counts = readPickleObject('newPickled/stock_counts_14.pkl')
         # print(getTopStocksCached(date_start, 40, stock_counts))
-
 
 
         # i = {'symbol': 'UPS', 'user': 'Discipline15', 'time': datetime.datetime(2020, 6, 29, 3, 9), 'isBull': True, 'likeCount': 3, 'commentCount': 0, 'messageText': '$UPS long to 140+ by next year.'}

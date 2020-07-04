@@ -81,7 +81,7 @@ constants = {
     'current_timezone': timeZoneName,
     'eastern_timezone': pytz.timezone('US/Eastern'),
     'keys': ['countRatio', 'UCountRatio', 'totalLabeledTweetsUsed', 'UtotalLabeledTweetsUsed'],
-    'top_stocks': set(['DPW', 'NAKD', 'SLS', 'CEI', 'OSTK', 'MU', 'PTN', 'WORK', 'PLUG', 'SAVE', 'ENPH', 'ZM', 'NVDA','GUSH', 'APHA', 'SBUX', 'SHOP', 'MRNA', 'TWTR', 'SNAP', 'BAC', 'F', 'GE', 'SQ', 'AAL', 'CCL', 'FB', 'GNUS', 'SPCE', 'AMRN', 'SPY', 'BIOC', 'NFLX', 'TOPS', 'GHSI', 'BABA', 'AAPL', 'AYTU', 'AMZN', 'MSFT', 'FCEL', 'OCGN', 'PCG', 'IBIO', 'ROKU', 'BA', 'WKHS', 'JNUG', 'ONTX', 'D', 'NIO', 'AIM', 'XSPA', 'MVIS', 'CHK', 'AUPH', 'UGAZ', 'VISL', 'TVIX', 'ACB', 'INO', 'CODX', 'B', 'TSLA', 'TRNX', 'TTOO', 'EROS', 'SRNE', 'MARK', 'CLVS', 'VBIV', 'HTBX', 'DIS', 'GILD', 'AMD', 'TBLT', 'USO']),
+    'top_stocks': set(['DPW', 'NAKD', 'SLS', 'CEI', 'OSTK', 'MU', 'PTN', 'WORK', 'PLUG', 'SAVE', 'ENPH', 'ZM', 'NVDA','GUSH', 'APHA', 'SBUX', 'SHOP', 'MRNA', 'TWTR', 'SNAP', 'BAC', 'F', 'GE', 'SQ', 'AAL', 'CCL', 'FB', 'GNUS', 'SPCE', 'AMRN', 'SPY', 'BIOC', 'NFLX', 'TOPS', 'GHSI', 'BABA', 'AAPL', 'AYTU', 'AMZN', 'MSFT', 'FCEL', 'OCGN', 'PCG', 'IBIO', 'ROKU', 'BA', 'WKHS', 'JNUG', 'ONTX', 'D', 'NIO', 'AIM', 'XSPA', 'MVIS', 'AUPH', 'UGAZ', 'VISL', 'TVIX', 'ACB', 'INO', 'CODX', 'B', 'TSLA', 'TTOO', 'EROS', 'SRNE', 'MARK', 'CLVS', 'VBIV', 'HTBX', 'DIS', 'GILD', 'AMD', 'TBLT', 'USO']),
     'html_class_user_div': 'st_CFwNYeI st_jGV698i st_PLa30pM',
     'html_class_user_info': 'st_21r0FbC st_2fTou_q',
     'html_class_plus': 'st_2ceteac st_8u0ePN3',
