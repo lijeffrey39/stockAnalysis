@@ -2,7 +2,6 @@ import datetime
 import optparse
 import multiprocessing
 import matplotlib. pyplot as plt
-from klepto.archives import dir_archive
 import math
 import time
 import requests
@@ -11,7 +10,6 @@ import yfinance as yf
 import requests
 import itertools
 import json
-import ujson
 import shelve
 
 
