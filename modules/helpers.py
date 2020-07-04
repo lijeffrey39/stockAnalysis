@@ -173,7 +173,7 @@ def getAllStocks():
     cursor = allStocks.find()
     stocks = list(map(lambda document: document['_id'], cursor))
     stocks.sort()
-    #stocks.remove('YRIV') # delisted
+    # stocks.remove('YRIV') # delisted
     # stocks.remove('NAKD') # fixed
     # stocks.remove('CEI') # fixed
     # stocks.remove('SLS') # fixed
