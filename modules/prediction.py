@@ -254,7 +254,7 @@ def setupStockInfos(stocks, updateObject=False):
 # Find all tweets on this given day from database
 def findTweets(date, symbol):
     tweetsDB = constants['stocktweets_client'].get_database('tweets_db')
-    db = constants['db_client'].get_database('stocks_data_db').updated_close_open
+    db = constants['db_user_client'].get_database('user_data_db').updated_close_open
     dayIncrement = datetime.timedelta(days=1)
     dateEnd = datetime.datetime(date.year, date.month, date.day, 16)
     dateStart = dateEnd - dayIncrement

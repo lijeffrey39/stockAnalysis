@@ -121,7 +121,7 @@ def findCloseOpenCached(symbol, time, cached_prices):
 
 # Find close open for date. Anytime before 4pm is
 def findCloseOpen(symbol, time):
-    db = constants['db_client'].get_database('stocks_data_db').updated_close_open
+    db = constants['db_user_client'].get_database('user_data_db').updated_close_open
     dbYF = constants['db_client'].get_database('stocks_data_db').yfin_close_open
     dayIncrement = datetime.timedelta(days=1)
     nextDay = None
@@ -206,7 +206,7 @@ def updateAllCloseOpen(stocks, dates, replace=False):
             replace = True
             dateString = date.strftime("%Y-%m-%d")
             idString = symbol + ' ' + dateString
-            db = constants['db_client'].get_database('stocks_data_db').updated_close_open
+            db = constants['db_user_client'].get_database('user_data_db').updated_close_open
             found = db.find_one({'_id': idString})
             if (found is None or replace):
                 result = updatedCloseOpen(symbol, date)
@@ -268,7 +268,7 @@ def updateAllCloseOpenYF(stocks, dates, replace=False):
                 print('found', found)
 
 def getCloseOpenInterval(symbol, date, interval):
-    db = constants['db_client'].get_database('stocks_data_db').updated_close_open
+    db = constants['db_user_client'].get_database('user_data_db').updated_close_open
     nextDay = None
     count = 0
 
@@ -306,7 +306,7 @@ def getCloseOpenInterval(symbol, date, interval):
 
 def getUpdatedCloseOpen(symbol, date):
     exceptions = [datetime.datetime(2019, 11, 27)]
-    db = constants['db_client'].get_database('stocks_data_db').updated_close_open
+    db = constants['db_user_client'].get_database('user_data_db').updated_close_open
     days_in_future = datetime.timedelta(days=1)
     future_date = date + days_in_future
     if (future_date.weekday() > 4):

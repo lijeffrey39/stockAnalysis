@@ -268,20 +268,24 @@ def main():
         dailyAnalyzeUsers(reAnalyze=True, updateUser=True, daysback=14)
     else:
         print()
-        now = convertToEST(datetime.datetime.now())
-        collection = constants['stocktweets_client'].get_database('tweets_db').tweets.find({'$and': [{'symbol': 'SPY'}, {'time': {'$gte': now - datetime.timedelta(hours=3)}}]})
-        for i in collection:
-            print(i)
+        # now = convertToEST(datetime.datetime.now())
+        # collection = constants['stocktweets_client'].get_database('tweets_db').tweets.find({'$and': [{'symbol': 'SPY'}, {'time': {'$gte': now - datetime.timedelta(hours=3)}}]})
+        # for i in collection:
+            # print(i)
         # userdb = constants['db_user_client'].get_database('user_data_db').users.find({'_id': 'ZenTrends'})
         # for i in userdb:
         #     print(i)
         # x = constants['stocktweets_client'].get_database('tweets_db').tweets.find()
         # for i in x:
         #     print(i)
-        # old = constants['db_client'].get_database('stocks_data_db').updated_close_open.find()
-        # new = constants['db_user_client'].get_database('user_data_db').updated_close_open
-        # for i in old:
-        #     new.replace_one(i, i, upsert=True)
+        old = constants['db_client'].get_database('stocks_data_db').updated_close_open
+        # new = constants['db_user_client'].get_database('user_data_db').updated_close_open.find()
+        
+        # print(old.count())
+        # print(new.find().count())
+        # for i in old[514022:]:
+        #      new.replace_one(i, i, upsert=True)
+        # print(new.find().count())
         # stock_counts_collection = constants['db_user_client'].get_database('user_data_db').daily_stockcount.find()
         # for i in stock_counts_collection:
         #     print('')
