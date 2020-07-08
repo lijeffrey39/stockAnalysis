@@ -132,23 +132,17 @@ def findUsers(reAnalyze, findNewUsers, updateUser):
     # return
     cursor = None
     # Find all tweets this user posted again up till last time
-    updateUser = True
-    if (updateUser):
-        dateStart = convertToEST(datetime.datetime.now()) #- datetime.timedelta(days=21)
-        query = {'last_updated': {'$lte': dateStart}, 'error': ''}
+    if (reAnalyze):
+        query = {'$and': [
+                    {'error': {'$ne': 'Not enough ideas'}},
+                    {'error': {'$ne': ""}},
+                    {'error': {'$ne': "User doesn't exist / API down"}},
+                    {'error': {'$ne': 'Len of messages was 0 ???'}}
+                ]}
         cursor = analyzedUsers.find(query)
-    elif (reAnalyze):
-        query = {"$or": [
-            # {'error': 'Not enough ideas'},
-                        # fix these too
-                        # Message: session not created: This version of ChromeDriver only supports Chrome version 78
-                        # ,
-                        #   {'error': {'$ne': "User doesn't exist"}},
-                          {'error': {'$ne': ""}},
-                        #   {'error': {'$ne': "User doesn't exist / API down"}},
-                        #   {'error': 'User has no tweets'}
-                        #   {'error': {'$ne': "Empty result list"}}
-                          ]}
+    elif (updateUser):
+        dateStart = convertToEST(datetime.datetime.now()) - datetime.timedelta(days=21)
+        query = {'last_updated': {'$lte': dateStart}, 'error': ''}
         cursor = analyzedUsers.find(query)
     else:
         cursor = analyzedUsers.find()

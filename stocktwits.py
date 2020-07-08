@@ -213,12 +213,12 @@ def main():
     dateNow = convertToEST(datetime.datetime.now())
 
     if (options.users):
-        analyzeUsers(reAnalyze=False, findNewUsers=False, updateUser=True)
+        analyzeUsers(reAnalyze=True, findNewUsers=False, updateUser=False)
     elif (options.stocks):
         now = convertToEST(datetime.datetime.now())
         date = datetime.datetime(now.year, now.month, now.day)
         stocks = getTopStocksforWeek(date, 100)
-        analyzeStocks(date, stocks)
+        analyzeStocks(date, stocks) 
     elif (options.optimizer):
         optimizeParams()
     elif (options.prediction):
@@ -278,7 +278,16 @@ def main():
         # x = constants['stocktweets_client'].get_database('tweets_db').tweets.find()
         # for i in x:
         #     print(i)
-        old = constants['db_client'].get_database('stocks_data_db').updated_close_open
+        # old = constants['db_client'].get_database('stocks_data_db').updated_close_open
+
+        # oldYF = constants['db_client'].get_database('stocks_data_db').yfin_close_open.find()
+        # newYF = constants['db_user_client'].get_database('user_data_db').yfin_close_open
+        # print(oldYF.count())
+        # print(newYF.find().count())
+        # for i in oldYF[507898:]:
+        #      newYF.replace_one(i, i, upsert=True)
+        # print(newYF.find().count())
+
         # new = constants['db_user_client'].get_database('user_data_db').updated_close_open.find()
         
         # print(old.count())
@@ -302,15 +311,14 @@ def main():
         # while (start_date <= end_date):
         #     stockcount1000daily(start_date)
         #     start_date+=td
-        # usercollection = constants['db_user_client'].get_database('user_data_db').users.find({ 'bbcount': { '$exists': True }})
+        usercollection = constants['db_user_client'].get_database('user_data_db').users.find({ 'bbcount': { '$exists': True }})
+        test = constants['db_user_client'].get_database('user_data_db').users.find()
         # res = []
         # for i in usercollection:
         #     if i['_id'] == 'Kirkim':
         #         print(i)
-        # print(usercollection.count())
-        # for i in usercollection:
-        #     if i['bbcount'] > 40:
-        #         res.append(i['bbcount'])
+        print(usercollection.count())
+        print(test.count())
         # print(len(res))
         # plt.hist(res, density=False, bins=150)
         # plt.show()
