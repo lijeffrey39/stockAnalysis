@@ -145,7 +145,7 @@ def getTopStocksCached(date, num, cached_stockcounts):
         'TTOO', 'TVIX', 'TOPS', 'VTIQ', 'VBIV', 'TBLT', 'ADXS', 'AAL', 'CLVS', 'SHIP', 'GHSI', 
         'AMRN', 'UGAZ', 'AIM', 'ZOM', 'GILD', 'VISL', 'FB', 'HTBX', 'EROS', 'KTOV', 'TTNP', 
         'TNXP', 'MSFT', 'ZM', 'UAVS', 'DGLY', 'QQQ', 'BNGO', 'NFLX', 'NVAX', 'MRNA', 
-        'USO', 'MFA', 'IDEX', 'BB', 'RTTR', 'BABA', 'CCL', 'OPK', 'NOVN', 'SHOP', 'ENPH', 'BCRX', 
+        'USO', 'MFA', 'IDEX', 'BB', 'BABA', 'CCL', 'OPK', 'NOVN', 'SHOP', 'ENPH', 'BCRX', 
         'DK', 'SPEX', 'BYFC', 'OCGN', 'WTRH', 'AUPH', 'MNKD', 'FMCI', 'I', 'IZEA', 
         'NNVC', 'UBER', 'CEI', 'NCLH', 'NVDA', 'D', 'SQ', 'OPGN', 'NAK']
     result = list(set(result+second_list))
