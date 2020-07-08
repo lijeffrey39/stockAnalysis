@@ -116,14 +116,18 @@ def analyzeUsers(reAnalyze, findNewUsers, updateUser):
             continue
         usercollection = constants['stocktweets_client'].get_database('tweets_db').tweets
         now = convertToEST(datetime.datetime.now())
-        query = {'$and': [{'user': username}, {'time': {'$gte': now - datetime.timedelta(days=21),
+        query = {'$and': [{'user': username}, {'time': {'$gte': now - datetime.timedelta(days=28),
                                 '$lt': now}}, { "$or": [{'isBull': True}, {'isBull': False}] }]}
+        all_tweet_query =  query = {'$and': [{'user': username}, {'time': {'$gte': now - datetime.timedelta(days=28),
+                                '$lt': now}}]}
         bb = usercollection.find(query).count()
+        allc = usercollection.find(all_tweet_query).count()
         print(bb)
+        print(allc)
         userdb = constants['db_user_client'].get_database('user_data_db').users
-        x = userdb.update({'_id': username}, {'$set': {'bbcount': bb}})
+        x = userdb.update({'_id': username}, {'$set': {'bbcount': bb, 'allcount': allc}})
         insertResults(result)
-
+        coreInfo['error'] = ''
         insertUpdateError(coreInfo, reAnalyze, updateUser)
 
 def dailyAnalyzeUsers(reAnalyze, updateUser, daysback):
@@ -272,9 +276,9 @@ def main():
         # collection = constants['stocktweets_client'].get_database('tweets_db').tweets.find({'$and': [{'symbol': 'SPY'}, {'time': {'$gte': now - datetime.timedelta(hours=3)}}]})
         # for i in collection:
             # print(i)
-        # userdb = constants['db_user_client'].get_database('user_data_db').users.find({'_id': 'ZenTrends'})
-        # for i in userdb:
-        #     print(i)
+        userdb = constants['db_user_client'].get_database('user_data_db').users.find({'_id': 'thurstonoldboy777'})
+        for i in userdb:
+            print(i)
         # x = constants['stocktweets_client'].get_database('tweets_db').tweets.find()
         # for i in x:
         #     print(i)
@@ -311,14 +315,12 @@ def main():
         # while (start_date <= end_date):
         #     stockcount1000daily(start_date)
         #     start_date+=td
-        usercollection = constants['db_user_client'].get_database('user_data_db').users.find({ 'bbcount': { '$exists': True }})
-        test = constants['db_user_client'].get_database('user_data_db').users.find()
+        # usercollection = constants['db_user_client'].get_database('user_data_db').users.find({ 'bbcount': { '$exists': True }})
         # res = []
         # for i in usercollection:
-        #     if i['_id'] == 'Kirkim':
-        #         print(i)
-        print(usercollection.count())
-        print(test.count())
+        #     if i['bbcount'] > 1 and i['bbcount'] < 20:
+        #         res.append(i['bbcount'])
+        # # print(len(res))
         # print(len(res))
         # plt.hist(res, density=False, bins=150)
         # plt.show()

@@ -57,9 +57,57 @@ def shouldParseUser(username, reAnalyze, updateUser):
     if (updateUser):
         query = {'_id': username}
         result = analyzedUsers.find_one(query)
-        if result['last_updated'] > datetime.datetime.now()-datetime.timedelta(days=1):
+        
+        if result['last_updated'] is None:
+            return None
+
+        elif result['last_updated'] > datetime.datetime.now()-datetime.timedelta(days=1):
             print('done already')
             return None
+            
+        # bb = result['bbcount']
+
+        # if result['last_updated'] is None:
+        #     return None
+
+        # if bb is None:
+        #     pass
+        # elif bb == 0:
+        #     if result['last_updated'] > datetime.datetime.now()-datetime.timedelta(days=28):
+        #         print(bb)
+        #         print('updated: ' + result['last_updated'])
+        #     else:
+        #         pass
+        # elif bb > 0 and bb < 20:
+        #     if result['last_updated'] > datetime.datetime.now()-datetime.timedelta(days=21):
+        #         print(bb)
+        #         print('updated: ' + result['last_updated'])
+        #     else:
+        #         pass
+        # elif bb >= 20 and bb < 100:
+        #     if result['last_updated'] > datetime.datetime.now()-datetime.timedelta(days=14):
+        #         print(bb)
+        #         print('updated: ' + result['last_updated'])
+        #     else:
+        #         pass
+        # elif bb >= 100 and bb < 400:
+        #     if result['last_updated'] > datetime.datetime.now()-datetime.timedelta(days=7):
+        #         print(bb)
+        #         print('updated: ' + result['last_updated'])
+        #     else:
+        #         pass
+        # elif bb >= 400:
+        #     if result['last_updated'] > datetime.datetime.now()-datetime.timedelta(days=1):
+        #         print(bb)
+        #         print('updated: ' + result['last_updated'])
+        #     else:
+        #         pass
+        # else:
+        #     pass
+
+        # if result['last_updated'] > datetime.datetime.now()-datetime.timedelta(days=1):
+        #     print('done already')
+        #     return None
         # try:
         #     if result['bbcount'] is not None:
         #         print('disguy ' + username + ' done')
@@ -133,7 +181,9 @@ def findUsers(reAnalyze, findNewUsers, updateUser):
     cursor = None
     # Find all tweets this user posted again up till last time
     if (reAnalyze):
+        dateStart = convertToEST(datetime.datetime.now()) - datetime.timedelta(days=1)
         query = {'$and': [
+                    {'last_updated': {'$lte': dateStart}},
                     {'error': {'$ne': 'Not enough ideas'}},
                     {'error': {'$ne': ""}},
                     {'error': {'$ne': "User doesn't exist / API down"}},
