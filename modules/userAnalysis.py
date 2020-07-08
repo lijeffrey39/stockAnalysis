@@ -57,7 +57,7 @@ def shouldParseUser(username, reAnalyze, updateUser):
     if (updateUser):
         query = {'_id': username}
         result = analyzedUsers.find_one(query)
-        if result['last_updated'] > datetime.datetime(2020, 7, 4, 3, 00):
+        if result['last_updated'] > datetime.datetime.now()-datetime.timedelta(days=1):
             print('done already')
             return None
         # try:
