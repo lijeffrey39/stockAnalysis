@@ -46,11 +46,17 @@ def findDateString(time, cached_prices):
     return '%d-%02d-%02d' % (time.year, time.month, time.day)
 
 
-def exportCloseOpen():
-    path = 'newPickled/averaged_new.pkl'
+def exportCloseOpen(update):
+    path = 'newPickled/averaged.pkl'
+    if (update == False):
+        f = open(path, 'rb')
+        stock_close_opens = pickle.load(f)
+        f.close()
+        return stock_close_opens
+
     result = {}
 
-    with open('cachedCloseOpen/new2.csv') as csv_file:
+    with open('cachedCloseOpen/close_open_iex.csv') as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=',')
         for row in csv_reader:
             first = row[0].split()
@@ -61,14 +67,16 @@ def exportCloseOpen():
                 result[date] = {}
             result[date][symbol] = res
 
-    with open('cachedCloseOpen/new1.csv') as csv_file:
+    with open('cachedCloseOpen/close_open_yfin.csv') as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=',')
         for row in csv_reader:
             first = row[0].split()
             symbol = first[0]
             date = first[1]
             res = [float(row[1]), float(row[2])]
-            
+            if (date not in result):
+                result[date] = {}
+
             if (symbol in result[date]):
                 prev = result[date][symbol]
                 averaged = [(float(row[1]) + prev[0]) / 2, (float(row[2]) + prev[1]) / 2]

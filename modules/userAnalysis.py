@@ -121,17 +121,21 @@ def findUsers(reAnalyze, findNewUsers, updateUser):
         query = {'last_updated': {'$lte': dateStart}, 'error': ''}
         cursor = analyzedUsers.find(query)
     elif (reAnalyze):
-        query = {"$or": [
-            # {'error': 'Not enough ideas'},
+        query = {'$and': [
+                    {'error': {'$ne': 'Not enough ideas'}},
+                    {'error': {'$ne': ""}},
+                    {'error': {'$ne': "User doesn't exist / API down"}},
+                    {'error': {'$ne': 'Len of messages was 0 ???'}}
+                ]}
                         # fix these too
                         # Message: session not created: This version of ChromeDriver only supports Chrome version 78
                         # ,
                         #   {'error': {'$ne': "User doesn't exist"}},
-                          {'error': {'$ne': ""}},
+                        #   {'error': {'$ne': ""}},
                         #   {'error': {'$ne': "User doesn't exist / API down"}},
                         #   {'error': 'User has no tweets'}
                         #   {'error': {'$ne': "Empty result list"}}
-                          ]}
+                        #   ]}
         cursor = analyzedUsers.find(query)
     else:
         cursor = analyzedUsers.find()
@@ -147,19 +151,20 @@ def findUsers(reAnalyze, findNewUsers, updateUser):
         newL = sorted(list(toBeFound))
         print(len(newL))
         shuffle(newL)
+        # return newL
 
-        dateStart = convertToEST(datetime.datetime.now()) - datetime.timedelta(days=30)
-        query = {"$or": [{'error': "Len of messages was 0 ???"},
-                          {'error': "Message: session not created: This version of ChromeDriver only supports Chrome version 79\n"},
-                          {'error': 'Message: script timeout\n  (Session info: headless chrome=83.0.4103.97)\n',},
-                          {'error': 'Message: unknown error: failed to close window in 20 seconds\n  (Session info: headless chrome=83.0.4103.97)\n'},
-                          {'error': 'Empty result list'},
-                          {'error': 'Message: unknown error: unable to discover open pages\n'}]}
-        cursor = analyzedUsers.find(query)
-        users = list(map(lambda document: document['_id'], cursor))
-        users.extend(newL)
-        res = list(set(users))
-        return res
+        # dateStart = convertToEST(datetime.datetime.now()) - datetime.timedelta(days=30)
+        # query = {"$or": [{'error': "Len of messages was 0 ???"},
+        #                   {'error': "Message: session not created: This version of ChromeDriver only supports Chrome version 79\n"},
+        #                   {'error': 'Message: script timeout\n  (Session info: headless chrome=83.0.4103.97)\n',},
+        #                   {'error': 'Message: unknown error: failed to close window in 20 seconds\n  (Session info: headless chrome=83.0.4103.97)\n'},
+        #                   {'error': 'Empty result list'},
+        #                   {'error': 'Message: unknown error: unable to discover open pages\n'}]}
+        # cursor = analyzedUsers.find(query)
+        # users = list(map(lambda document: document['_id'], cursor))
+        # users.extend(newL)
+        # res = list(set(users))
+        # return res
 
     users = list(map(lambda document: document['_id'], cursor))
     shuffle(users) 

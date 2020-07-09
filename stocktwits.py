@@ -2,19 +2,17 @@ import datetime
 import optparse
 import multiprocessing
 import matplotlib. pyplot as plt
-from klepto.archives import dir_archive
 import math
 import time
 import requests
+import statistics
 import os
 import yfinance as yf
 import requests
 import itertools
 import json
-import ujson
-import shelve
 
-from modules.helpers import (convertToEST, findTradingDays, findAllDays,
+from modules.helpers import (convertToEST, findTradingDays, findAllDays, getActualAllStocks,
                              insertResults, findWeight, writePickleObject, readPickleObject)
 from modules.hyperparameters import constants
 from modules.prediction import (basicPrediction, findAllTweets, updateBasicStockInfo, setupUserInfos)
@@ -33,6 +31,7 @@ from modules.tests import (findBadMessages, removeMessagesWithStock,
 from modules.newPrediction import (findTweets, weightedUserPrediction, writeTweets, calculateUserFeatures, dailyPrediction, fetchTweets,
                                     editCachedTweets, prediction, findFeatures, pregenerateAllUserFeatures, pregenerateUserFeatures,
                                     saveUserTweets, cachedUserTweets, optimizeParams, findStockCounts, insertUser, modifyTweets, getTopStocksCached)
+from modules.prediction_v3 import (predictionV3, fetchStockTweets, writeAllTweets, sigmoidFn)
 
 
 client = constants['db_client']
@@ -205,7 +204,7 @@ def main():
     dateNow = convertToEST(datetime.datetime.now())
 
     if (options.users):
-        analyzeUsers(reAnalyze=False, findNewUsers=False, updateUser=True)
+        analyzeUsers(reAnalyze=False, findNewUsers=True, updateUser=False)
     elif (options.stocks):
         now = convertToEST(datetime.datetime.now())
         date = datetime.datetime(now.year, now.month, now.day)
@@ -215,8 +214,8 @@ def main():
         optimizeParams()
     elif (options.prediction):
         num_top_stocks = 30 # Choose top 20 stocks of the week to parse
-        start_date = datetime.datetime(2019, 6, 3, 15, 30)
-        end_date = datetime.datetime(2020, 7, 1, 9, 30)
+        start_date = datetime.datetime(2019, 12, 1, 15, 30)
+        end_date = datetime.datetime(2020, 7, 8, 9, 30)
 
         # Write stock tweet files
         # writeTweets(start_date, end_date, num_top_stocks, overwrite=True)
@@ -224,14 +223,14 @@ def main():
 
         # Find features for prediction
         path = 'newPickled/stock_features.pkl'
-        found_features = findFeatures(start_date, end_date, num_top_stocks, path, False)
+        found_features = findFeatures(start_date, end_date, num_top_stocks, path, True)
         # return
         # Make prediction
         weightings = {
-            'bull_w': 3.14,
-            'bear_w': 0.74,
-            'bull_w_return_w1': 1.28,
-            'bear_w_return_w1': 0.46,
+            'bull_w': 10,
+            'bear_w': 9,
+            # 'bull_w_return': 10,
+            # 'bear_w_return': 9,
             # 'bull_w_return_log': 3,
             # 'bear_w_return_log': 0.2,
             # 'count_ratio_w': 3.9,
@@ -241,7 +240,20 @@ def main():
             # 'bear': 7.7,
             # 'bear_return': 4.1
         }
-        print(prediction(start_date, end_date, found_features, num_top_stocks, weightings, True))
+
+        prediction(start_date, end_date, found_features, num_top_stocks, weightings, True)
+        # top = []
+        # for i in range(1, 20):
+        #     for j in range(1, 20):
+        #         found_features = findFeatures(start_date, end_date, num_top_stocks, path, False)
+        #         weightings = {
+        #             'bull_w': i,
+        #             'bear_w': j,
+        #         }
+        #         percent = prediction(start_date, end_date, found_features, num_top_stocks, weightings, False)
+        #         top.append((percent, i, j))
+        # top.sort(key=lambda x: x[0], reverse=True)
+        # print(top[:20])
 
     elif (options.updateCloseOpens):
         updateStockCount()
@@ -260,9 +272,77 @@ def main():
         dailyAnalyzeUsers(reAnalyze=True, updateUser=True, daysback=14)
     else:
 
-        # tweets = fetchTweets(datetime.datetime(2020, 7, 3), datetime.datetime(2020, 7, 4), 'SPY')
+        analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
+        res = analyzedUsers.aggregate([{'$group' : { '_id' : '$error', 'count' : {'$sum' : 1}}}, { "$sort": { "count": 1 } },])
+        for i in res:
+            print(i)
+
+        # res = analyzedUsers.find({'error': "Message: unknown error: Chrome failed to start: crashed.\n  (unknown error: DevToolsActivePort file doesn't exist)\n  (The process started from chrome location C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe is no longer running, so ChromeDriver is assuming that Chrome has crashed.)\n"})
+        # for x in res:
+        #     print(x)
+        # predictionV3()
+
+        # dailyPrediction(datetime.datetime(2020, 7, 8))
+
+
+        # bucket = readPickleObject('newPickled/bucket.pickle')
+        # res = []
+        # symbol = 'ROKU'
+        # date_str = '2020-07-06'
+        # print(bucket[symbol].keys())
+        # for username in bucket[symbol][date_str]:
+        #     val = bucket[symbol][date_str][username]['num_tweets_s']
+        #     res.append(val)
+
+        # plt.hist(res, density=False, bins=150)
+        # plt.show()
+        # return
+        # bucket_stats = {}
+
+        # for s in bucket:
+        #     returns = []
+        #     for u in bucket[s]:
+        #         returns.append(bucket[s][u]['return_unique_s'])
+
+        #     bucket_stats[s] = {}
+        #     bucket_stats[s]['avg'] = statistics.mean(returns)
+        #     bucket_stats[s]['std'] = statistics.stdev(returns)
+        #     bucket_stats[s]['max'] = max(returns)
+
+
+        # res = []
+        # non_filter = []
+        # symbol = 'GNUS'
+        # for username in bucket[symbol]:
+        #     val = bucket[symbol][username]['return_unique_s']
+        #     non_filter.append(val)
+            # if (val > 1000):
+            #     print(username, bucket[symbol][username])
+
+            # max_val = bucket_stats[symbol]['avg'] + (3 * bucket_stats[symbol]['std'])
+            # # max_val = 400
+            # print(max_val, bucket_stats[symbol]['max'])
+            # real_val = (math.log(val) / math.log(max_val))
+            # if (real_val > 1):
+            #     real_val = 1
+
+            # real_val = (real_val / 1.5) + 0.33
+            # res.append(real_val)
+
+
+        # non_filter.sort()
+        # print(non_filter[:20], len(non_filter))
+        # plt.hist(res, density=False, bins=150)
+        # plt.show()
+
+        # tweets = fetchTweets(datetime.datetime(2020, 7, 4), datetime.datetime(2020, 7, 5), 'TSLA')
         # for t in tweets:
         #     print(t)
+
+        # r = requests.get('https://finnhub.io/api/v1/stock/symbol?exchange=US&token=brvs7evrh5rcsef0e6c0')
+        # response = r.json()
+        # stocks = list(map(lambda x: x['symbol'], response))
+        # print(stocks)
 
         # date_start = datetime.datetime(2019, 6, 27)
         # stock_counts = readPickleObject('newPickled/stock_counts_14.pkl')
@@ -304,16 +384,24 @@ def main():
         # tweets = list(map(lambda t: {'user': t['user'], 'time': t['time'], 'w': findWeight(t['time'], 'log(x)'), 'isBull': t['isBull']}, tweets))
         # for t in tweets:
         #     print(t)
-        # pregenerateAllUserFeatures()
         # for d in res['general']:
         #     print(d, res['general'][d]['num_predictions'])
 
-
-        # res = pregenerateUserFeatures('zredpill')
+        # stocks = getActualAllStocks()
+        # res = pregenerateUserFeatures('BertTradez', stocks)
         # for d in res['per_stock']['SPY']:
         #     print(d, res['per_stock']['SPY'][d]['num_predictions'])
         # for d in res['general']:
         #     print(d, res['general'][d])
+
+
+        # for s in res['per_stock']:
+        #     print(s, res['per_stock'][s])
+    
+        #     print("")
+        #     print("")
+        #     print("")
+        #     print("")
         # writePickleObject('data_1.pkl', res)
         # demo = dir_archive('demo', serialized=True, cached=False)
         # demo['tony93'] = res
@@ -328,9 +416,9 @@ def main():
         # insertUser()
         # print(res)
 
+        # exportCloseOpen()
 
 
-        # dailyPrediction(datetime.datetime(2020, 7, 1))
 
 
         # num_tweets_unique 30
@@ -340,7 +428,6 @@ def main():
         # return_unique_w1 20
         # return_unique_log 20
 
-        # bucket = readPickleObject('newPickled/bucket.pkl')
     
         # res = []
         # x = []
@@ -367,14 +454,14 @@ def main():
         # # print(len(data))
 
         # now = convertToEST(datetime.datetime.now())
-        date = datetime.datetime(2019, 1, 1)
-        delta = datetime.timedelta(days=7)
+        # date = datetime.datetime(2019, 1, 1)
+        # delta = datetime.timedelta(days=7)
         # result = []
-        while (date < datetime.datetime(2019, 6, 26)):
-            updateStockCountPerWeek(date)
+        # while (date < datetime.datetime(2019, 6, 26)):
+        #     updateStockCountPerWeek(date)
         #     d = getTopStocksforWeek(date, 15)
         #     print(date, d)
-            date += delta
+            # date += delta
         #     for s in d:
         #         if (s not in result):
         #             result.append(s)

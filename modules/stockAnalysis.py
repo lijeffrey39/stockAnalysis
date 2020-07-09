@@ -79,6 +79,7 @@ def getTopStocksforWeek(date, num):
     year = year_week[0]
     week = year_week[1]
     year_week_id = str(year) + '_' + str(week)
+    print(year_week_id)
 
     stock_list = []
     if (year_week_id in cached_stockcounts):
@@ -93,7 +94,7 @@ def getTopStocksforWeek(date, num):
         writePickleObject(path, cached_stockcounts)
 
     newdict = sorted(stock_list, key=lambda k: k['count'], reverse=True)
-    filtered_dict = list(filter(lambda document: document['_id'] not in bad_stocks, newdict))
+    filtered_dict = list(filter(lambda document: document['_id'] not in bad_stocks and document['_id'] in constants['top_stocks'], newdict))
     test = list(map(lambda document: (document['_id'], document['count']), filtered_dict))
     newlist = list(map(lambda document: document['_id'], filtered_dict))
     result = newlist[:num]
@@ -123,7 +124,7 @@ def getTopStocksCached(date, num, cached_stockcounts):
 
     stock_list.sort(key=lambda k: k['count'], reverse=True)
     filtered_dict = list(filter(lambda document: document['_id'] not in bad_stocks and document['_id'] in constants['top_stocks'], stock_list[:150]))
-    # test = list(map(lambda document: (document['_id'], document['count']), filtered_dict))
+    test = list(map(lambda document: (document['_id'], document['count']), filtered_dict))
     result = list(map(lambda document: document['_id'], filtered_dict[:num]))
     return result
 
