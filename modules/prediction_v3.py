@@ -34,44 +34,56 @@ class CircularBuffer:
 
 
 class SlidingWindowCalc:
-    def __init__(self, size):
-        self.circular_buffer = CircularBuffer(size)
-        self.mean = 0
-        self.d_squared = 0
+    def __init__(self, size, features):
+        self.all_buffers = {}
+        for f in features:
+            self.all_buffers[f] = {}
+            self.all_buffers[f]['buffer'] = CircularBuffer(size)
+            self.all_buffers[f]['mean'] = 0
+            self.all_buffers[f]['d_squared'] = 0
 
-    def update(self, value):
-        popped_value = self.circular_buffer.append(value)
-        if (self.circular_buffer.length() == 1 and popped_value == None): # First value
-            self.mean = value
+    def update(self, feature, value):
+        popped_value = self.all_buffers[feature]['buffer'].append(value)
+
+        old_mean = self.all_buffers[feature]['mean']
+        old_dsquared = self.all_buffers[feature]['d_squared']
+        buffer_length = self.all_buffers[feature]['buffer'].length()
+
+        if (buffer_length == 1 and popped_value == None): # First value
+            self.all_buffers[feature]['mean'] = value
         elif (popped_value == None): # Not full yet
-            mean_increment = (value - self.mean) / self.circular_buffer.length()
-            new_mean = self.mean + mean_increment
+            mean_increment = (value - old_mean) / buffer_length
+            new_mean = old_mean + mean_increment
 
-            d_squared_increment = (value - new_mean) * (value - self.mean)
-            new_d_squared = self.d_squared + d_squared_increment
-            
-            self.mean = new_mean
-            self.d_squared = new_d_squared
+            d_squared_increment = (value - new_mean) * (value - old_mean)
+            new_d_squared = old_dsquared + d_squared_increment
+            if (new_d_squared < 0):
+                new_d_squared = 0
+
+            self.all_buffers[feature]['mean'] = new_mean
+            self.all_buffers[feature]['d_squared'] = new_d_squared
         else: # It's full
-            mean_increment = (value - popped_value) / self.circular_buffer.length()
-            new_mean = self.mean + mean_increment
+            mean_increment = (value - popped_value) / buffer_length
+            new_mean = old_mean + mean_increment
 
-            d_squared_increment = (value - popped_value) * (value - self.mean + popped_value - new_mean)
-            new_d_squared = self.d_squared + d_squared_increment
+            d_squared_increment = (value - popped_value) * (value - old_mean + popped_value - new_mean)
+            new_d_squared = old_dsquared + d_squared_increment
+            if (new_d_squared < 0):
+                new_d_squared = 0
 
-            self.mean = new_mean
-            self.d_squared = new_d_squared
+            self.all_buffers[feature]['mean'] = new_mean
+            self.all_buffers[feature]['d_squared'] = new_d_squared
 
-    def getMean(self):
-        return self.mean
+    def getMean(self, feature):
+        return self.all_buffers[feature]['mean']
     
-    def variance(self):
-        if (self.circular_buffer.length() > 1):
-            return self.d_squared / (self.circular_buffer.length() - 1)
+    def variance(self, feature):
+        if (self.all_buffers[feature]['buffer'].length() > 1):
+            return self.all_buffers[feature]['d_squared'] / (self.all_buffers[feature]['buffer'].length() - 1)
         return 1
 
-    def getStddev(self):
-        return math.sqrt(self.variance())
+    def getStddev(self, feature):
+        return math.sqrt(self.variance(feature))
 
 
 
@@ -134,7 +146,6 @@ def sigmoidFn(date):
     end_date = datetime.datetime(end_date.year, end_date.month, end_date.day, 16)
     difference = (date - end_date).total_seconds()
     total_seconds = (start_date - end_date).total_seconds()
-    x = difference / total_seconds
 
     new_difference = difference - total_seconds # set difference from 0 to be all negative
     new_difference = new_difference + (60 * 60 * 5) # add 4 hours to the time...any time > 0 has y value > 0.5
@@ -148,16 +159,44 @@ def findStockStd(symbol, stock_features, weightings, param):
     days_back = 7
     bull_weight = 1
     bear_weight = 1
-    avg_std_historical = {}
-    result = {}
 
-    avg_std_historical = SlidingWindowCalc(days_back)
+    features = ['accuracy_unique', 'accuracy_unique_s', 'num_tweets', 'num_tweets_s', 'return_unique', 'return_unique_s']
+        # 'return_unique_s', 'return_unique_log', 'return_unique_log_s', 'return_unique_w1', 'return_unique_w1']
+    feature_avgstd = SlidingWindowCalc(15, features)
+
+    result_features = ['total_w']
+    result_feature_avgstd = SlidingWindowCalc(days_back, result_features)
+    result = {}
 
     for date_str in stock_features:
         day_features = stock_features[date_str]
-        weightings_avgstd = day_features['avg_std'] # TODO: Calculate stock avg_std on the spot based on history used for user weighitng
-        # bull_count = day_features['bull_count']
-        # bear_count = day_features['bear_count']
+        bull_count = 0
+        bear_count = 0
+        for username in day_features:
+            if (day_features[username]['prediction']):
+                bull_count += 1
+            else:
+                bear_count += 1
+
+        if (bull_count + bear_count <= 1):
+            continue
+
+        # Update Stock's user feature avg and std
+        for username in day_features:
+            if (username == 'avg_std'):
+                continue
+
+            user_features = day_features[username]
+            for feature in features:
+                if (feature == 'w' or feature == 'times' or feature == 'prediction'):
+                    continue
+                feature_avgstd.update(feature, user_features[feature])
+
+        weightings_avgstd = {}
+        for feature in features:
+            weightings_avgstd[feature] = {}
+            weightings_avgstd[feature]['avg'] = feature_avgstd.getMean(feature)
+            weightings_avgstd[feature]['std'] = feature_avgstd.getStddev(feature)
 
         bull_w = 0
         bear_w = 0
@@ -183,12 +222,15 @@ def findStockStd(symbol, stock_features, weightings, param):
         if (total_w == 0):
             continue
 
-        avg_std_historical.update(total_w)
+        result_feature_avgstd.update('total_w', total_w)
         feature_avg_std = {}
         feature_avg_std['total_w'] = {}
         feature_avg_std['total_w']['val'] = total_w
-        feature_avg_std['total_w']['avg'] = avg_std_historical.getMean()
-        feature_avg_std['total_w']['std'] = avg_std_historical.getStddev()
+        feature_avg_std['total_w']['avg'] = result_feature_avgstd.getMean('total_w')
+        feature_avg_std['total_w']['std'] = result_feature_avgstd.getStddev('total_w')
+
+        feature_avg_std['bull_count'] = bull_count
+        feature_avg_std['bear_count'] = bear_count
 
         result[date_str] = feature_avg_std
     return result
@@ -299,8 +341,7 @@ def makePrediction(preprocessed_user_features, stock_close_opens, weightings, pa
     picked_stocks = {}
     top_n_stocks = 3
     non_close_open = {}
-
-    all_stocks=['SPCE']
+    # all_stocks=['SQ']
     # Find each stocks std per day
     for symbol in all_stocks:
         if (symbol not in preprocessed_user_features):
@@ -316,14 +357,14 @@ def makePrediction(preprocessed_user_features, stock_close_opens, weightings, pa
 
             if (date_str not in non_close_open):
                 non_close_open[date_str] = []
-            non_close_open[date_str].append([symbol, deviation, round(stock_day_std['total_w']['val'] , 2)])
+            non_close_open[date_str].append([symbol, deviation, stock_day_std['bull_count'], stock_day_std['bear_count']])
 
             close_open = findCloseOpenCached(symbol, date_real, stock_close_opens)
             if (close_open == None):
                 continue
 
             # print(symbol, date_str, round(stock_day_std['total_w']['val'] , 2), round(deviation, 2), round(close_open[2], 2))
-            if (deviation > 1.9 or deviation < -2.1):
+            if (deviation > 1.6 or deviation < -2.1):
                 if (date_str not in picked_stocks):
                     picked_stocks[date_str] = []
                 picked_stocks[date_str].append([symbol, deviation, close_open[2]])
@@ -342,17 +383,17 @@ def makePrediction(preprocessed_user_features, stock_close_opens, weightings, pa
 
         for date_str in sorted(non_close_open.keys()):
             res = sorted(non_close_open[date_str], key=lambda x: x[1], reverse=True)
-            res = list(map(lambda x: [x[0], round(x[1], 2), x[2]], res))
-            print(date_str, res[:6])
+            res = list(map(lambda x: [x[0], round(x[1], 2), x[2], x[3]], res))
+            print(date_str, res[:7])
 
-    return (round(overall, 4), round(top, 4))
+    return (round(overall, 4), round(top, 4), accuracy_overall, accuracy_top)
 
 
 
 def predictionV3():
 
     start_date = datetime.datetime(2019, 12, 1) # Prediction start date
-    end_date = datetime.datetime(2020, 7, 8) # Prediction end date
+    end_date = datetime.datetime(2020, 7, 9) # Prediction end date
 
     # STEP 1: Fetch all user tweets
     # saveUserTweets()
@@ -367,12 +408,17 @@ def predictionV3():
     close_opens = exportCloseOpen(update=False)
 
     # STEP 5: Calculate stock features per day
-    preprocessed_user_features = findAllStockFeatures(start_date, end_date, user_features, update=False)
+    preprocessed_user_features = findAllStockFeatures(start_date, end_date, user_features, update=True)
 
     # STEP 6: Make prediction
     weightings = [1,1,1,1,1]
-    (overall, top) = makePrediction(preprocessed_user_features, close_opens, weightings, 1, print_info=True)
+    (overall, top, accuracy_overall, accuracy_top) = makePrediction(preprocessed_user_features, close_opens, weightings, 1, print_info=True)
     print(overall, top)
+
+    # for i in range(12, 25):
+    #     weightings = [1,1,1,1,1]
+    #     (overall, top, accuracy_overall, accuracy_top) = makePrediction(preprocessed_user_features, close_opens, weightings, i, print_info=False)
+    #     print(i, overall, top, accuracy_overall, accuracy_top)
 
     # res = []
     # for i in range(0, 3):

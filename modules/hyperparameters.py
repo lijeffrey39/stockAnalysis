@@ -84,7 +84,7 @@ constants = {
     'top_stocks': set(['SPY', 'TSLA', 'IBIO', 'AYTU', 'XSPA', 'GNUS', 'SPCE', 'INO', 'CODX', 'BA', 'AAPL', 
         'FCEL', 'AMD', 'SRNE', 'MARK', 'B', 'NIO', 'ONTX', 'ROKU', 'INPX', 
         'ACB', 'AMZN', 'SHLL', 'WKHS', 'BIOC', 'MVIS', 'DIS', 'VXRT', 'BYND', 'JNUG', 
-        'TTOO', 'TVIX', 'TOPS', 'VTIQ', 'VBIV', 'TBLT', 'ADXS', 'AAL', 'CLVS', 'SHIP', 'GHSI', 
+        'TTOO', 'TVIX', 'TOPS', 'VBIV', 'TBLT', 'ADXS', 'AAL', 'CLVS', 'SHIP', 'GHSI', 
         'AMRN', 'UGAZ', 'AIM', 'ZOM', 'GILD', 'VISL', 'FB', 'HTBX', 'EROS', 'KTOV', 'TTNP', 
         'TNXP', 'MSFT', 'ZM', 'UAVS', 'DGLY', 'QQQ', 'BNGO', 'NFLX', 'NVAX', 'MRNA', 
         'USO', 'MFA', 'IDEX', 'BB', 'BABA', 'CCL', 'OPK', 'NOVN', 'SHOP', 'ENPH', 'BCRX', 

@@ -58,23 +58,30 @@ def parseStock(symbol, date, hours):
 
 
 def dailyPrediction(date):
-    # cached_stockcounts = readPickleObject('newPickled/stock_counts_14.pkl')
     stocks = constants['top_stocks']
     stocks = ['SPY', 'TSLA', 'IBIO', 'AYTU', 'XSPA', 'GNUS', 'SPCE', 'INO', 'CODX', 'BA', 'AAPL', 
         'FCEL', 'AMD', 'SRNE', 'MARK', 'B', 'NIO', 'ONTX', 'ROKU', 'INPX', 
         'ACB', 'AMZN', 'SHLL', 'WKHS', 'BIOC', 'MVIS', 'DIS', 'VXRT', 'BYND', 'JNUG', 
-        'TTOO', 'TVIX', 'TOPS', 'VTIQ', 'VBIV', 'TBLT', 'ADXS', 'AAL', 'CLVS', 'SHIP', 'GHSI', 
+        'TTOO', 'TVIX', 'TOPS', 'VBIV', 'TBLT', 'ADXS', 'AAL', 'CLVS', 'SHIP', 'GHSI', 
         'AMRN', 'UGAZ', 'AIM', 'ZOM', 'GILD', 'VISL', 'FB', 'HTBX', 'EROS', 'KTOV', 'TTNP', 
         'TNXP', 'MSFT', 'ZM', 'UAVS', 'DGLY', 'QQQ', 'BNGO', 'NFLX', 'NVAX', 'MRNA', 
         'USO', 'MFA', 'IDEX', 'BB', 'BABA', 'CCL', 'OPK', 'NOVN', 'SHOP', 'ENPH', 'BCRX', 
         'DK', 'BYFC', 'OCGN', 'WTRH', 'AUPH', 'MNKD', 'FMCI', 'I', 'IZEA', 
         'NNVC', 'UBER', 'CEI', 'NCLH', 'NVDA', 'D', 'SQ', 'OPGN', 'NAK']
 
-    # stocks = ['GNUS', 'INO', 'XSPA', 'SRNE', 'BA', 'IBIO', 'WKHS', 'TSLA', 'AAPL', 'BIOC', 'VXRT', 'MVIS', 'MARK', 'SPCE']
-    last_parsed = constants['stocktweets_client'].get_database('stocks_data_db').last_parsed
+    stocks = ['PYPL', 'JNJ', 'OXY', 'M', 'PTON', 'TXMD', 'WMT', 'JPM', 'GOOGL', 'GILD', 'SNE', 'GPS', 'WFC', 'LYFT', 'V', 'WORK',
+        'F', 'DAL', 'UAL', 'FIT', 'HEXO', 'CGC', 'RCL', 'KO', 'ZNGA', 'T', 'LUV', 'MRO', 'MGM', 'JBLU', 'MFA', 'NKLA', 'GUSH', 
+        'UCO', 'AMC', 'GM', 'NOK', 'VOO', 'DKNG', 'PENN', 'PFE', 'CPRX', 'TLRY', 'SIRI']
+
+    catch_up = ['SNE', 'FIT', 'UCO', 'VOO', 'CPRX', 'SIRI']
     curr_time = convertToEST(datetime.datetime.now())
+    for s in catch_up:
+        parseStock(s, curr_time, 150)
+    return
+
+    last_parsed = constants['stocktweets_client'].get_database('stocks_data_db').last_parsed
+    # curr_time = convertToEST(datetime.datetime.now())
     for symbol in stocks:
-        # print(symbol)
         cursor = last_parsed.find_one({'_id': symbol})
         if (cursor == None):
             print(symbol)
@@ -88,25 +95,14 @@ def dailyPrediction(date):
 
     # for symbol in stocks:
     #     writeTweets(date, date, symbol, overwrite=True)
-    # all_features = findFeatures(date, date, num_top_stocks, 'newPickled/daily.pkl', True)
-    # weightings = {
-    #     'bull': 3,
-    #     'bear': 1
-    # }
-    # prediction(date, date, all_features, num_top_stocks, weightings, True)
-
 
 
 def optimizeFN(params):
     weightings = {
         'bull_w': params[0],
         'bear_w': params[1],
-        # 'day_weight': params[0],
-        # 'stock_weight': params[1],
         'bull_w_return': params[2],
         'bear_w_return': params[3],
-        # 'count_ratio_w': params[4],
-        # 'return_ratio_w': params[5],
     }
     start_date = datetime.datetime(2019, 12, 1, 15, 30)
     end_date = datetime.datetime(2020, 7, 1, 9, 30)
@@ -119,72 +115,12 @@ def optimizeFN(params):
     return -result
 
 
-# result['total'] = result['bull'] - result['bear']
-# result['total_w'] = result['bull_w'] - result['bear_w']
-# result['return'] = result['bull_return'] - result['bear_return']
-# result['return_w'] = result['bull_w_return'] - result['bear_w_return']
-# result['return_log'] = result['bull_return_log'] - result['bear_return_log']
-# result['return_log_w'] = result['bull_w_return_log'] - result['bear_w_return_log']
-# result['return_s'] = result['bull_return_s'] - result['bear_return_s']
-# result['return_s_w'] = result['bull_w_return_s'] - result['bear_w_return_s']
-# result['return_log_s'] = result['bull_return_log_s'] - result['bear_return_log_s']
-# result['return_log_s_w'] = result['bull_w_return_log_s'] - result['bear_w_return_log_s']
-# result['return_w1'] = result['bull_w_return_w1'] - result['bear_w_return_w1']
-# result['return_w1_s'] = result['bull_w_return_w1_s'] - result['bear_w_return_w1_s']
-
-# result['count_ratio'] = calcRatio(result['bull'], result['bear'])
-# result['count_ratio_w'] = calcRatio(result['bull_w'], result['bear_w'])
-# result['return_ratio'] = calcRatio(result['bull_return'], result['bear_return'])
-# result['return_ratio_w'] = calcRatio(result['bull_w_return'], result['bear_w_return'])
-# result['return_log_ratio'] = calcRatio(result['bull_return_log'], result['bear_return_log'])
-# result['return_log_ratio_w'] = calcRatio(result['bull_w_return_log'], result['bear_w_return_log'])
-# result['return_s_ratio'] = calcRatio(result['bull_return_s'], result['bear_return_s'])
-# result['return_s_ratio_w'] = calcRatio(result['bull_w_return_s'], result['bear_w_return_s'])
-# result['return_log_s_ratio'] = calcRatio(result['bull_return_log_s'], result['bear_return_log_s'])
-# result['return_log_s_ratio_w'] = calcRatio(result['bull_w_return_log_s'], result['bear_w_return_log_s'])
-# result['return_w1_ratio'] = calcRatio(result['bull_w_return_w1'], result['bear_w_return_w1'])
-# result['return_w1_s_ratio'] = calcRatio(result['bull_w_return_w1_s'], result['bear_w_return_w1_s'])
-
-
-
-# bad
-# return_ratio_w
-# return_log_s_ratio_w
-# return_ratio
-# count_ratio
-# return_w1_s_ratio
-
-
-# count_ratio_w
-# return_s_ratio_w
-# total_w
-# return_log_s_w
-# return_log_ratio_w
-
-
-
 def optimizeParams():
     params = {
-        # 'total_w': [8, (0, 30)],
-        # 'return_log_s_w': [2, (0, 30)],
-        # 'return_s_w': [2, (0, 30)],
         'bull_w': [1, (0, 5)],
         'bear_w': [1, (0, 5)],
-        # 'day_weight': [1, (0, 5)],
-        # 'stock_weight': [1, (0, 5)],
         'bull_w_return': [1, (0, 3)],
         'bear_w_return': [1, (0, 3)],
-        # 'count_ratio_w': [0.5, (0, 30)],
-        # 'return_ratio_w': [0.5, (0, 30)],
-        # 'bear_w_return': [0., (0, 30)],
-        # 'bear_w_return_log_s': [0, (0, 30)],
-        # 'bear_w_return': [1.09, (0, 30)],
-        # 'bull_w_return': [2.74, (0, 30)],
-        # 'return_w1_ratio': [1.9, (0, 30)],
-        # 'bear_return_s': [2.8, (0, 30)],
-        # 'bear': [7.7, (0, 30)],
-        # 'bear_return': [4.1, (0, 30)],
-        # 'count_ratio': [1, (0, 30)],
     }
 
     initial_values = list(map(lambda key: params[key][0], list(params.keys())))
@@ -419,7 +355,6 @@ def findStockCounts(all_features, days_back):
 
 # Standardize all features by average stock count for bull/bear
 def editFeatures(start_date, end_date, all_features, weights, stock_counts):
-
     data = []
     data1 = []
     for d in all_features:
@@ -1066,10 +1001,10 @@ def officialCutOff(user_info, symbol, label):
 
     return_unique = (user_info['unique_return']['bear'] + user_info['unique_return']['bull']) / 2
     return_unique_s = findFeature(user_info, symbol, 'unique_return', None) / 2
-    # return_unique_log = (user_info['unique_return_log']['bear'] + user_info['unique_return_log']['bull']) / 2
-    # return_unique_w1 = (user_info['unique_return_w1']['bear'] + user_info['unique_return_w1']['bull']) / 2
-    # return_unique_log_s = findFeature(user_info, symbol, 'unique_return_log', None) / 2
-    # return_unique_w1_s = findFeature(user_info, symbol, 'unique_return_w1', None) / 2
+    return_unique_log = (user_info['unique_return_log']['bear'] + user_info['unique_return_log']['bull']) / 2
+    return_unique_w1 = (user_info['unique_return_w1']['bear'] + user_info['unique_return_w1']['bull']) / 2
+    return_unique_log_s = findFeature(user_info, symbol, 'unique_return_log', None) / 2
+    return_unique_w1_s = findFeature(user_info, symbol, 'unique_return_w1', None) / 2
 
     return_unique -= return_unique_s
 
@@ -1084,10 +1019,10 @@ def officialCutOff(user_info, symbol, label):
         'num_tweets_s': num_tweets_s_unique,
         'return_unique': return_unique,
         'return_unique_s': return_unique_s,
-        # 'return_unique_log': return_unique_log,
-        # 'return_unique_log_s': return_unique_log_s,
-        # 'return_unique_w1': return_unique_w1,
-        # 'return_unique_w1_s': return_unique_w1_s,
+        'return_unique_log': return_unique_log,
+        'return_unique_log_s': return_unique_log_s,
+        'return_unique_w1': return_unique_w1,
+        'return_unique_w1_s': return_unique_w1_s,
     }
 
     return user_values
@@ -1224,10 +1159,9 @@ def stockFeatures(tweets, date_str, symbol, all_user_features, feature_stats, pr
             user_values['times'] = seen_users[username]['times']
             preprocessed_user_features[symbol][date_str][username] = user_values
 
-    if (symbol in preprocessed_user_features and date_str in preprocessed_user_features[symbol]):
-        preprocessed_user_features[symbol][date_str]['avg_std'] = feature_avg_std
-        preprocessed_user_features[symbol][date_str]['bull_count'] = bull_count
-        preprocessed_user_features[symbol][date_str]['bear_count'] = bear_count
+    # if (symbol in preprocessed_user_features and date_str in preprocessed_user_features[symbol]):
+    #     preprocessed_user_features[symbol][date_str]['bull_count'] = bull_count
+    #     preprocessed_user_features[symbol][date_str]['bear_count'] = bear_count
 
     result['bull_count'] = bull_count
     result['bear_count'] = bear_count

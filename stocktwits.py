@@ -272,17 +272,21 @@ def main():
         dailyAnalyzeUsers(reAnalyze=True, updateUser=True, daysback=14)
     else:
 
-        analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
-        res = analyzedUsers.aggregate([{'$group' : { '_id' : '$error', 'count' : {'$sum' : 1}}}, { "$sort": { "count": 1 } },])
-        for i in res:
-            print(i)
+        # analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
+        # res = analyzedUsers.aggregate([{'$group' : { '_id' : '$error', 'count' : {'$sum' : 1}}}, { "$sort": { "count": 1 } },])
+        # for i in res:
+        #     print(i)
 
         # res = analyzedUsers.find({'error': "Message: unknown error: Chrome failed to start: crashed.\n  (unknown error: DevToolsActivePort file doesn't exist)\n  (The process started from chrome location C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe is no longer running, so ChromeDriver is assuming that Chrome has crashed.)\n"})
         # for x in res:
         #     print(x)
         # predictionV3()
 
-        # dailyPrediction(datetime.datetime(2020, 7, 8))
+        # tweets = fetchTweets(datetime.datetime(2020, 7, 9), datetime.datetime(2020, 7, 9, 23), 'LYFT')
+        # for t in tweets:
+        #     print(t)
+
+        dailyPrediction(datetime.datetime(2020, 7, 9))
 
 
         # bucket = readPickleObject('newPickled/bucket.pickle')
