@@ -36,20 +36,34 @@ def getSortedStocks():
     res = [i for i in newlist if i not in remove_list] 
     return res
 
-def stockcount1000daily(date):
+def stockcount1000daily(date, num):
+    bad_stocks = ['JCP', 'INPX', 'LK', 'HTZ', None, 'SPEX', 'NNVC', 'HSGX', 'LGCY', 'YRIV', 'MLNT', 'IFRX', 'OBLN', 'MLNT', 'MDR', 'FLKS', 'RTTR', 'CORV', 'WORX']
     stock_counts_collection = constants['db_user_client'].get_database('user_data_db').daily_stockcount
-    tweets = constants['stocktweets_client'].get_database('tweets_db').tweets
-    prevTime = datetime.datetime(date.year, date.month, date.day, 00, 00)
+    prevTime = datetime.datetime(date.year, date.month, date.day, 00, 00)- datetime.timedelta(days = 1)
     currTime = prevTime + datetime.timedelta(days = 1)
-    print(prevTime)
-    res = tweets.aggregate([{ "$match": { "time" : { '$gte' : prevTime, '$lte': currTime } } }, {'$group' : { '_id' : '$symbol', 'count' : {'$sum' : 1}}}, { "$sort": { "count": 1 } }])
-    countList = []
-    for i in res:
-        countList.append(i)
     dateString = date.strftime("%Y%m%d")
     print(dateString)
-    stock_counts_collection.insert_one({'_id': dateString}, {'$set': {'stocks': countList}})
-        
+    print(prevTime)
+
+    res = stock_counts_collection.find({'_id': dateString})
+    print(res.count())
+    if (res.count() != 0):
+        print('EXISTS')
+    else:
+        tweets = constants['stocktweets_client'].get_database('tweets_db').tweets
+        agg = tweets.aggregate([{ "$match": { "time" : { '$gte' : prevTime, '$lte': currTime } } }, {'$group' : { '_id' : '$symbol', 'count' : {'$sum' : 1}}}, { "$sort": { "count": 1 } }])
+        countList = []
+        for i in agg:
+            countList.append(i)
+        stock_counts_collection.insert_one({'_id': dateString, 'stocks': countList})
+
+    test = stock_counts_collection.find({'_id': dateString})
+    stock_list = test[0]['stocks']
+    newdict = sorted(stock_list, key=lambda k: k['count'], reverse=True)
+    filtered_dict = list(filter(lambda document: document['_id'] not in bad_stocks, newdict))
+    newlist = list(map(lambda document: document['_id'], filtered_dict))
+    result = newlist[:num]
+    return result
 
 def updateStockCount():
     currTime = datetime.datetime.now() - datetime.timedelta(days=21)
@@ -111,6 +125,18 @@ def getTopStocksforWeek(date, num):
     test = list(map(lambda document: (document['_id'], document['count']), filtered_dict))
     newlist = list(map(lambda document: document['_id'], filtered_dict))
     result = newlist[:num]
+    second_list = ['SPY', 'TSLA', 'IBIO', 'AYTU', 'XSPA', 'GNUS', 'SPCE', 'INO', 'CODX', 'BA', 'AAPL', 
+        'FCEL', 'AMD', 'SRNE', 'MARK', 'B', 'NIO', 'ONTX', 'ROKU', 'INPX', 
+        'ACB', 'AMZN', 'SHLL', 'WKHS', 'BIOC', 'MVIS', 'DIS', 'VXRT', 'BYND', 'JNUG', 
+        'TTOO', 'TVIX', 'TOPS', 'VTIQ', 'VBIV', 'TBLT', 'ADXS', 'AAL', 'CLVS', 'SHIP', 'GHSI', 
+        'AMRN', 'UGAZ', 'AIM', 'ZOM', 'GILD', 'VISL', 'FB', 'HTBX', 'EROS', 'KTOV', 'TTNP', 
+        'TNXP', 'MSFT', 'ZM', 'UAVS', 'DGLY', 'QQQ', 'BNGO', 'NFLX', 'NVAX', 'MRNA', 
+        'USO', 'MFA', 'IDEX', 'BB', 'BABA', 'CCL', 'OPK', 'NOVN', 'SHOP', 'ENPH', 'BCRX', 
+        'DK', 'SPEX', 'BYFC', 'OCGN', 'WTRH', 'AUPH', 'MNKD', 'FMCI', 'I', 'IZEA', 
+        'NNVC', 'UBER', 'CEI', 'NCLH', 'NVDA', 'D', 'SQ', 'OPGN', 'NAK']
+    result = list(set(result+second_list))
+    from random import shuffle
+    shuffle(result)
     return result
 
 

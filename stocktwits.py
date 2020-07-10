@@ -46,6 +46,7 @@ clientStockTweets = constants['stocktweets_client']
 
 def analyzeStocks(date, stocks):
     dateString = date.strftime("%Y-%m-%d")
+    print(stocks)
     for symbol in stocks:
         print(symbol)
         db = clientStockTweets.get_database('stocks_data_db')
@@ -221,7 +222,7 @@ def main():
     elif (options.stocks):
         now = convertToEST(datetime.datetime.now())
         date = datetime.datetime(now.year, now.month, now.day)
-        stocks = getTopStocksforWeek(date, 100)
+        stocks = stockcount1000daily(date, 100)
         analyzeStocks(date, stocks) 
     elif (options.optimizer):
         optimizeParams()
@@ -272,13 +273,17 @@ def main():
         dailyAnalyzeUsers(reAnalyze=True, updateUser=True, daysback=14)
     else:
         print()
+        print(stockcount1000daily(convertToEST(datetime.datetime.now()), 100))
         # now = convertToEST(datetime.datetime.now())
         # collection = constants['stocktweets_client'].get_database('tweets_db').tweets.find({'$and': [{'symbol': 'SPY'}, {'time': {'$gte': now - datetime.timedelta(hours=3)}}]})
         # for i in collection:
             # print(i)
-        userdb = constants['db_user_client'].get_database('user_data_db').users.find({'_id': 'thurstonoldboy777'})
-        for i in userdb:
-            print(i)
+        # userdb = constants['db_user_client'].get_database('user_data_db').users
+        # for i in userdb:
+        #     print(i)
+        # print(userdb.find({"error" : {'$regex' : ".*chrome.*"}})[0])
+        
+
         # x = constants['stocktweets_client'].get_database('tweets_db').tweets.find()
         # for i in x:
         #     print(i)

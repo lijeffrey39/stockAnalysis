@@ -184,10 +184,12 @@ def findUsers(reAnalyze, findNewUsers, updateUser):
         dateStart = convertToEST(datetime.datetime.now())
         query = {'$and': [
                     {'last_updated': {'$lte': dateStart}},
-                    {'error': {'$ne': 'Not enough ideas'}},
-                    {'error': {'$ne': ""}},
-                    {'error': {'$ne': "User doesn't exist / API down"}},
-                    {'error': {'$ne': 'Len of messages was 0 ???'}}
+                    {'error': {'$eq': 'Message: unknown error: Chrome failed to start: crashed.\n  (unknown error: DevToolsActivePort file doesn\'t exist)\n  (The process started from chrome location C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe is no longer running, so ChromeDriver is assuming that Chrome has crashed.)\n'}}
+                    # {'error': {'$ne': 'User doesn\'t exist'}},
+                    # {'error': {'$ne': 'Not enough ideas'}},
+                    # {'error': {'$ne': ""}},
+                    # {'error': {'$ne': "User doesn't exist / API down"}},
+                    # {'error': {'$ne': 'Len of messages was 0 ???'}}
                 ]}
         cursor = analyzedUsers.find(query)
     elif (updateUser):
