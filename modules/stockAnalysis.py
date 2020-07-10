@@ -37,7 +37,7 @@ def getSortedStocks():
     return res
 
 def stockcount1000daily(date, num):
-    bad_stocks = ['JCP', 'INPX', 'LK', 'HTZ', None, 'SPEX', 'NNVC', 'HSGX', 'LGCY', 'YRIV', 'MLNT', 'IFRX', 'OBLN', 'MLNT', 'MDR', 'FLKS', 'RTTR', 'CORV', 'WORX']
+    bad_stocks = ['JCP', 'INPX', 'LK', 'HTZ', None, 'SPEX', 'NNVC', 'HSGX', 'LGCY', 'YRIV', 'MLNT', 'IFRX', 'OBLN', 'MLNT', 'MDR', 'FLKS', 'RTTR', 'CORV', 'WORX', 'BRK.B']
     stock_counts_collection = constants['db_user_client'].get_database('user_data_db').daily_stockcount
     prevTime = datetime.datetime(date.year, date.month, date.day, 00, 00)- datetime.timedelta(days = 1)
     currTime = prevTime + datetime.timedelta(days = 1)

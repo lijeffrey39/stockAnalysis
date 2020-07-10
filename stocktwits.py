@@ -208,8 +208,8 @@ def hourlyparse():
 def dailyparse():
     now = convertToEST(datetime.datetime.now())
     date = datetime.datetime(now.year, now.month, now.day)
-    stocks = getSortedStocks()
-    analyzeStocks(date, stocks[101:1001])
+    stocks = stockcount1000daily(date, 500)
+    analyzeStocks(date, stocks[100:]) 
 
 def main():
     opt_parser = optparse.OptionParser()
