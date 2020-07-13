@@ -203,7 +203,7 @@ def updateAllCloseOpen(stocks, dates, replace=False):
     for symbol in stocks:
         print(symbol)
         for date in dates:
-            replace = True
+            #replace = True
             dateString = date.strftime("%Y-%m-%d")
             idString = symbol + ' ' + dateString
             db = constants['db_user_client'].get_database('user_data_db').updated_close_open
@@ -239,11 +239,11 @@ def updateyfinanceCloseOpen(symbol, date):
     tick = yf.Ticker(symbol)
     yOpen = tick.history(start=date, end=date)[['Open']].values[0][0].item()
     yClose = tick.history(start=date, end=date)[['Close']].values[0][0].item()  
-    if len(yOpen) == 0 or yOpen is None:
+    if yOpen is None:
         return {}
-    elif len(yClose) == 0 or yClose is None:
+    elif yClose is None:
         return {}
-    _id = symbol + ' ' + datestring
+    _id = symbol + ' ' + dateString
     result = {'_id': _id, 'open': yOpen, 'close': yClose}
     return result
 
@@ -251,7 +251,7 @@ def updateAllCloseOpenYF(stocks, dates, replace=False):
     for symbol in stocks:
         print(symbol)
         for date in dates:
-            replace = True
+            #replace = True
             dateString = date.strftime("%Y-%m-%d")
             idString = symbol + ' ' + dateString
             db = constants['db_client'].get_database('stocks_data_db').yfin_close_open
