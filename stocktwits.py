@@ -97,9 +97,8 @@ def analyzeUsers(reAnalyze, findNewUsers, updateUser):
     users = findUsers(reAnalyze, findNewUsers, updateUser)
     print(len(users))
     for username in users:
-        print('---')
+        print('--------------------------')
         print(username)
-        print('---')
         print("parsing at " + convertToEST(datetime.datetime.now()).strftime("%m/%d/%Y, %H:%M:%S"))
         coreInfo = shouldParseUser(username, reAnalyze, updateUser)
         if (not coreInfo):
