@@ -151,7 +151,7 @@ def findUsers(reAnalyze, findNewUsers, updateUser):
         newL = sorted(list(toBeFound))
         print(len(newL))
         shuffle(newL)
-        # return newL
+        return newL
 
         # dateStart = convertToEST(datetime.datetime.now()) - datetime.timedelta(days=30)
         # query = {"$or": [{'error': "Len of messages was 0 ???"},
@@ -167,7 +167,7 @@ def findUsers(reAnalyze, findNewUsers, updateUser):
         # return res
 
     users = list(map(lambda document: document['_id'], cursor))
-    shuffle(users) 
+    shuffle(users)
     return users
 
 def parseOldUsers(daysback):

@@ -31,7 +31,7 @@ from modules.tests import (findBadMessages, removeMessagesWithStock,
 from modules.newPrediction import (findTweets, weightedUserPrediction, writeTweets, calculateUserFeatures, dailyPrediction, fetchTweets,
                                     editCachedTweets, prediction, findFeatures, pregenerateAllUserFeatures, pregenerateUserFeatures,
                                     saveUserTweets, cachedUserTweets, optimizeParams, findStockCounts, insertUser, modifyTweets, getTopStocksCached)
-from modules.prediction_v3 import (predictionV3, fetchStockTweets, writeAllTweets, sigmoidFn)
+from modules.prediction_v3 import (predictionV3, fetchStockTweets, writeAllTweets, sigmoidFn, newDailyPrediction)
 
 
 client = constants['db_client']
@@ -95,6 +95,7 @@ def analyzeStocks(date, stocks):
 def analyzeUsers(reAnalyze, findNewUsers, updateUser):
     users = findUsers(reAnalyze, findNewUsers, updateUser)
     print(len(users))
+    print(users[:10])
     for username in users:
         print(username)
         coreInfo = shouldParseUser(username, reAnalyze, updateUser)
@@ -281,6 +282,7 @@ def main():
         # for x in res:
         #     print(x)
         # predictionV3()
+        # fetchStockTweets()
 
         # tweets = fetchTweets(datetime.datetime(2020, 7, 9), datetime.datetime(2020, 7, 9, 23), 'LYFT')
         # for t in tweets:
@@ -288,6 +290,7 @@ def main():
 
         dailyPrediction(datetime.datetime(2020, 7, 9))
 
+        # newDailyPrediction(datetime.datetime(2020, 7, 9))
 
         # bucket = readPickleObject('newPickled/bucket.pickle')
         # res = []

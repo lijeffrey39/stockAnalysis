@@ -69,18 +69,12 @@ def dailyPrediction(date):
         'DK', 'BYFC', 'OCGN', 'WTRH', 'AUPH', 'MNKD', 'FMCI', 'I', 'IZEA', 
         'NNVC', 'UBER', 'CEI', 'NCLH', 'NVDA', 'D', 'SQ', 'OPGN', 'NAK']
 
-    stocks = ['PYPL', 'JNJ', 'OXY', 'M', 'PTON', 'TXMD', 'WMT', 'JPM', 'GOOGL', 'GILD', 'SNE', 'GPS', 'WFC', 'LYFT', 'V', 'WORK',
-        'F', 'DAL', 'UAL', 'FIT', 'HEXO', 'CGC', 'RCL', 'KO', 'ZNGA', 'T', 'LUV', 'MRO', 'MGM', 'JBLU', 'MFA', 'NKLA', 'GUSH', 
-        'UCO', 'AMC', 'GM', 'NOK', 'VOO', 'DKNG', 'PENN', 'PFE', 'CPRX', 'TLRY', 'SIRI']
-
-    catch_up = ['SNE', 'FIT', 'UCO', 'VOO', 'CPRX', 'SIRI']
-    curr_time = convertToEST(datetime.datetime.now())
-    for s in catch_up:
-        parseStock(s, curr_time, 150)
-    return
+    # stocks = ['PYPL', 'JNJ', 'OXY', 'M', 'PTON', 'TXMD', 'WMT', 'JPM', 'GOOGL', 'GILD', 'SNE', 'GPS', 'WFC', 'LYFT', 'V', 'WORK',
+    #     'F', 'DAL', 'UAL', 'FIT', 'HEXO', 'CGC', 'RCL', 'KO', 'ZNGA', 'T', 'LUV', 'MRO', 'MGM', 'JBLU', 'MFA', 'NKLA', 'GUSH', 
+    #     'UCO', 'AMC', 'GM', 'NOK', 'VOO', 'DKNG', 'PENN', 'PFE', 'CPRX', 'TLRY', 'SIRI']
 
     last_parsed = constants['stocktweets_client'].get_database('stocks_data_db').last_parsed
-    # curr_time = convertToEST(datetime.datetime.now())
+    curr_time = convertToEST(datetime.datetime.now())
     for symbol in stocks:
         cursor = last_parsed.find_one({'_id': symbol})
         if (cursor == None):
@@ -1155,7 +1149,6 @@ def stockFeatures(tweets, date_str, symbol, all_user_features, feature_stats, pr
             preprocessed_user_features[symbol][date_str] = {}
         if (username not in preprocessed_user_features[symbol][date_str]):
             user_values['prediction'] = seen_users[username]['isBull']
-            user_values['w'] = seen_users[username]['tweeted_weight']
             user_values['times'] = seen_users[username]['times']
             preprocessed_user_features[symbol][date_str][username] = user_values
 
