@@ -60,50 +60,63 @@ def shouldParseUser(username, reAnalyze, updateUser):
         
         if result['last_updated'] is None:
             return None
-
-        elif result['last_updated'] > datetime.datetime.now():
-            print('done already')
-            return None
-
-        # bb = result['bbcount']
+        # elif result['last_updated'] > datetime.datetime.now():
+        #     print('done already')
+        #     return None
+        print('')
+        try:
+            bb = result['bbcount']
+        except:
+            print(result['last_updated'])
+            result['last_updated'] = convertToEST(datetime.datetime.now())
+            print(result['last_updated'])
+            return result
 
         # if result['last_updated'] is None:
         #     return None
-
-        # if bb is None:
-        #     pass
-        # elif bb == 0:
-        #     if result['last_updated'] > datetime.datetime.now()-datetime.timedelta(days=28):
-        #         print(bb)
-        #         print('updated: ' + result['last_updated'])
-        #     else:
-        #         pass
-        # elif bb > 0 and bb < 20:
-        #     if result['last_updated'] > datetime.datetime.now()-datetime.timedelta(days=21):
-        #         print(bb)
-        #         print('updated: ' + result['last_updated'])
-        #     else:
-        #         pass
-        # elif bb >= 20 and bb < 100:
-        #     if result['last_updated'] > datetime.datetime.now()-datetime.timedelta(days=14):
-        #         print(bb)
-        #         print('updated: ' + result['last_updated'])
-        #     else:
-        #         pass
-        # elif bb >= 100 and bb < 400:
-        #     if result['last_updated'] > datetime.datetime.now()-datetime.timedelta(days=7):
-        #         print(bb)
-        #         print('updated: ' + result['last_updated'])
-        #     else:
-        #         pass
-        # elif bb >= 400:
-        #     if result['last_updated'] > datetime.datetime.now()-datetime.timedelta(days=1):
-        #         print(bb)
-        #         print('updated: ' + result['last_updated'])
-        #     else:
-        #         pass
-        # else:
-        #     pass
+        lu = result['last_updated'].strftime("%Y-%m-%d")
+        if bb is None:
+            pass
+        elif bb == 0:
+            if result['last_updated'] > datetime.datetime.now()-datetime.timedelta(days=28):
+                print('bullbear: ' + str(bb))
+                print('updated: ' + lu)
+                return None
+            else:
+                pass
+        elif bb > 0 and bb < 20:
+            if result['last_updated'] > datetime.datetime.now()-datetime.timedelta(days=21):
+                print('bullbear: ' + str(bb))
+                print('updated: ' + lu)
+                return None
+            else:
+                pass
+        elif bb >= 20 and bb < 100:
+            if result['last_updated'] > datetime.datetime.now()-datetime.timedelta(days=14):
+                print('bullbear: ' + str(bb))
+                print('updated: ' + lu)
+                return None
+            else:
+                pass
+        elif bb >= 100 and bb < 400:
+            if result['last_updated'] > datetime.datetime.now()-datetime.timedelta(days=7):
+                print('bullbear: ' + str(bb))
+                print('updated: ' + lu)
+                return None
+            else:
+                pass
+        elif bb >= 400:
+            if result['last_updated'] > datetime.datetime.now()-datetime.timedelta(days=1):
+                print('bullbear: ' + str(bb))
+                print('updated: ' + lu)
+                return None
+            else:
+                print('bullbear: ' + str(bb))
+                pass
+        else:
+            print(bb)
+            print('error?')
+            pass
 
         # if result['last_updated'] > datetime.datetime.now()-datetime.timedelta(days=1):
         #     print('done already')
@@ -193,7 +206,7 @@ def findUsers(reAnalyze, findNewUsers, updateUser):
                 ]}
         cursor = analyzedUsers.find(query)
     elif (updateUser):
-        dateStart = convertToEST(datetime.datetime.now()) - datetime.timedelta(days=21)
+        dateStart = convertToEST(datetime.datetime.now())
         query = {'last_updated': {'$lte': dateStart}, 'error': ''}
         cursor = analyzedUsers.find(query)
     else:

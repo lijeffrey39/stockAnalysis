@@ -237,8 +237,11 @@ def updatedCloseOpen(symbol, date):
 def updateyfinanceCloseOpen(symbol, date):
     dateString = date.strftime("%Y-%m-%d")
     tick = yf.Ticker(symbol)
-    yOpen = tick.history(start=date, end=date)[['Open']].values[0][0].item()
-    yClose = tick.history(start=date, end=date)[['Close']].values[0][0].item()  
+    try:
+        yOpen = tick.history(start=date, end=date)[['Open']].values[0][0].item()
+        yClose = tick.history(start=date, end=date)[['Close']].values[0][0].item()  
+    except:
+        return {}
     if yOpen is None:
         return {}
     elif yClose is None:
