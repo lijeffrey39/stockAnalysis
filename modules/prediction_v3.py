@@ -7,7 +7,8 @@ from .hyperparameters import constants
 from .helpers import (findAllDays, readPickleObject, findTradingDays, writePickleObject)
 from .stockPriceAPI import (findCloseOpenCached, exportCloseOpen, isTradingDay)
 from .newPrediction import (writeTweets, saveUserTweets, pregenerateAllUserFeatures, 
-                        stockFeatures, findTweets)
+                        stockFeatures, findTweets, fetchTweets)
+from .stockAnalysis import getTopStockDailyCached
 
 
 # Used to store a circular buffer for sliding window mean/stdev
@@ -374,33 +375,43 @@ def makePrediction(preprocessed_user_features, stock_close_opens, weightings, pa
         for date_str in sorted(non_close_open.keys()):
             res = sorted(non_close_open[date_str], key=lambda x: x[1], reverse=True)
             res = list(map(lambda x: [x[0], round(x[1], 2), x[2], x[3]], res))
-            print(date_str, res[:5])
+            print(date_str, res[:8])
 
     return (round(overall, 4), round(top, 4), accuracy_overall, accuracy_top)
 
 
 def saveLocalTweets(start_date, end_date):
-    stocks = ['SPY', 'TSLA', 'IBIO', 'AYTU', 'XSPA', 'GNUS', 'SPCE', 'INO', 'CODX', 'BA', 'AAPL', 
-        'FCEL', 'AMD', 'SRNE', 'MARK', 'B', 'NIO', 'ONTX', 'ROKU', 'INPX', 
-        'ACB', 'AMZN', 'SHLL', 'WKHS', 'BIOC', 'MVIS', 'DIS', 'VXRT', 'BYND', 'JNUG', 
-        'TTOO', 'TVIX', 'TOPS', 'VBIV', 'TBLT', 'ADXS', 'AAL', 'CLVS', 'SHIP', 'GHSI', 
-        'AMRN', 'UGAZ', 'AIM', 'ZOM', 'GILD', 'VISL', 'FB', 'HTBX', 'EROS', 'KTOV', 'TTNP', 
-        'TNXP', 'MSFT', 'ZM', 'UAVS', 'DGLY', 'QQQ', 'BNGO', 'NFLX', 'NVAX', 'MRNA', 
-        'USO', 'MFA', 'IDEX', 'BB', 'BABA', 'CCL', 'OPK', 'NOVN', 'SHOP', 'ENPH', 'BCRX', 
-        'DK', 'BYFC', 'OCGN', 'WTRH', 'AUPH', 'MNKD', 'FMCI', 'I', 'IZEA', 
-        'NNVC', 'UBER', 'CEI', 'NCLH', 'NVDA', 'D', 'SQ', 'OPGN', 'NAK']
+    all_dates = findAllDays(start_date, end_date)
+    build_up = set([])
+    for date in all_dates:
+        daily_object = readPickleObject('newPickled/daily_stocks_cached.pickle')
+        stocks = getTopStockDailyCached(date, 80, daily_object)
+        date_string = date.strftime("%Y-%m-%d")
+        path = 'stock_files_dates/' + date_string + '.pickle'
+        curr_obj = readPickleObject(path)
+        print(date)
+        for symbol in stocks:
+            if (symbol not in build_up):
+                build_up.add(symbol)
+            # if (symbol not in curr_obj):
+            #     date_start = datetime.datetime(date.year, date.month, date.day, 0, 0)
+            #     date_end = datetime.datetime(date.year, date.month, date.day) + datetime.timedelta(days=1)
+            #     tweets = fetchTweets(date_start, date_end, symbol)
+            #     curr_obj[symbol] = tweets
+            #     print(symbol, len(tweets))
 
-    for symbol in stocks:
-        writeTweets(start_date, end_date, symbol, overwrite=True)
-    
+    print(build_up)
+        # writePickleObject(path, curr_obj)
+
 
 
 def newDailyPrediction(date):
     end_date = date
-    start_date = end_date - datetime.timedelta(days=20)
+    start_date = end_date - datetime.timedelta(days=25)
 
     # Use pregenerated user features
-    user_features = pregenerateAllUserFeatures(update=False)
+    user_features = pregenerateAllUserFeatures(update=True)
+    return
 
     # Re-save tweets to local
     # saveLocalTweets(start_date, start_date - datetime.timedelta(days=1))
@@ -434,7 +445,7 @@ def newDailyPrediction(date):
 
 
     current_date_str = date.strftime("%Y-%m-%d")
-    stocks_today = non_close_open[current_date_str]['stocks_found'][:6] # Top 6 for the day
+    stocks_today = non_close_open[current_date_str]['stocks_found'][:8] # Top 6 for the day
     result_details = {}
     for symbol in stocks_today:
         for date_str in non_close_open:
@@ -454,9 +465,8 @@ def newDailyPrediction(date):
 
 
 def predictionV3():
-
     start_date = datetime.datetime(2019, 12, 1) # Prediction start date
-    end_date = datetime.datetime(2020, 7, 10) # Prediction end date
+    end_date = datetime.datetime(2020, 7, 13) # Prediction end date
 
     # STEP 1: Fetch all user tweets
     # saveUserTweets()

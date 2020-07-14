@@ -101,6 +101,54 @@ def getTopStocksforWeek(date, num):
     return result
 
 
+def getTopStockDailyCached(date, num, cached_stockcounts):
+    bad_stocks = set(['JCP', 'INPX', 'LK', 'HTZ', None, 'SPEX', 'NNVC', 'HSGX', 'LGCY', 
+        'YRIV', 'MLNT', 'IFRX', 'OBLN', 'MLNT', 'MDR', 'FLKS', 'RTTR', 'CORV', 'WORX', 'BRK.B', 'PMTS',
+        'HAIR', 'I', 'FTSV', 'DWT', 'ADOM', 'JMU', 'JASN', 'YRIV', 'LLEX', 'MDCO', 'CYTR', 'ACHN', 
+        'GEMP', 'VICL', 'IGLD', 'MLNT', 'MDXG', 'TRNX', 'STML', 'ATIS', 'INSY', 'CY', 'DERM', 'DYN', 
+        'ZFGN', 'BURG', 'NVTR', 'BTX', 'AKRX', 'LRAD', 'GTXI', 'LINK', 'TSG', 'VIAB', 'XGTI', 'ARRY', 
+        'RARX', 'AGN', 'GBTC', 'RVLT', '', 'SNNA', 'BRK', 'SPHS', 'RBZ', 'HMNY', 'AOBC', 'TTS', 
+        'HK', 'HPJ', 'GNMX', 'SORL', 'UPL', 'SYMC', 'GNC', 'STUDY', 'FLKS', 'RTTR', 'MNI', 'SSC', 
+        'SPX', 'DRYS', 'SAEX', 'INNT', 'ATAI', 'CUI', 'XOG', 'MICR', 'NLNK', 'KMD', 'ROX', 'ABIL', 
+        'AWSM', 'PMTS', 'CLDA', 'DO', 'EMES', 'ARCI', 'GASL', 'OILU', 'ROAN', 'CLD', 'FTNW', 'ESTR', 
+        'CRZO', 'HEB', 'AYR', 'DEAC', 'PGNX', 'DOVA', 'DCAR', 'SBOT', 'PYX', 'PRTO', 'HSGX', 'OHRP', 
+        'FOMX', 'CUR', 'TVIA', 'THOR', 'AMR', 'HCLP', 'CLC', 'VTIQ', 'FREEZ', 'RTN', 'PNRL', 'XON', 
+        'FALC', 'PVTL', 'SSI', 'SES', 'KMPH', 'DJIA', 'PTX', 'BKS', 'NTGN', 'SPEX', 'AETI', 'DATA', 
+        'DF', 'UNT', 'CTRV', 'CORV', 'TUES', 'BPMX', 'DCIX', 'TROV', 'GST', 'LGCY', 'ARQL', 'BTC', 
+        'HIIQ', 'HLTH', 'UTX', 'UWT', 'LTM', 'MTFB', 'KOOL', 'CYTX', 'MYND', 'CNAT', 'SDRL', 'OASM', 
+        'CVRS', 'PIR', 'CTST', 'CTRP', 'YUMA', 'FRED', 'KEG', 'MDR', 'XRP', 'CIFS', 'PTIE', 'P', 'DEST', 
+        'RGSE', 'IPCI', 'CHK', 'BAS', 'AREX', 'PES', 'YOGA', 'AKS', 'VLRX', 'VIA', 'TOCA', 'S'])
+    datestring_id = date.strftime("%Y%m%d")
+
+    stock_list = []
+    if (datestring_id in cached_stockcounts):
+        stock_list = cached_stockcounts[datestring_id]
+    else:
+        stock_counts_collection = constants['db_user_client'].get_database('user_data_db').daily_stockcount
+        res = stock_counts_collection.find({'_id': datestring_id})
+        if (res.count() != 0):
+            print("EXISTS")
+            stock_list = res[0]['stocks']
+        else:
+            prevTime = datetime.datetime(date.year, date.month, date.day) - datetime.timedelta(days = 1)
+            currTime = prevTime + datetime.timedelta(days = 1)
+            tweets = constants['stocktweets_client'].get_database('tweets_db').tweets
+            agg = tweets.aggregate([{ "$match": { "time" : { '$gte' : prevTime, '$lte': currTime } } }, 
+                {'$group' : { '_id' : '$symbol', 'count' : {'$sum' : 1}}}, { "$sort": { "count": 1 } }])
+            for stock in agg:
+                stock_list.append(stock)
+            stock_counts_collection.insert_one({'_id': datestring_id, 'stocks': stock_list})
+        cached_stockcounts[datestring_id] = stock_list
+        writePickleObject('newPickled/daily_stocks_cached.pickle', cached_stockcounts)
+
+    stock_list = sorted(stock_list, key=lambda k: k['count'], reverse=True)
+    stock_list = list(filter(lambda document: document['_id'] not in bad_stocks, stock_list))
+    newlist = list(map(lambda document: document['_id'], stock_list))
+    result = newlist[:num]
+    return result
+
+
+
 # Get top stocks for that week given a date
 def getTopStocksCached(date, num, cached_stockcounts):
     bad_stocks = ['JCP', 'INPX', 'LK', 'HTZ', None, 'SPEX', 'NNVC', 'HSGX', 'LGCY', 'YRIV', 'MLNT', 'IFRX', 'OBLN', 'MLNT', 'MDR', 'FLKS', 'RTTR', 'CORV', 'WORX']

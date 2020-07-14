@@ -18,7 +18,7 @@ from modules.hyperparameters import constants
 from modules.prediction import (basicPrediction, findAllTweets, updateBasicStockInfo, setupUserInfos)
 from modules.stockAnalysis import (findPageStock, getTopStocks, parseStockData, getTopStocksforWeek,
                                    shouldParseStock, updateLastMessageTime, updateStockCountPerWeek,
-                                   updateLastParsedTime, updateStockCount, getSortedStocks)
+                                   updateLastParsedTime, updateStockCount, getSortedStocks, getTopStockDailyCached)
 from modules.stockPriceAPI import (updateAllCloseOpen, transferNonLabeled, findCloseOpen, closeToOpen, getUpdatedCloseOpen, 
                                     getCloseOpenInterval, updateyfinanceCloseOpen, exportCloseOpen, findCloseOpenCached)
 from modules.userAnalysis import (findPageUser, findUsers, insertUpdateError,
@@ -31,7 +31,7 @@ from modules.tests import (findBadMessages, removeMessagesWithStock,
 from modules.newPrediction import (findTweets, weightedUserPrediction, writeTweets, calculateUserFeatures, dailyPrediction, fetchTweets,
                                     editCachedTweets, prediction, findFeatures, pregenerateAllUserFeatures, pregenerateUserFeatures,
                                     saveUserTweets, cachedUserTweets, optimizeParams, findStockCounts, insertUser, modifyTweets, getTopStocksCached)
-from modules.prediction_v3 import (predictionV3, fetchStockTweets, writeAllTweets, sigmoidFn, newDailyPrediction)
+from modules.prediction_v3 import (predictionV3, fetchStockTweets, writeAllTweets, sigmoidFn, newDailyPrediction, saveLocalTweets)
 
 
 client = constants['db_client']
@@ -273,6 +273,49 @@ def main():
         dailyAnalyzeUsers(reAnalyze=True, updateUser=True, daysback=14)
     else:
 
+        # saveLocalTweets(datetime.datetime(2019, 6, 1), datetime.datetime(2020, 7, 10))
+
+        # all_dates = findAllDays(datetime.datetime(2019, 6, 1), datetime.datetime(2020, 7, 10))
+        # daily_object = readPickleObject('newPickled/daily_stocks_cached.pickle')
+        # buildup = {}
+
+        # for date in all_dates:
+        #     date_string = date.strftime("%Y-%m-%d")
+        #     path = 'stock_files_dates/' + date_string + '.pickle'
+        #     result = {}
+        #     stocks = getTopStockDailyCached(date, 100, daily_object)
+        #     for symbol in stocks:
+        #         stock_obj = {}
+        #         if (symbol in buildup):
+        #             stock_obj = buildup[symbol]
+        #         else:
+        #             print(symbol)
+        #             stock_obj = readPickleObject('stock_files/' + symbol + '.pkl')
+        #             buildup[symbol] = stock_obj
+        #         if (len(stock_obj.keys()) == 0):
+        #             continue
+                
+        #         if (date_string in stock_obj):
+        #             result[symbol] = stock_obj[date_string]
+        #     writePickleObject(path, result)
+        #     print(date, len(result.keys()))
+
+
+        stocks_list = getActualAllStocks()
+        # print(len(stocks_list))
+        # bad_stocks = []
+
+        # stocks = os.listdir('stock_files/')
+        # for symbol_path in stocks:
+        #     if (symbol_path[-3:] != 'pkl'):
+        #         continue
+        #     symbol = symbol_path[:-4]
+        #     if (symbol not in stocks_list):
+        #         bad_stocks.append(symbol)
+        
+        # print(bad_stocks)
+        # print(len(bad_stocks))
+
         # analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
         # res = analyzedUsers.aggregate([{'$group' : { '_id' : '$error', 'count' : {'$sum' : 1}}}, { "$sort": { "count": 1 } },])
         # for i in res:
@@ -288,9 +331,9 @@ def main():
         # for t in tweets:
         #     print(t)
 
-        dailyPrediction(datetime.datetime(2020, 7, 9))
+        # dailyPrediction(datetime.datetime(2020, 7, 13))
 
-        # newDailyPrediction(datetime.datetime(2020, 7, 9))
+        newDailyPrediction(datetime.datetime(2020, 7, 13))
 
         # bucket = readPickleObject('newPickled/bucket.pickle')
         # res = []
@@ -394,7 +437,6 @@ def main():
         # for d in res['general']:
         #     print(d, res['general'][d]['num_predictions'])
 
-        # stocks = getActualAllStocks()
         # res = pregenerateUserFeatures('BertTradez', stocks)
         # for d in res['per_stock']['SPY']:
         #     print(d, res['per_stock']['SPY'][d]['num_predictions'])

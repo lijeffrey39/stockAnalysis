@@ -21,6 +21,36 @@ from .stockPriceAPI import (inTradingDay, isTradingDay)
 # ------------------------------------------------------------------------
 
 
+
+def sigmoidFn(date):
+    day_increment = datetime.timedelta(days=1)
+    start_date = date
+    end_date = start_date - day_increment
+
+    # 4pm cutoff
+    cutoff = datetime.datetime(date.year, date.month, date.day, 16)
+    if (start_date > cutoff or isTradingDay(start_date) == False):
+        end_date = start_date
+        start_date += day_increment
+        while (isTradingDay(start_date) == False):
+            start_date += day_increment
+
+    while (isTradingDay(end_date) == False):
+        end_date -= day_increment
+
+    start_date = datetime.datetime(start_date.year, start_date.month, start_date.day, 16)
+    end_date = datetime.datetime(end_date.year, end_date.month, end_date.day, 16)
+    difference = (date - end_date).total_seconds()
+    total_seconds = (start_date - end_date).total_seconds()
+
+    new_difference = difference - total_seconds # set difference from 0 to be all negative
+    new_difference = new_difference + (60 * 60 * 5) # add 4 hours to the time...any time > 0 has y value > 0.5
+    new_x = new_difference / total_seconds
+    new_x *= 20
+
+    return 1 / (1 + math.exp(-new_x))
+
+
 # Find average time
 def findAverageTime(times):
     times.sort()

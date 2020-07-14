@@ -16,7 +16,7 @@ from .stockAnalysis import (findDateString, getTopStocksforWeek, findPageStock, 
                             updateLastMessageTime, updateLastParsedTime, getTopStocksCached)
 from .stockPriceAPI import (findCloseOpenCached, isTradingDay)
 from .helpers import (calcRatio, findWeight, readPickleObject, findAllDays, insertResults,
-                    readCachedTweets, writeCachedTweets, writePickleObject,
+                    readCachedTweets, writeCachedTweets, writePickleObject, sigmoidFn,
                     findTradingDays, findAverageTime, convertToEST, getActualAllStocks)
 
 
@@ -82,13 +82,13 @@ def dailyPrediction(date):
             continue
         last_time = cursor['time']
         hours_back = (curr_time - last_time).total_seconds() / 3600.0
-        print(symbol, hours_back)
+        print(symbol, round(hours_back, 1))
         # if (hours_back > 0.5):
         #     parseStock(symbol, curr_time, hours_back)
 
 
-    # for symbol in stocks:
-    #     writeTweets(date, date, symbol, overwrite=True)
+    for symbol in stocks:
+        writeTweets(date, date, symbol, overwrite=True)
 
 
 def optimizeFN(params):
@@ -127,7 +127,7 @@ def optimizeParams():
 # Find all usernames from folder
 def findUserList():
     users = []
-    arr = os.listdir('user_tweets/')
+    arr = os.listdir('user_tweets_new/')
     for u in arr:
         username = u[:-4]
         users.append(username)
@@ -147,11 +147,10 @@ def findValidUsers():
 
 
 def cutoffUser(user_info):
-    num_tweets = findFeature(user_info, '', 'num_predictions', None)
     num_tweets_unique = findFeature(user_info, '', 'unique_num_predictions', None)
 
     # Filter by number of tweets
-    if (num_tweets <= 50 or num_tweets_unique <= 10):
+    if (num_tweets_unique <= 20):
         return False
 
     bull_res_n = user_info['unique_correct_predictions']['bull']
@@ -175,7 +174,7 @@ def cutoffUser(user_info):
     return_unique = max(bull_return, bear_return)
     accuracy_unique = max(accuracy_unique_bull, accuracy_unique_bear)
     # Filter by accuracy
-    if (accuracy_unique < 0.35):
+    if (accuracy_unique < 0.5):
         return False
 
     # Filter by return
@@ -267,16 +266,18 @@ def insertUser():
 
 
 # Pregenerate all user features based off tweets
-# Extract GENEARL and STOCK specific user return, accuracy, tweet count, etc.
+# Extract GENERAL and STOCK specific user return, accuracy, tweet count, etc.
 def pregenerateAllUserFeatures(update):
     if (update == False):
         result = readPickleObject('newPickled/user_features.pickle')
         return result
 
     users = findUserList() # Based off of users in the user_tweets/ folder
+    print(len(users))
     default_stocks = getActualAllStocks()
     result = {}
     not_found = 0
+    cutoff_date = '2019-06-01'
     for i in range(len(users)):
         if (i % 1000 == 0): # Log progress
             print(not_found)
@@ -290,29 +291,40 @@ def pregenerateAllUserFeatures(update):
             not_found += 1
             continue
 
-        # Remove unnecessary data from users before a given date
+        # 1. Remove unnecessary data from users before a given date
         prev_dates = sorted(list(pregenerated['general'].keys()))
         last_date_feature = None
         last_date = prev_dates[0]
         for date in prev_dates:
-            if (date < '2019-06-01'): # Temp cutoff for dates not to keep
+            if (date < cutoff_date): # Temp cutoff for dates not to keep
                 last_date_feature = pregenerated['general'][date]
                 last_date = date
                 del pregenerated['general'][date]
 
         # If all dates deleted, use the latest date/feature
         if (len(pregenerated['general']) == 0):
-            pregenerated['last_tweet_date'] = datetime.datetime.strptime(last_date, '%Y-%m-%d')
             pregenerated['general_dates'] = [last_date]
             pregenerated['general'][last_date] = last_date_feature
-            result[username] = pregenerated
-            continue
+        else: # Sorted from most recent to most historical
+            all_general_dates = sorted(list(pregenerated['general'].keys()), reverse=True)
+            pregenerated['general_dates'] = all_general_dates
 
-        # Sorted from most recent to most historical
-        all_general_dates = sorted(list(pregenerated['general'].keys()), reverse=True)
-        last_date = all_general_dates[-1] # Date of last tweet
-        pregenerated['last_tweet_date'] = datetime.datetime.strptime(last_date, '%Y-%m-%d')
-        pregenerated['general_dates'] = all_general_dates
+
+        # 2. Remove unnecessary data from stocks based on cutoff date
+        for symbol in pregenerated['per_stock']:
+            stock_dates = sorted(list(pregenerated['per_stock'][symbol].keys()))
+            last_date_feature = None
+            last_date = stock_dates[0]
+            for date_str in stock_dates:
+                if (date_str < cutoff_date):
+                    last_date_feature = pregenerated['per_stock'][symbol][date_str]
+                    last_date = date
+                    del pregenerated['per_stock'][symbol][date_str]
+
+            # If all dates deleted, use the latest date/feature
+            if (len(pregenerated['per_stock'][symbol]) == 0):
+                pregenerated['per_stock'][symbol][last_date] = last_date_feature
+
         result[username] = pregenerated
 
     path = 'newPickled/user_features.pickle'
@@ -718,7 +730,7 @@ def findAverageStd(start_date, end_date, all_features):
 
 
 # Save user tweets locally (only save symbol, time, isBull)
-def saveUserTweets():
+def saveUserTweets(update=False):
     print("Saving all user tweets")
     analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
     time = datetime.datetime(2020, 6, 1)
@@ -779,7 +791,7 @@ def editCachedTweets(username):
 
 # Fetch user tweets from local disk
 def cachedUserTweets(username):
-    path = 'user_tweets/' + username + '.csv'
+    path = 'user_tweets_new/' + username + '.csv'
     if (os.path.exists(path) == False):
         return None
 
@@ -803,9 +815,8 @@ def cachedUserTweets(username):
 def initializeUserFeatures(user):
     result = {}
     result['_id'] = user
-    keys = ['correct_predictions', 'num_predictions',
-            'unique_correct_predictions', 'unique_num_predictions', 
-            'unique_return', 'unique_return_log', 'unique_return_w1']
+    keys = ['unique_correct_predictions', 'unique_num_predictions', 
+            'unique_return', 'unique_return_log', 'unique_return_w']
 
     for k in keys:
         result[k] = {}
@@ -845,7 +856,7 @@ def calculateUserFeatures(username, date, all_user_features, tweets, default_sto
     # Update unique predictions per day features
     for time_string in unique_stocks:
         tweeted_date = unique_stocks[time_string]['time']
-        w = findWeight(tweeted_date, 'log(x)') # weighted based on time of tweet
+        w = sigmoidFn(tweeted_date) # weighted based on time of tweet
         symbol = unique_stocks[time_string]['symbol']
 
         # Find whether tweet was bull or bear based on last tweet prediction
@@ -859,19 +870,19 @@ def calculateUserFeatures(username, date, all_user_features, tweets, default_sto
         # if (percent_return > 100):
         #     print(symbol, percent_return, time_string)
 
-        result['unique_return_w1'][label] += w * percent_return
+        result['unique_return_w'][label] += w * percent_return
         result['unique_correct_predictions'][label] += correct_prediction_num
         result['unique_num_predictions'][label] += 1
         result['unique_return'][label] += percent_return
 
         # return unique (log) Weighted by number of times posted that day
-        num_labels = unique_stocks[time_string]['count']
+        num_labels = unique_stocks[time_string]['total_weight']
         val = percent_return * (math.log10(num_labels) + 1)
         result['unique_return_log'][label] += val
 
-        if (symbol in constants['top_stocks']):
+        if (symbol in constants['good_stocks']):
             result['perStock'][symbol]['unique_return_log'][label] += val
-            result['perStock'][symbol]['unique_return_w1'][label] += w * percent_return
+            result['perStock'][symbol]['unique_return_w'][label] += w * percent_return
             result['perStock'][symbol]['unique_correct_predictions'][label] += correct_prediction_num
             result['perStock'][symbol]['unique_num_predictions'][label] += 1
             result['perStock'][symbol]['unique_return'][label] += percent_return
@@ -882,7 +893,7 @@ def calculateUserFeatures(username, date, all_user_features, tweets, default_sto
 
 # Finds tweets for the given date range and stores them locally to be cached
 def writeTweets(start_date, end_date, symbol, overwrite=False):
-    print("Setting up tweets")
+    # print("Setting up tweets")
     day_increment = datetime.timedelta(days=1)
     all_dates = findAllDays(start_date, end_date)
     path = 'stock_files/' + symbol + '.pkl'
@@ -891,8 +902,6 @@ def writeTweets(start_date, end_date, symbol, overwrite=False):
     # Find stocks to parse per day
     for date in all_dates:
         date_string = date.strftime("%Y-%m-%d")
-        # stocks = ['INO', 'GNUS', 'WKHS', 'XSPA', 'SRNE', 'IBIO', 'TSLA', 'BA', 'TTOO', 'AAPL', 'NIO', 'SPCE', 'FB', 'AYTU', 'AAL', 'MVIS', 'AMD', 'BIOC', 'MARK', 'AMZN', 'PLUG', 'TOPS', 'EROS', 'TVIX', 'CODX', 'AIM', 'ROKU', 'FCEL', 'B']
-
         if (overwrite == False and date_string in tweets_per_stock):
             print(symbol, date_string, len(tweets_per_stock[date_string]), "EXISTS")
             continue
@@ -942,11 +951,6 @@ def newCalculateUserFeatures(username, symbol, date, all_user_features):
         return None
 
     features = all_user_features[username]
-    last_tweet_date = features['last_tweet_date']
-
-    # If last tweet is after current date, there is no previous data
-    if (date < last_tweet_date):
-        return None
 
     # Find general stats
     result = {}
@@ -954,11 +958,13 @@ def newCalculateUserFeatures(username, symbol, date, all_user_features):
     general_dates = features['general_dates']
     curr_date_str = '%d-%02d-%02d' % (date.year, date.month, date.day)
     for date_str in general_dates: # Find first date feature that is less than the current date
-        if (date_str > curr_date_str):
-            continue
-        else:
+        if (date_str <= curr_date_str):
             result = general_features[date_str]
             break
+
+    # If no user info found up till this date, return None
+    if (len(result.keys()) == 0):
+        return None
 
     # Find stock specific stats
     stock_features = features['per_stock']
@@ -966,8 +972,8 @@ def newCalculateUserFeatures(username, symbol, date, all_user_features):
     if (symbol not in stock_features): # First time tweeting about stock so no data yet
         return result
 
-    dates_tweeted = sorted(stock_features[symbol].keys(), reverse=True)
-    for date_str in dates_tweeted:
+    stock_dates = sorted(stock_features[symbol].keys(), reverse=True)
+    for date_str in stock_dates:
         # if not found, also first time tweeting about stock so no data yet
         if (date_str <= curr_date_str):
             result[symbol] = stock_features[symbol][date_str]

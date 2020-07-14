@@ -2,6 +2,7 @@ user_files/
 new_stock_files/*.pkl
 old_stock_files/
 user_tweets/
+stock_files_dates/
 newPickled/
 
 *.npy

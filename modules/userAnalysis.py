@@ -17,7 +17,8 @@ from .helpers import (convertToEST,
                       getActualAllStocks,
                       findWeight,
                       findJoinDate,
-                      readPickleObject)
+                      readPickleObject,
+                      sigmoidFn)
 from .hyperparameters import constants
 from .messageExtract import *
 from .stockPriceAPI import (findCloseOpen,
@@ -464,9 +465,8 @@ def initializeResult(tweets, user):
 # Initialize per stock features 
 def initializePerStockFeatures(symbol, result):
     result['perStock'][symbol] = {}
-    keys = ['correct_predictions', 'num_predictions',
-            'unique_correct_predictions', 'unique_num_predictions', 
-            'unique_return', 'unique_return_log', 'unique_return_w1']
+    keys = ['unique_correct_predictions', 'unique_num_predictions', 
+            'unique_return', 'unique_return_log', 'unique_return_w']
     for k in keys:
         result['perStock'][symbol][k] = {}
         result['perStock'][symbol][k]['bull'] = 0
@@ -481,7 +481,6 @@ def updateUserFeatures(result, tweet, uniqueStocks):
     time = tweet['time']
     symbol = tweet['symbol']
     isBull = tweet['isBull']
-    label = 'bull' if (isBull) else 'bear'
 
     if (symbol == ''):
         return
@@ -491,31 +490,24 @@ def updateUserFeatures(result, tweet, uniqueStocks):
         return
 
     percent_change = closeOpen[2]
-    correct_prediction = (isBull and percent_change >= 0) or (isBull is False and percent_change <= 0)
-    correct_prediction_num = 1 if correct_prediction else 0
 
-    result['correct_predictions'][label] += correct_prediction_num
-    result['num_predictions'][label] += 1
-
-    if (symbol in constants['top_stocks']):
-        # Initialize perstock object
-        if (symbol not in result['perStock']):
+    if (symbol in constants['good_stocks']):
+        if (symbol not in result['perStock']): # Initialize perstock object
             initializePerStockFeatures(symbol, result)
-        result['perStock'][symbol]['correct_predictions'][label] += correct_prediction_num
-        result['perStock'][symbol]['num_predictions'][label] += 1
 
-    w = findWeight(time, 'log(x)')
-    # For unique predictions per day, only count (bull/bear) if its majority
+    # For unique predictions per day, only count (bull/bear) if its last prediction
     time_string = symbol + ' ' + findDateString(time, cached_prices)
     if (time_string in uniqueStocks):
         if (isBull == uniqueStocks[time_string]['last_prediction']):
-            uniqueStocks[time_string]['count'] += w
+            w = sigmoidFn(time)
+            uniqueStocks[time_string]['total_weight'] += w
     else:
+        w = sigmoidFn(time)
         time_result = {'time': time, 
                     'symbol': symbol, 
                     'percent_change': percent_change,
                     'last_prediction': isBull,
-                    'count': w}
+                    'total_weight': w}
         uniqueStocks[time_string] = time_result
 
 
