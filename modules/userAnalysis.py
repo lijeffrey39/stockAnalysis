@@ -144,7 +144,13 @@ def shouldParseUser(username, reAnalyze, updateUser):
 
     if (updateUser):
         print("should not get here")
+
+    result['last_updated'] = convertToEST(datetime.datetime.now())
     (coreInfo, error) = findUserInfo(username)
+
+    if coreInfo['last_updated'] > datetime.datetime.now()-datetime.timedelta(days=1):
+        return None
+
     currTime = convertToEST(datetime.datetime.now())
 
     # If API is down/user doesnt exist
