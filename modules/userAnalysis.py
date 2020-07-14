@@ -149,6 +149,7 @@ def shouldParseUser(username, reAnalyze, updateUser):
     (coreInfo, error) = findUserInfo(username)
 
     if coreInfo['last_updated'] > datetime.datetime.now()-datetime.timedelta(days=1):
+        print('done already')
         return None
 
     currTime = convertToEST(datetime.datetime.now())
