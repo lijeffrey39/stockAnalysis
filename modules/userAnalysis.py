@@ -57,13 +57,14 @@ def shouldParseUser(username, reAnalyze, updateUser):
     if (updateUser):
         query = {'_id': username}
         result = analyzedUsers.find_one(query)
-        
-        if result['last_updated'] is None:
+        try:
+            if result['last_updated'] is None:
+                return None
+        except:
             return None
         # elif result['last_updated'] > datetime.datetime.now():
         #     print('done already')
         #     return None
-        print('')
         try:
             bb = result['bbcount']
         except:
