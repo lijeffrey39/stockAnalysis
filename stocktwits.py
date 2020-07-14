@@ -226,7 +226,7 @@ def main():
 
     if (options.users):
         while True:
-            analyzeUsers(reAnalyze=False, findNewUsers=False, updateUser=True)
+            analyzeUsers(reAnalyze=True, findNewUsers=False, updateUser=False)
     elif (options.stocks):
         now = convertToEST(datetime.datetime.now())
         date = datetime.datetime(now.year, now.month, now.day)
@@ -281,7 +281,7 @@ def main():
         dailyAnalyzeUsers(reAnalyze=True, updateUser=True, daysback=14)
     else:
         print()
-        print(stockcount1000daily(convertToEST(datetime.datetime.now()), 100))
+        # print(stockcount1000daily(convertToEST(datetime.datetime.now()), 100))
         # now = convertToEST(datetime.datetime.now())
         # collection = constants['stocktweets_client'].get_database('tweets_db').tweets.find({'$and': [{'symbol': 'SPY'}, {'time': {'$gte': now - datetime.timedelta(hours=3)}}]})
         # for i in collection:
