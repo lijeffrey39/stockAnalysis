@@ -11,6 +11,7 @@ import requests
 import itertools
 import json
 import shelve
+import sys
 
 
 from modules.helpers import (convertToEST, findTradingDays,findAllDays,
@@ -96,7 +97,12 @@ def analyzeStocks(date, stocks):
 def analyzeUsers(reAnalyze, findNewUsers, updateUser):
     users = findUsers(reAnalyze, findNewUsers, updateUser)
     print(len(users))
+    
     for username in users:
+        now = convertToEST(datetime.datetime.now())
+        if now.hour == 15 and now.minute == 30:
+            print('bye bye')
+            sys.exit()
         print('--------------------------')
         print(username)
         print("parsing at " + convertToEST(datetime.datetime.now()).strftime("%m/%d/%Y, %H:%M:%S"))

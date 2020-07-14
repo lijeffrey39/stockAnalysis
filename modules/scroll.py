@@ -1,5 +1,6 @@
 import datetime
 import time
+import sys
 
 from dateutil.parser import parse
 from iexfinance.stocks import get_historical_intraday
@@ -32,6 +33,10 @@ def scrollFor(driver, hoursBack):
     count = 0
 
     while(True):
+        now = convertToEST(datetime.datetime.now())
+        if now.hour == 15 and now.minute == 30:
+            print('bye bye')
+            sys.exit()
         new_height = driver.execute_script("return document.body.scrollHeight")
         time.sleep(constants['scroll_pause_time'])
 
