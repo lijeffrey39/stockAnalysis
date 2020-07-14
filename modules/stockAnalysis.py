@@ -127,7 +127,6 @@ def getTopStockDailyCached(date, num, cached_stockcounts):
         stock_counts_collection = constants['db_user_client'].get_database('user_data_db').daily_stockcount
         res = stock_counts_collection.find({'_id': datestring_id})
         if (res.count() != 0):
-            print("EXISTS")
             stock_list = res[0]['stocks']
         else:
             prevTime = datetime.datetime(date.year, date.month, date.day) - datetime.timedelta(days = 1)

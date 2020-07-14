@@ -89,11 +89,11 @@ class SlidingWindowCalc:
 
 
 
-def userWeight(user_values, feature_avg_std, weightings):
+def userWeight(user_values, feature_avg_std, weightings, param):
     num_tweets = user_values['num_tweets']
 
     # (1) Scale Tweet Number
-    max_value = feature_avg_std['num_tweets']['avg'] + (3 * feature_avg_std['num_tweets']['std'])
+    max_value = feature_avg_std['num_tweets'][ 'avg'] + (3 * feature_avg_std['num_tweets']['std'])
     scaled_num_tweets = (num_tweets) / math.log10(max_value)
     scaled_num_tweets = (scaled_num_tweets / 1.5) + 0.33
 
@@ -118,16 +118,17 @@ def userWeight(user_values, feature_avg_std, weightings):
         scaled_return_unique_s = 1
 
     # (3) all features combined (scale accuracy from 0.5 - 1 to between 0.7 - 1.2)
-    accuracy_unique = user_values['accuracy_unique'] + 0.3
+    accuracy_unique = user_values['accuracy_unique']
+    accuracy_unique_s = user_values['accuracy_unique_s']
     all_features = accuracy_unique * scaled_num_tweets * scaled_return_unique
-    # return (scaled_return_unique + (2 * scaled_num_tweets) + (1 * scaled_return_unique_s) + (2 * all_features)) / 5
-    return (weightings[0] * scaled_return_unique + (weightings[1] * scaled_num_tweets) + 
-        (weightings[2] * scaled_return_unique_s) + (weightings[3] * all_features) + 
-        (weightings[4] * accuracy_unique)) / sum(weightings)
+
+    return ((weightings[0] * scaled_return_unique) + (weightings[1] * accuracy_unique) + 
+        (weightings[2] * accuracy_unique_s) + (weightings[3] * scaled_return_unique_s) + 
+        (weightings[4] * all_features)) / sum(weightings)
 
 
 
-def sigmoidFn(date):
+def sigmoidFn(date, param, param1):
     day_increment = datetime.timedelta(days=1)
     start_date = date
     end_date = start_date - day_increment
@@ -149,21 +150,21 @@ def sigmoidFn(date):
     total_seconds = (start_date - end_date).total_seconds()
 
     new_difference = difference - total_seconds # set difference from 0 to be all negative
-    new_difference = new_difference + (60 * 60 * 5) # add 4 hours to the time...any time > 0 has y value > 0.5
+    new_difference = new_difference + (60 * 60 * 6) # add 4 hours to the time...any time > 0 has y value > 0.5
     new_x = new_difference / total_seconds
-    new_x *= 20
+    new_x *= 24
 
     return 1 / (1 + math.exp(-new_x))
 
 
-def findStockStd(symbol, stock_features, weightings, param):
-    days_back = 7 # Days to look back for generated daily stock features
+def findStockStd(symbol, stock_features, weightings, param, param1):
+    days_back = 8 # Days to look back for generated daily stock features
     bull_weight = 1
     bear_weight = 1
 
     features = ['accuracy_unique', 'accuracy_unique_s', 'num_tweets', 'num_tweets_s', 'return_unique',
         'return_unique_s', 'return_unique_log', 'return_unique_log_s', 'return_unique_w1', 'return_unique_w1']
-    feature_avgstd = SlidingWindowCalc(15, features)
+    feature_avgstd = SlidingWindowCalc(6, features)
 
     result_features = ['total_w']
     result_feature_avgstd = SlidingWindowCalc(days_back, result_features)
@@ -202,8 +203,8 @@ def findStockStd(symbol, stock_features, weightings, param):
         bull_w = 0
         bear_w = 0
         for username in day_features:
-            user_w = userWeight(day_features[username], weightings_avgstd, weightings)
-            tweet_w = sigmoidFn(day_features[username]['times'][0]) # Most recent posted time
+            user_w = userWeight(day_features[username], weightings_avgstd, weightings, param)
+            tweet_w = sigmoidFn(day_features[username]['times'][0], param, param1) # Most recent posted time
             # for time in day_features[username]['times']:
             #     tweet_w += sigmoidFn(time)
             if (day_features[username]['prediction']):
@@ -230,14 +231,13 @@ def findStockStd(symbol, stock_features, weightings, param):
     return result
 
 
-
 # Find features of tweets per day of each stock
 def findAllStockFeatures(start_date, end_date, all_user_features, update=False):
     path = 'newPickled/preprocessed_stock_user_features.pickle'
     if (update == False):
         return readPickleObject(path)
 
-    all_stocks = list(constants['top_stocks'])
+    daily_object = readPickleObject('newPickled/daily_stocks_cached.pickle')
     trading_dates = findTradingDays(start_date, end_date)
     all_stock_tweets = {} # store tweets locally for each stock
     feature_stats = {} # Avg/Std for features perstock
@@ -246,9 +246,9 @@ def findAllStockFeatures(start_date, end_date, all_user_features, update=False):
     for date in trading_dates:
         date_str = date.strftime("%Y-%m-%d")
         found = 0 # Number of stocks with enough tweets
-        for symbol in all_stocks:
+        stocks = getTopStockDailyCached(date, 80, daily_object)
+        for symbol in stocks:
             tweets_per_stock = {}
-            # print(symbol)
             if (symbol not in all_stock_tweets):
                 stock_path = 'stock_files/' + symbol + '.pkl'
                 tweets_per_stock = readPickleObject(stock_path)
@@ -288,8 +288,8 @@ def calculateAccuracy(picked_stocks, top_n_stocks, print_info):
 
         if (print_info):
             print_result = list(map(lambda x: [x[0], round(x[1], 2), round(x[2], 2)], stock_list))
-            print(date_str, print_result[:top_n_stocks])
-        
+            print(date_str, print_result[:top_n_stocks], len(print_result))
+
     return ([correct_overall, total_overall], [correct_top, total_top])
 
 
@@ -327,19 +327,18 @@ def calculateReturns(picked_stocks, top_n_stocks, print_info):
 
 
 
-def makePrediction(preprocessed_user_features, stock_close_opens, weightings, param, print_info):
-    all_stocks = constants['top_stocks']
+def makePrediction(preprocessed_user_features, stock_close_opens, weightings, param, param1, print_info):
     picked_stocks = {}
     top_n_stocks = 3
     non_close_open = {}
 
     # Find each stocks std per day
-    for symbol in all_stocks:
+    for symbol in constants['good_stocks']:
         if (symbol not in preprocessed_user_features):
             continue
 
         stock_features = preprocessed_user_features[symbol]
-        stock_std = findStockStd(symbol, stock_features, weightings, param)
+        stock_std = findStockStd(symbol, stock_features, weightings, param, param1)
 
         for date_str in stock_std: # For each day, look at deviation and close open for the day
             date_real = datetime.datetime.strptime(date_str, '%Y-%m-%d')
@@ -355,7 +354,7 @@ def makePrediction(preprocessed_user_features, stock_close_opens, weightings, pa
                 continue
 
             # print(symbol, date_str, round(stock_day_std['total_w']['val'] , 2), round(deviation, 2), round(close_open[2], 2))
-            if (deviation > 1.9 or deviation < -2.1):
+            if (deviation > 1.8 or deviation < -2):
                 if (date_str not in picked_stocks):
                     picked_stocks[date_str] = []
                 picked_stocks[date_str].append([symbol, deviation, close_open[2]])
@@ -375,50 +374,35 @@ def makePrediction(preprocessed_user_features, stock_close_opens, weightings, pa
         for date_str in sorted(non_close_open.keys()):
             res = sorted(non_close_open[date_str], key=lambda x: x[1], reverse=True)
             res = list(map(lambda x: [x[0], round(x[1], 2), x[2], x[3]], res))
-            print(date_str, res[:8])
+            print(date_str, res[:5])
 
     return (round(overall, 4), round(top, 4), accuracy_overall, accuracy_top)
 
 
 def saveLocalTweets(start_date, end_date):
     all_dates = findAllDays(start_date, end_date)
-    build_up = set([])
     for date in all_dates:
         daily_object = readPickleObject('newPickled/daily_stocks_cached.pickle')
         stocks = getTopStockDailyCached(date, 80, daily_object)
-        date_string = date.strftime("%Y-%m-%d")
-        path = 'stock_files_dates/' + date_string + '.pickle'
-        curr_obj = readPickleObject(path)
         print(date)
         for symbol in stocks:
-            if (symbol not in build_up):
-                build_up.add(symbol)
-            # if (symbol not in curr_obj):
-            #     date_start = datetime.datetime(date.year, date.month, date.day, 0, 0)
-            #     date_end = datetime.datetime(date.year, date.month, date.day) + datetime.timedelta(days=1)
-            #     tweets = fetchTweets(date_start, date_end, symbol)
-            #     curr_obj[symbol] = tweets
-            #     print(symbol, len(tweets))
-
-    print(build_up)
-        # writePickleObject(path, curr_obj)
+            writeTweets(date, date, symbol, True)
 
 
 
 def newDailyPrediction(date):
     end_date = date
-    start_date = end_date - datetime.timedelta(days=25)
-
-    # Use pregenerated user features
-    user_features = pregenerateAllUserFeatures(update=True)
-    return
+    start_date = end_date - datetime.timedelta(days=60)
 
     # Re-save tweets to local
-    # saveLocalTweets(start_date, start_date - datetime.timedelta(days=1))
+    saveLocalTweets(date, date)
+
+    # Use pregenerated user features
+    user_features = pregenerateAllUserFeatures(update=False)
 
     # Fetch stock features per day
     preprocessed_user_features = findAllStockFeatures(start_date, end_date, user_features, update=True)
-
+    weightings = [9,1,1,1,0]
     non_close_open = {}
 
     # Find each stocks std per day
@@ -427,7 +411,7 @@ def newDailyPrediction(date):
             continue
 
         stock_features = preprocessed_user_features[symbol]
-        stock_std = findStockStd(symbol, stock_features, [1,1,1,1,1], 1)
+        stock_std = findStockStd(symbol, stock_features, weightings, 1, 1)
 
         for date_str in stock_std: # For each day, look at deviation and close open for the day
             stock_day_std = stock_std[date_str]
@@ -443,19 +427,19 @@ def newDailyPrediction(date):
         symbols = list(non_close_open[date_str].keys())
         non_close_open[date_str]['stocks_found'] = sorted(symbols, key=lambda symbol: non_close_open[date_str][symbol][1], reverse=True)
 
-
+    # Display past info about the top stocks
     current_date_str = date.strftime("%Y-%m-%d")
-    stocks_today = non_close_open[current_date_str]['stocks_found'][:8] # Top 6 for the day
+    stocks_today = non_close_open[current_date_str]['stocks_found'][:5] # Top 6 for the day
     result_details = {}
     for symbol in stocks_today:
         for date_str in non_close_open:
             if (date_str not in result_details):
                 result_details[date_str] = []
             if (symbol not in non_close_open[date_str]):
+                result_details[date_str].append([symbol, 0, 0, 0, 0])
                 continue
             vals = non_close_open[date_str][symbol]
             result_details[date_str].append(vals)
-
 
     for date_str in sorted(result_details.keys()):
         print(date_str, result_details[date_str])
@@ -465,7 +449,7 @@ def newDailyPrediction(date):
 
 
 def predictionV3():
-    start_date = datetime.datetime(2019, 12, 1) # Prediction start date
+    start_date = datetime.datetime(2019, 6, 3) # Prediction start date
     end_date = datetime.datetime(2020, 7, 13) # Prediction end date
 
     # STEP 1: Fetch all user tweets
@@ -481,12 +465,18 @@ def predictionV3():
     close_opens = exportCloseOpen(update=False)
 
     # STEP 5: Calculate stock features per day
-    preprocessed_user_features = findAllStockFeatures(start_date, end_date, user_features, update=True)
+    preprocessed_user_features = findAllStockFeatures(start_date, end_date, user_features, update=False)
 
     # STEP 6: Make prediction
-    weightings = [1,1,1,1,1]
-    (overall, top, accuracy_overall, accuracy_top) = makePrediction(preprocessed_user_features, close_opens, weightings, 1, print_info=True)
-    print(overall, top)
+    weightings = [9,1,1,1,0]
+    (overall, top, accuracy_overall, accuracy_top) = makePrediction(preprocessed_user_features, close_opens, weightings, 1, 1, print_info=True)
+    print(overall, top, accuracy_overall, accuracy_top)
+
+    # for i in range(1, 6):
+    #     for j in range(1, 6):
+    #         weightings = [9, 1, 1, 1, 0]
+    #         (overall, top, accuracy_overall, accuracy_top) = makePrediction(preprocessed_user_features, close_opens, weightings, i, j, print_info=False)
+    #         print(i, j, overall, top, accuracy_overall, accuracy_top)
 
 
     # STEP FINAL - DAILY PREDICTION
@@ -500,14 +490,13 @@ def predictionV3():
 
     # res = []
     # for i in range(0, 3):
-    #     for j in range(1, 3):
-    #         for k in range(0, 2):
-    #             for l in range(0, 2):
-    #                 for m in range(0, 3):
-    #                     weightings = [i, j, k, l, m]
-    #                     (overall, top) = makePrediction(preprocessed_user_features, close_opens, weightings, print_info=False)
-    #                     print(weightings, overall, top)
-    #                     res.append([weightings, overall, top])
+    #     for j in range(0, 3):
+    #         for k in range(0, 3):
+    #             for l in range(0, 3):
+    #                 weightings = [9, i, j, k, l]
+    #                 (overall, top, accuracy_overall, accuracy_top) = makePrediction(preprocessed_user_features, close_opens, weightings, 1, print_info=False)
+    #                 print(weightings, overall, top, accuracy_overall, accuracy_top)
+    #                 res.append([weightings, overall, top])
     # res.sort(key=lambda x: x[1])
     # for x in res:
     #     print(x)

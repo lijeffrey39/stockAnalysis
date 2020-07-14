@@ -12,7 +12,7 @@ from scipy.optimize import minimize
 from functools import reduce
 from .hyperparameters import constants
 from .userAnalysis import (getStatsPerUser, initializeResult, updateUserFeatures)
-from .stockAnalysis import (findDateString, getTopStocksforWeek, findPageStock, parseStockData,
+from .stockAnalysis import (findDateString, getTopStocksforWeek, findPageStock, parseStockData, getTopStockDailyCached,
                             updateLastMessageTime, updateLastParsedTime, getTopStocksCached)
 from .stockPriceAPI import (findCloseOpenCached, isTradingDay)
 from .helpers import (calcRatio, findWeight, readPickleObject, findAllDays, insertResults,
@@ -58,37 +58,24 @@ def parseStock(symbol, date, hours):
 
 
 def dailyPrediction(date):
-    stocks = constants['top_stocks']
-    stocks = ['SPY', 'TSLA', 'IBIO', 'AYTU', 'XSPA', 'GNUS', 'SPCE', 'INO', 'CODX', 'BA', 'AAPL', 
-        'FCEL', 'AMD', 'SRNE', 'MARK', 'B', 'NIO', 'ONTX', 'ROKU', 'INPX', 
-        'ACB', 'AMZN', 'SHLL', 'WKHS', 'BIOC', 'MVIS', 'DIS', 'VXRT', 'BYND', 'JNUG', 
-        'TTOO', 'TVIX', 'TOPS', 'VBIV', 'TBLT', 'ADXS', 'AAL', 'CLVS', 'SHIP', 'GHSI', 
-        'AMRN', 'UGAZ', 'AIM', 'ZOM', 'GILD', 'VISL', 'FB', 'HTBX', 'EROS', 'KTOV', 'TTNP', 
-        'TNXP', 'MSFT', 'ZM', 'UAVS', 'DGLY', 'QQQ', 'BNGO', 'NFLX', 'NVAX', 'MRNA', 
-        'USO', 'MFA', 'IDEX', 'BB', 'BABA', 'CCL', 'OPK', 'NOVN', 'SHOP', 'ENPH', 'BCRX', 
-        'DK', 'BYFC', 'OCGN', 'WTRH', 'AUPH', 'MNKD', 'FMCI', 'I', 'IZEA', 
-        'NNVC', 'UBER', 'CEI', 'NCLH', 'NVDA', 'D', 'SQ', 'OPGN', 'NAK']
-
-    # stocks = ['PYPL', 'JNJ', 'OXY', 'M', 'PTON', 'TXMD', 'WMT', 'JPM', 'GOOGL', 'GILD', 'SNE', 'GPS', 'WFC', 'LYFT', 'V', 'WORK',
-    #     'F', 'DAL', 'UAL', 'FIT', 'HEXO', 'CGC', 'RCL', 'KO', 'ZNGA', 'T', 'LUV', 'MRO', 'MGM', 'JBLU', 'MFA', 'NKLA', 'GUSH', 
-    #     'UCO', 'AMC', 'GM', 'NOK', 'VOO', 'DKNG', 'PENN', 'PFE', 'CPRX', 'TLRY', 'SIRI']
-
+    daily_object = readPickleObject('newPickled/daily_stocks_cached.pickle')
+    stocks = getTopStockDailyCached(date, 80, daily_object)
     last_parsed = constants['stocktweets_client'].get_database('stocks_data_db').last_parsed
-    curr_time = convertToEST(datetime.datetime.now())
+
     for symbol in stocks:
         cursor = last_parsed.find_one({'_id': symbol})
         if (cursor == None):
             print(symbol)
             continue
         last_time = cursor['time']
-        hours_back = (curr_time - last_time).total_seconds() / 3600.0
+        hours_back = (convertToEST(datetime.datetime.now()) - last_time).total_seconds() / 3600.0
         print(symbol, round(hours_back, 1))
         # if (hours_back > 0.5):
         #     parseStock(symbol, curr_time, hours_back)
 
 
-    for symbol in stocks:
-        writeTweets(date, date, symbol, overwrite=True)
+    # for symbol in stocks:
+    #     writeTweets(date, date, symbol, overwrite=True)
 
 
 def optimizeFN(params):
@@ -898,6 +885,7 @@ def writeTweets(start_date, end_date, symbol, overwrite=False):
     all_dates = findAllDays(start_date, end_date)
     path = 'stock_files/' + symbol + '.pkl'
     tweets_per_stock = readPickleObject(path)
+    new_tweets = False
 
     # Find stocks to parse per day
     for date in all_dates:
@@ -911,11 +899,14 @@ def writeTweets(start_date, end_date, symbol, overwrite=False):
         date_end = datetime.datetime(date.year, date.month, date.day) + day_increment
         tweets = fetchTweets(date_start, date_end, symbol)
         tweets_per_stock[date_string] = tweets
+        new_tweets = True
 
         print(symbol, date_string, len(tweets_per_stock[date_string]))
 
     # Write to the stock pickled object
-    writePickleObject(path, tweets_per_stock)
+    # Only write if it is updated
+    if (new_tweets):
+        writePickleObject(path, tweets_per_stock)
 
 # Fetch tweets from mongodb tweets collection
 def fetchTweets(date_start, date_end, symbol):
@@ -990,9 +981,7 @@ def officialCutOff(user_info, symbol, label):
     if (accuracy_unique < 0.5 or accuracy_unique_s < 0.5):
         return None
 
-    num_tweets = user_info['num_predictions']['bull'] + user_info['num_predictions']['bear']
     num_tweets_unique = user_info['unique_num_predictions']['bull'] + user_info['unique_num_predictions']['bear']
-    num_tweets_s = findFeature(user_info, symbol, 'num_predictions', None)
     num_tweets_s_unique = findFeature(user_info, symbol, 'unique_num_predictions', None)
 
     # Filter by number of tweets
@@ -1002,9 +991,9 @@ def officialCutOff(user_info, symbol, label):
     return_unique = (user_info['unique_return']['bear'] + user_info['unique_return']['bull']) / 2
     return_unique_s = findFeature(user_info, symbol, 'unique_return', None) / 2
     return_unique_log = (user_info['unique_return_log']['bear'] + user_info['unique_return_log']['bull']) / 2
-    return_unique_w1 = (user_info['unique_return_w1']['bear'] + user_info['unique_return_w1']['bull']) / 2
+    return_unique_w1 = (user_info['unique_return_w']['bear'] + user_info['unique_return_w']['bull']) / 2
     return_unique_log_s = findFeature(user_info, symbol, 'unique_return_log', None) / 2
-    return_unique_w1_s = findFeature(user_info, symbol, 'unique_return_w1', None) / 2
+    return_unique_w1_s = findFeature(user_info, symbol, 'unique_return_w', None) / 2
 
     return_unique -= return_unique_s
 
@@ -1157,6 +1146,14 @@ def stockFeatures(tweets, date_str, symbol, all_user_features, feature_stats, pr
             user_values['prediction'] = seen_users[username]['isBull']
             user_values['times'] = seen_users[username]['times']
             preprocessed_user_features[symbol][date_str][username] = user_values
+        # if (date_str not in preprocessed_user_features):
+        #     preprocessed_user_features[date_str] = {}
+        # if (symbol not in preprocessed_user_features[date_str]):
+        #     preprocessed_user_features[date_str][symbol] = {}
+        # if (username not in preprocessed_user_features[date_str][symbol]):
+        #     user_values['prediction'] = seen_users[username]['isBull']
+        #     user_values['times'] = seen_users[username]['times']
+        #     preprocessed_user_features[date_str][symbol][username] = user_values
 
     # if (symbol in preprocessed_user_features and date_str in preprocessed_user_features[symbol]):
     #     preprocessed_user_features[symbol][date_str]['bull_count'] = bull_count
