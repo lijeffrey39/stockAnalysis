@@ -145,12 +145,14 @@ def shouldParseUser(username, reAnalyze, updateUser):
     if (updateUser):
         print("should not get here")
 
-    result['last_updated'] = convertToEST(datetime.datetime.now())
     (coreInfo, error) = findUserInfo(username)
-
-    if coreInfo['last_updated'] > datetime.datetime.now()-datetime.timedelta(days=1):
-        print('done already')
-        return None
+    
+    try:
+        if coreInfo['last_updated'] > datetime.datetime.now()-datetime.timedelta(days=1):
+            print('done already')
+            return None
+    except:
+        pass
 
     currTime = convertToEST(datetime.datetime.now())
 
