@@ -34,9 +34,6 @@ def scrollFor(driver, hoursBack):
 
     while(True):
         now = convertToEST(datetime.datetime.now())
-        if now.hour == 15 and now.minute == 30:
-            print('bye bye')
-            sys.exit()
         new_height = driver.execute_script("return document.body.scrollHeight")
         time.sleep(constants['scroll_pause_time'])
 
