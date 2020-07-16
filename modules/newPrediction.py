@@ -173,7 +173,7 @@ def cutoffUser(user_info):
 
 # Generate features from users historical tweets
 # Return stock specific user features and general user features
-def pregenerateUserFeatures(username, default_stocks):
+def pregenerateUserFeatures(username, default_stocks, mode):
     day_increment = datetime.timedelta(days=1)
     cached_tweets = cachedUserTweets(username) # Tweets from user
     if (cached_tweets == None):
@@ -185,12 +185,19 @@ def pregenerateUserFeatures(username, default_stocks):
         time = tweet['time']
 
         # Find the trading day the tweet corresponds to
-        if (time.hour >= 16):
-            time += day_increment
+        if (mode == 3):
+            if (time.hour >= 9 and time.minute >= 30):
+                time += day_increment
+        else:
+            if (time.hour >= 16):
+                time += day_increment
+
         while (isTradingDay(time) == False):
             time += day_increment
 
         time = datetime.datetime(time.year, time.month, time.day, 16)
+        if (mode == 3):
+            time = datetime.datetime(time.year, time.month, time.day, 9, 30)
         if (time not in dates):
             dates.add(time)
 
@@ -201,7 +208,7 @@ def pregenerateUserFeatures(username, default_stocks):
     buildup_result = {} # cached result that is being built up
     prev_day = {}
     for date in dates:
-        day_res = calculateUserFeatures(username, date, buildup_result, cached_tweets, default_stocks)
+        day_res = calculateUserFeatures(username, date, buildup_result, cached_tweets, default_stocks, mode)
         if (cutoffUser(day_res) == False):
             continue
 
@@ -254,9 +261,9 @@ def insertUser():
 
 # Pregenerate all user features based off tweets
 # Extract GENERAL and STOCK specific user return, accuracy, tweet count, etc.
-def pregenerateAllUserFeatures(update):
+def pregenerateAllUserFeatures(update, path, mode=1):
     if (update == False):
-        result = readPickleObject('newPickled/user_features.pickle')
+        result = readPickleObject(path)
         return result
 
     users = findUserList() # Based off of users in the user_tweets/ folder
@@ -271,7 +278,7 @@ def pregenerateAllUserFeatures(update):
             print(i)
 
         username = users[i]
-        pregenerated = pregenerateUserFeatures(username, default_stocks) # Find user features
+        pregenerated = pregenerateUserFeatures(username, default_stocks, mode) # Find user features
 
         # If no dates/features were found or doesn't meet minimum user requirements
         if (len(pregenerated['general']) == 0):
@@ -314,8 +321,8 @@ def pregenerateAllUserFeatures(update):
 
         result[username] = pregenerated
 
-    path = 'newPickled/user_features.pickle'
     writePickleObject(path, result)
+    return result
 
 
 
@@ -621,10 +628,12 @@ def modifyTweets():
 
 
 # Find all tweets on this given day from database
-def findTweets(date, tweets_per_stock, symbol):
+def findTweets(date, tweets_per_stock, symbol, mode=1):
     # Find start end and end dates for the given date
     day_increment = datetime.timedelta(days=1)
     date_end = datetime.datetime(date.year, date.month, date.day, 16)
+    if (mode == 3):
+        date_end = datetime.datetime(date.year, date.month, date.day, 9, 30)
     date_start = date_end - day_increment
     dates = [date_end, date_start]
     while (isTradingDay(date_start) == False):
@@ -816,8 +825,7 @@ def initializeUserFeatures(user):
 
 # Calculate user's features based on tweets before this date
 # Loop through all tweets made by user and feature extract per user
-def calculateUserFeatures(username, date, all_user_features, tweets, default_stocks):
-    # date = date - datetime.timedelta(days=3) # Find all tweet/predictions before this date
+def calculateUserFeatures(username, date, all_user_features, tweets, default_stocks, mode):
     unique_stocks = {} # Keep track of unique tweets per day/stock
     result = {} # Resulting user features
 
@@ -827,23 +835,18 @@ def calculateUserFeatures(username, date, all_user_features, tweets, default_sto
 
         # Filter by tweets before the current date and after last updated date
         for tweet in tweets:
-            # if (tweet['time'] >= last_updated and tweet['time'] < date and tweet['symbol'] in constants['top_stocks']):
             if (tweet['time'] >= last_updated and tweet['time'] < date and tweet['symbol'] in default_stocks):
-                updateUserFeatures(result, tweet, unique_stocks)
+                updateUserFeatures(result, tweet, unique_stocks, mode)
     else:
         result = initializeUserFeatures(username) # initialize user features for first time
-        # Only filter by all tweets before current date
-        for tweet in tweets:
-            # if (tweet['time'] < date and tweet['symbol'] in constants['top_stocks']):
+        for tweet in tweets: # Only filter by all tweets before current date
             if (tweet['time'] < date and tweet['symbol'] in default_stocks):
-                updateUserFeatures(result, tweet, unique_stocks)
-
-    result['last_updated'] = date # update time it was parsed so dont have to reparse
+                updateUserFeatures(result, tweet, unique_stocks, mode)
 
     # Update unique predictions per day features
     for time_string in unique_stocks:
         tweeted_date = unique_stocks[time_string]['time']
-        w = sigmoidFn(tweeted_date) # weighted based on time of tweet
+        w = sigmoidFn(tweeted_date, mode) # weighted based on time of tweet
         symbol = unique_stocks[time_string]['symbol']
 
         # Find whether tweet was bull or bear based on last tweet prediction
@@ -853,9 +856,6 @@ def calculateUserFeatures(username, date, all_user_features, tweets, default_sto
         correct_prediction = (label == 'bull' and percent_change >= 0) or (label == 'bear' and percent_change <= 0)
         correct_prediction_num = 1 if correct_prediction else 0
         percent_return = abs(percent_change) if correct_prediction else -abs(percent_change)
-
-        # if (percent_return > 100):
-        #     print(symbol, percent_return, time_string)
 
         result['unique_return_w'][label] += w * percent_return
         result['unique_correct_predictions'][label] += correct_prediction_num
@@ -874,6 +874,7 @@ def calculateUserFeatures(username, date, all_user_features, tweets, default_sto
             result['perStock'][symbol]['unique_num_predictions'][label] += 1
             result['perStock'][symbol]['unique_return'][label] += percent_return
 
+    result['last_updated'] = date # update time it was parsed so dont have to reparse
     all_user_features[username] = result
     return result
 
@@ -985,20 +986,21 @@ def officialCutOff(user_info, symbol, label):
     num_tweets_s_unique = findFeature(user_info, symbol, 'unique_num_predictions', None)
 
     # Filter by number of tweets
-    if (num_tweets_unique <= 60 or num_tweets_s_unique < 12):
+    if (num_tweets_unique <= 20 or num_tweets_s_unique < 10):
         return None
 
     return_unique = (user_info['unique_return']['bear'] + user_info['unique_return']['bull']) / 2
+    return_unique_label = user_info['unique_return'][label]
     return_unique_s = findFeature(user_info, symbol, 'unique_return', None) / 2
     return_unique_log = (user_info['unique_return_log']['bear'] + user_info['unique_return_log']['bull']) / 2
     return_unique_w1 = (user_info['unique_return_w']['bear'] + user_info['unique_return_w']['bull']) / 2
     return_unique_log_s = findFeature(user_info, symbol, 'unique_return_log', None) / 2
     return_unique_w1_s = findFeature(user_info, symbol, 'unique_return_w', None) / 2
 
-    return_unique -= return_unique_s
+    return_unique -= return_unique_s # Ignore the current stock's return
 
     # Filter by return
-    if (return_unique < 20 or return_unique_s < 5):
+    if (return_unique < 5 or return_unique_s < 5):
         return None
 
     user_values = {
@@ -1007,6 +1009,7 @@ def officialCutOff(user_info, symbol, label):
         'num_tweets': num_tweets_unique,
         'num_tweets_s': num_tweets_s_unique,
         'return_unique': return_unique,
+        'return_unique_label': return_unique_label,
         'return_unique_s': return_unique_s,
         'return_unique_log': return_unique_log,
         'return_unique_log_s': return_unique_log_s,
@@ -1136,28 +1139,10 @@ def stockFeatures(tweets, date_str, symbol, all_user_features, feature_stats, pr
         result[label + '_w'] += tweet_value * num_prediction_log
         result[label + '_w_return'] += tweet_value * return_unique * num_prediction_log
 
-
         # Bucket for analysis
-        if (symbol not in preprocessed_user_features):
-            preprocessed_user_features[symbol] = {}
-        if (date_str not in preprocessed_user_features[symbol]):
-            preprocessed_user_features[symbol][date_str] = {}
-        if (username not in preprocessed_user_features[symbol][date_str]):
-            user_values['prediction'] = seen_users[username]['isBull']
-            user_values['times'] = seen_users[username]['times']
-            preprocessed_user_features[symbol][date_str][username] = user_values
-        # if (date_str not in preprocessed_user_features):
-        #     preprocessed_user_features[date_str] = {}
-        # if (symbol not in preprocessed_user_features[date_str]):
-        #     preprocessed_user_features[date_str][symbol] = {}
-        # if (username not in preprocessed_user_features[date_str][symbol]):
-        #     user_values['prediction'] = seen_users[username]['isBull']
-        #     user_values['times'] = seen_users[username]['times']
-        #     preprocessed_user_features[date_str][symbol][username] = user_values
-
-    # if (symbol in preprocessed_user_features and date_str in preprocessed_user_features[symbol]):
-    #     preprocessed_user_features[symbol][date_str]['bull_count'] = bull_count
-    #     preprocessed_user_features[symbol][date_str]['bear_count'] = bear_count
+        user_values['prediction'] = seen_users[username]['isBull']
+        user_values['times'] = seen_users[username]['times']
+        preprocessed_user_features[symbol][date_str][username] = user_values
 
     result['bull_count'] = bull_count
     result['bear_count'] = bear_count
@@ -1212,9 +1197,9 @@ def weightedUserPrediction(user_values, feature_avg_std):
     return_unique_s = user_values['return_unique_s']
 
     max_value = feature_avg_std['return_unique']['avg'] + (3 * feature_avg_std['return_unique']['std'])
-    scaled_return_unique = (math.log10(return_unique - 19)) / math.log10(max_value)
+    scaled_return_unique = (math.log10(return_unique - 4)) / math.log10(max_value)
     scaled_return_unique = (scaled_return_unique / 1.5) + 0.33
-    
+
     max_value = feature_avg_std['return_unique_s']['avg'] + (3 * feature_avg_std['return_unique_s']['std'])
     scaled_return_unique_s = (math.log10(return_unique_s - 4)) / math.log10(max_value)
     scaled_return_unique_s = (scaled_return_unique_s / 1.5) + 0.33

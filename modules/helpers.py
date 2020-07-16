@@ -22,13 +22,15 @@ from .stockPriceAPI import (inTradingDay, isTradingDay)
 
 
 
-def sigmoidFn(date):
+def sigmoidFn(date, mode=1):
     day_increment = datetime.timedelta(days=1)
     start_date = date
     end_date = start_date - day_increment
 
     # 4pm cutoff
     cutoff = datetime.datetime(date.year, date.month, date.day, 16)
+    if (mode == 3):
+        cutoff = datetime.datetime(date.year, date.month, date.day, 9, 30)
     if (start_date > cutoff or isTradingDay(start_date) == False):
         end_date = start_date
         start_date += day_increment
@@ -44,9 +46,9 @@ def sigmoidFn(date):
     total_seconds = (start_date - end_date).total_seconds()
 
     new_difference = difference - total_seconds # set difference from 0 to be all negative
-    new_difference = new_difference + (60 * 60 * 5) # add 4 hours to the time...any time > 0 has y value > 0.5
+    new_difference = new_difference + (60 * 60 * 6) # add 4 hours to the time...any time > 0 has y value > 0.5
     new_x = new_difference / total_seconds
-    new_x *= 20
+    new_x *= 24
 
     return 1 / (1 + math.exp(-new_x))
 

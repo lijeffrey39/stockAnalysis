@@ -117,7 +117,8 @@ def getTopStockDailyCached(date, num, cached_stockcounts):
         'DF', 'UNT', 'CTRV', 'CORV', 'TUES', 'BPMX', 'DCIX', 'TROV', 'GST', 'LGCY', 'ARQL', 'BTC', 
         'HIIQ', 'HLTH', 'UTX', 'UWT', 'LTM', 'MTFB', 'KOOL', 'CYTX', 'MYND', 'CNAT', 'SDRL', 'OASM', 
         'CVRS', 'PIR', 'CTST', 'CTRP', 'YUMA', 'FRED', 'KEG', 'MDR', 'XRP', 'CIFS', 'PTIE', 'P', 'DEST', 
-        'RGSE', 'IPCI', 'CHK', 'BAS', 'AREX', 'PES', 'YOGA', 'AKS', 'VLRX', 'VIA', 'TOCA', 'S'])
+        'RGSE', 'IPCI', 'CHK', 'BAS', 'AREX', 'PES', 'YOGA', 'AKS', 'VLRX', 'VIA', 'TOCA', 'S', 'TTNP',
+        'DAX', 'MTNB', 'WORX'])
     datestring_id = date.strftime("%Y%m%d")
 
     stock_list = []

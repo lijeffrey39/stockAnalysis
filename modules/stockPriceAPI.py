@@ -56,7 +56,7 @@ def exportCloseOpen(update):
 
     result = {}
 
-    with open('cachedCloseOpen/close_open_iex.csv') as csv_file:
+    with open('cachedCloseOpen/close_open_new1.csv') as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=',')
         for row in csv_reader:
             first = row[0].split()
@@ -67,7 +67,7 @@ def exportCloseOpen(update):
                 result[date] = {}
             result[date][symbol] = res
 
-    with open('cachedCloseOpen/close_open_yfin.csv') as csv_file:
+    with open('cachedCloseOpen/close_open_new2.csv') as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=',')
         for row in csv_reader:
             first = row[0].split()
@@ -95,8 +95,31 @@ def exportCloseOpen(update):
 
 
 # Find close open from cached files
-def findCloseOpenCached(symbol, time, cached_prices):
+# MODE 1: 4:00 curr day to 9:30 next day
+# MODE 2: 4:00 curr day to 4:00 next day
+# MODE 3: 9:30 curr day to 4:00 curr day
+# MODE 4: 9:30 curr day to 9:30 next day
+def findCloseOpenCached(symbol, time, cached_prices, mode=1):
     day_increment = datetime.timedelta(days=1)
+
+    if (mode == 3):
+        if (time.hour >= 9 and time.minute >= 30):
+            time += day_increment
+
+        while (isTradingDay(time) == False):
+            time += day_increment
+        
+        date_str = '%d-%02d-%02d' % (time.year, time.month, time.day)
+        if (date_str not in cached_prices or symbol not in cached_prices[date_str]):
+            return None
+
+        openPrice = cached_prices[date_str][symbol][0]
+        closePrice = cached_prices[date_str][symbol][1]
+        if (openPrice == 0 or closePrice == 0):
+            print(symbol, date_str)
+            return None
+        return (openPrice, closePrice, (closePrice - openPrice) * 100 / openPrice)
+
 
     # Find first day if tweeted after 4pm
     # If 4:00 on Wed, first day is Thursday
@@ -124,13 +147,15 @@ def findCloseOpenCached(symbol, time, cached_prices):
     end = cached_prices[end_str][symbol]
     closePrice = start[1]
     openPrice = end[0]
+    if (mode == 2):
+        openPrice = end[1]
     return (closePrice, openPrice, (openPrice - closePrice) * 100 / closePrice)
 
 
 # Find close open for date. Anytime before 4pm is
 def findCloseOpen(symbol, time):
-    db = constants['db_client'].get_database('stocks_data_db').updated_close_open
-    dbYF = constants['db_client'].get_database('stocks_data_db').yfin_close_open
+    db = constants['db_user_client'].get_database('user_data_db').updated_close_open
+    dbYF = constants['db_user_client'].get_database('user_data_db').yfin_close_open
     dayIncrement = datetime.timedelta(days=1)
     nextDay = None
     count = 0

@@ -23,7 +23,7 @@ from modules.stockPriceAPI import (updateAllCloseOpen, transferNonLabeled, findC
                                     getCloseOpenInterval, updateyfinanceCloseOpen, exportCloseOpen, findCloseOpenCached)
 from modules.userAnalysis import (findPageUser, findUsers, insertUpdateError, findUserInfo,
                                   parseUserData, shouldParseUser, getStatsPerUser,
-                                  updateUserNotAnalyzed,
+                                  updateUserNotAnalyzed, findUserInfoDriver,
                                   calculateAllUserInfo, parseOldUsers)
 from modules.tests import (findBadMessages, removeMessagesWithStock, 
                            findTopUsers, findOutliers, findAllUsers, findErrorUsers)
@@ -31,7 +31,8 @@ from modules.tests import (findBadMessages, removeMessagesWithStock,
 from modules.newPrediction import (findTweets, weightedUserPrediction, writeTweets, calculateUserFeatures, dailyPrediction, fetchTweets,
                                     editCachedTweets, prediction, findFeatures, pregenerateAllUserFeatures, pregenerateUserFeatures,
                                     saveUserTweets, cachedUserTweets, optimizeParams, findStockCounts, insertUser, modifyTweets, getTopStocksCached)
-from modules.prediction_v3 import (predictionV3, fetchStockTweets, writeAllTweets, sigmoidFn, newDailyPrediction, saveLocalTweets)
+from modules.prediction_v3 import (predictionV3, fetchStockTweets, writeAllTweets, sigmoidFn, 
+                                    newDailyPrediction, saveLocalTweets)
 
 
 client = constants['db_client']
@@ -95,7 +96,6 @@ def analyzeStocks(date, stocks):
 def analyzeUsers(reAnalyze, findNewUsers, updateUser):
     users = findUsers(reAnalyze, findNewUsers, updateUser)
     print(len(users))
-    print(users[:10])
     for username in users:
         print(username)
         coreInfo = shouldParseUser(username, reAnalyze, updateUser)
@@ -272,8 +272,10 @@ def main():
     elif (options.dailyuserparser):
         dailyAnalyzeUsers(reAnalyze=True, updateUser=True, daysback=14)
     else:
+        # print(findCloseOpenCached('DIS', datetime.datetime(2020, 6, 19, 9, 40), constants['cached_prices'], mode=3))
 
-
+        # print(findCloseOpen('AAPL', datetime.datetime(2020, 7, 12)))
+    
         # saveLocalTweets(datetime.datetime(2019, 6, 1), datetime.datetime(2020, 7, 10))
 
 
@@ -297,12 +299,14 @@ def main():
         # for i in res:
         #     print(i)
 
-        # predictionV3()
+        predictionV3()
+        # exportCloseOpen(True)
 
+        # optimizeParamsNew
 
-        dailyPrediction(datetime.datetime(2020, 7, 13))
+        # dailyPrediction(datetime.datetime(2020, 7, 16))
 
-        # newDailyPrediction(datetime.datetime(2020, 7, 14))
+        # newDailyPrediction(datetime.datetime(2020, 7, 16))
 
         # bucket = readPickleObject('newPickled/bucket.pickle')
         # res = []
