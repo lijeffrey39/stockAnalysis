@@ -99,9 +99,6 @@ def analyzeUsers(reAnalyze, findNewUsers, updateUser):
     print(len(users))
     for username in users:
         now = convertToEST(datetime.datetime.now())
-        if now.hour == 15 and now.minute == 20:
-            print('bye bye')
-            sys.exit()
         print('--------------------------')
         print(username)
         print("parsing at " + convertToEST(datetime.datetime.now()).strftime("%m/%d/%Y, %H:%M:%S"))
