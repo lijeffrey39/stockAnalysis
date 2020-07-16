@@ -223,7 +223,7 @@ def main():
     dateNow = convertToEST(datetime.datetime.now())
 
     if (options.users):
-        analyzeUsers(reAnalyze=True, findNewUsers=False, updateUser=False)
+        analyzeUsers(reAnalyze=False, findNewUsers=False, updateUser=True)
     elif (options.stocks):
         while True:
             now = convertToEST(datetime.datetime.now())
