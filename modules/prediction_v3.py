@@ -514,18 +514,20 @@ def predictionV3():
     preprocessed_user_features = findAllStockFeatures(start_date, end_date, user_features, path, update=False, mode=mode)
 
     # STEP 6: Make prediction
+    # 6, 8, 3.1, 1.8
     weightings = [0.5, 1.5, 1, 3, 0.4, 1.3, 0.9]
-    # (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, weightings, [], print_info=True, mode=mode)
+    # params = [5.33, 8, 3.3, 1.8]
+    # (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, weightings, params, print_info=True, mode=mode)
     # print(overall, top, accuracy_overall, accuracy_top, returns)
-    
+
     res = []
-    for i in range(0, 10): # 6
-        i = 4 + (i / 3)
-        for j in range(5, 12): # 8
-            for k in range(27, 35): # 3.1
+    for i in range(0, 11): # 5
+        i = 4 + (i / 5)
+        for j in range(7, 11): # 8
+            for k in range(29, 36): # 3.1
                 k = k / 10
-                for l in range(16, 21): # 1.8
-                    l = l / 10
+                for l in range(0, 9): # 1.8
+                    l = 1.76 + (l / 50)
                     params = [i, j, k, l]
                     (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, weightings, params, print_info=False, mode=mode)
                     print(params, overall, top, accuracy_overall, accuracy_top, returns)
@@ -534,7 +536,6 @@ def predictionV3():
     res.sort(key=lambda x: x[1])
     for x in res:
         print(x)
-                
 
 
     # res = []
