@@ -154,7 +154,7 @@ def shouldParseUser(username, reAnalyze, updateUser):
     (coreInfo, error) = findUserInfo(username)
     
     try:
-        if coreInfo['last_updated'] > datetime.datetime.now()-datetime.timedelta(days=1):
+        if coreInfo['last_updated'] > datetime.datetime(2020, 7, 9):
             print('done already')
             return None
     except:
@@ -212,13 +212,13 @@ def findUsers(reAnalyze, findNewUsers, updateUser):
     if (reAnalyze):
         dateStart = convertToEST(datetime.datetime.now())
         query = {'$and': [
-                    {'last_updated': {'$lte': dateStart}},
-                    {'error': {'$eq': 'Message: unknown error: Chrome failed to start: crashed.\n  (unknown error: DevToolsActivePort file doesn\'t exist)\n  (The process started from chrome location C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe is no longer running, so ChromeDriver is assuming that Chrome has crashed.)\n'}},
-                    {'error': {'$ne': 'User doesn\'t exist'}},
+                    {'last_updated': {'$lte': datetime.datetime(2020, 7, 9)}},
+                    # {'error': {'$eq': 'Message: unknown error: Chrome failed to start: crashed.\n  (unknown error: DevToolsActivePort file doesn\'t exist)\n  (The process started from chrome location C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe is no longer running, so ChromeDriver is assuming that Chrome has crashed.)\n'}},
+                    # {'error': {'$ne': 'User doesn\'t exist'}},
                     {'error': {'$eq': 'Not enough ideas'}},
-                    #{'error': {'$ne': ""}},
-                    {'error': {'$ne': "User doesn't exist / API down"}},
-                    {'error': {'$ne': 'Len of messages was 0 ???'}}
+                    # #{'error': {'$ne': ""}},
+                    # {'error': {'$ne': "User doesn't exist / API down"}},
+                    # {'error': {'$ne': 'Len of messages was 0 ???'}}
                 ]}
         cursor = analyzedUsers.find(query)
     elif (updateUser):

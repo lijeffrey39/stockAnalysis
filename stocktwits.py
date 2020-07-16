@@ -99,6 +99,9 @@ def analyzeUsers(reAnalyze, findNewUsers, updateUser):
     print(len(users))
     for username in users:
         now = convertToEST(datetime.datetime.now())
+        if now.hour == 15 and now.minute == 20:
+            print('bye bye')
+            sys.exit()
         print('--------------------------')
         print(username)
         print("parsing at " + convertToEST(datetime.datetime.now()).strftime("%m/%d/%Y, %H:%M:%S"))
@@ -213,8 +216,8 @@ def hourlyparse():
 def dailyparse():
     now = convertToEST(datetime.datetime.now())
     date = datetime.datetime(now.year, now.month, now.day)
-    stocks = stockcount1000daily(date, 500)
-    analyzeStocks(date, stocks[100:]) 
+    stocks = stockcount1000daily(date, 70)
+    analyzeStocks(date, stocks[:3]) 
 
 def main():
     opt_parser = optparse.OptionParser()
@@ -223,7 +226,7 @@ def main():
     dateNow = convertToEST(datetime.datetime.now())
 
     if (options.users):
-        analyzeUsers(reAnalyze=False, findNewUsers=False, updateUser=True)
+        analyzeUsers(reAnalyze=True, findNewUsers=False, updateUser=False)
     elif (options.stocks):
         while True:
             now = convertToEST(datetime.datetime.now())
