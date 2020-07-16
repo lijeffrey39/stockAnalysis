@@ -53,10 +53,11 @@ def shouldParseUser(username, reAnalyze, updateUser):
     if (reAnalyze is False and updateUser is False and
         analyzedUsers.count_documents({'_id': username}) != 0):
         return None
-
+    
     if (updateUser):
         query = {'_id': username}
         result = analyzedUsers.find_one(query)
+        
         try:
             if result['last_updated'] is None:
                 return None
@@ -66,7 +67,8 @@ def shouldParseUser(username, reAnalyze, updateUser):
         #     print('done already')
         #     return None
         try:
-            bb = result['bbcount']
+            bb = result['allcount']
+            print('has an allcount')
         except:
             print(result['last_updated'])
             result['last_updated'] = convertToEST(datetime.datetime.now())
@@ -80,39 +82,43 @@ def shouldParseUser(username, reAnalyze, updateUser):
             pass
         elif bb == 0:
             if result['last_updated'] > datetime.datetime.now()-datetime.timedelta(days=28):
-                print('bullbear: ' + str(bb))
+                print('total: ' + str(bb))
                 print('updated: ' + lu)
                 return None
             else:
+                print('total: ' + str(bb))
                 pass
         elif bb > 0 and bb < 20:
             if result['last_updated'] > datetime.datetime.now()-datetime.timedelta(days=21):
-                print('bullbear: ' + str(bb))
+                print('total: ' + str(bb))
                 print('updated: ' + lu)
                 return None
             else:
+                print('total: ' + str(bb))
                 pass
         elif bb >= 20 and bb < 100:
             if result['last_updated'] > datetime.datetime.now()-datetime.timedelta(days=14):
-                print('bullbear: ' + str(bb))
+                print('total: ' + str(bb))
                 print('updated: ' + lu)
                 return None
             else:
+                print('total: ' + str(bb))
                 pass
         elif bb >= 100 and bb < 400:
             if result['last_updated'] > datetime.datetime.now()-datetime.timedelta(days=7):
-                print('bullbear: ' + str(bb))
+                print('total: ' + str(bb))
                 print('updated: ' + lu)
                 return None
             else:
+                print('total: ' + str(bb))
                 pass
         elif bb >= 400:
             if result['last_updated'] > datetime.datetime.now()-datetime.timedelta(days=1):
-                print('bullbear: ' + str(bb))
+                print('total: ' + str(bb))
                 print('updated: ' + lu)
                 return None
             else:
-                print('bullbear: ' + str(bb))
+                print('total: ' + str(bb))
                 pass
         else:
             print(bb)
@@ -207,12 +213,12 @@ def findUsers(reAnalyze, findNewUsers, updateUser):
         dateStart = convertToEST(datetime.datetime.now())
         query = {'$and': [
                     {'last_updated': {'$lte': dateStart}},
-                    # {'error': {'$eq': 'Message: unknown error: Chrome failed to start: crashed.\n  (unknown error: DevToolsActivePort file doesn\'t exist)\n  (The process started from chrome location C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe is no longer running, so ChromeDriver is assuming that Chrome has crashed.)\n'}}
-                    # {'error': {'$ne': 'User doesn\'t exist'}},
-                    {'error': {'$eq': 'Not enough ideas'}}
-                    # {'error': {'$ne': ""}},
-                    # {'error': {'$ne': "User doesn't exist / API down"}},
-                    # {'error': {'$ne': 'Len of messages was 0 ???'}}
+                    {'error': {'$eq': 'Message: unknown error: Chrome failed to start: crashed.\n  (unknown error: DevToolsActivePort file doesn\'t exist)\n  (The process started from chrome location C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe is no longer running, so ChromeDriver is assuming that Chrome has crashed.)\n'}},
+                    {'error': {'$ne': 'User doesn\'t exist'}},
+                    {'error': {'$eq': 'Not enough ideas'}},
+                    #{'error': {'$ne': ""}},
+                    {'error': {'$ne': "User doesn't exist / API down"}},
+                    {'error': {'$ne': 'Len of messages was 0 ???'}}
                 ]}
         cursor = analyzedUsers.find(query)
     elif (updateUser):

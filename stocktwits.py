@@ -97,7 +97,6 @@ def analyzeStocks(date, stocks):
 def analyzeUsers(reAnalyze, findNewUsers, updateUser):
     users = findUsers(reAnalyze, findNewUsers, updateUser)
     print(len(users))
-    
     for username in users:
         now = convertToEST(datetime.datetime.now())
         print('--------------------------')
@@ -123,14 +122,16 @@ def analyzeUsers(reAnalyze, findNewUsers, updateUser):
         now = convertToEST(datetime.datetime.now())
         query = {'$and': [{'user': username}, {'time': {'$gte': now - datetime.timedelta(days=28),
                                 '$lt': now}}, { "$or": [{'isBull': True}, {'isBull': False}] }]}
-        all_tweet_query =  query = {'$and': [{'user': username}, {'time': {'$gte': now - datetime.timedelta(days=28),
+
+        all_tweet_query =  {'$and': [{'user': username}, {'time': {'$gte': now - datetime.timedelta(days=28),
                                 '$lt': now}}]}
         bb = usercollection.find(query).count()
         allc = usercollection.find(all_tweet_query).count()
-        print(bb)
-        print(allc)
+        print('bbcount: ' + str(bb))
+        print('total tweets: ' + str(allc))
         userdb = constants['db_user_client'].get_database('user_data_db').users
         x = userdb.update({'_id': username}, {'$set': {'bbcount': bb, 'allcount': allc}})
+        print(userdb.find({'_id': username})[0])
         insertResults(result)
         coreInfo['error'] = ''
         insertUpdateError(coreInfo, reAnalyze, updateUser)
@@ -222,13 +223,13 @@ def main():
     dateNow = convertToEST(datetime.datetime.now())
 
     if (options.users):
-        while True:
-            analyzeUsers(reAnalyze=True, findNewUsers=False, updateUser=False)
+        analyzeUsers(reAnalyze=False, findNewUsers=False, updateUser=True)
     elif (options.stocks):
-        now = convertToEST(datetime.datetime.now())
-        date = datetime.datetime(now.year, now.month, now.day)
-        stocks = stockcount1000daily(date, 100)
-        analyzeStocks(date, stocks) 
+        while True:
+            now = convertToEST(datetime.datetime.now())
+            date = datetime.datetime(now.year, now.month, now.day)
+            stocks = stockcount1000daily(date, 70)
+            analyzeStocks(date, stocks) 
     elif (options.optimizer):
         optimizeParams()
     elif (options.prediction):
@@ -328,11 +329,11 @@ def main():
         # usercollection = constants['db_user_client'].get_database('user_data_db').users.find({ 'bbcount': { '$exists': True }})
         # res = []
         # for i in usercollection:
-        #     if i['bbcount'] > 1 and i['bbcount'] < 20:
+        #     if i['bbcount'] > 50:
         #         res.append(i['bbcount'])
         # # print(len(res))
         # print(len(res))
-        # plt.hist(res, density=False, bins=150)
+        # plt.hist(res, density=False, bins=500)
         # plt.show()
         # res = pregenerateUserFeatures('tony93')
         # date_start = datetime.datetime(2020, 6, 27)
