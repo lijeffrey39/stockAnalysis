@@ -169,7 +169,7 @@ def sigmoidFn(date, mode, params):
     total_seconds = (start_date - end_date).total_seconds()
 
     new_difference = difference - total_seconds # set difference from 0 to be all negative
-    new_difference = new_difference + (60 * 60 * 6) # add 4 hours to the time...any time > 0 has y value > 0.5
+    new_difference = new_difference + (60 * 60 * 5.5) # add 4 hours to the time...any time > 0 has y value > 0.5
     new_x = new_difference / total_seconds
     new_x *= 24
 
@@ -380,7 +380,7 @@ def makePrediction(preprocessed_user_features, stock_close_opens, weightings, pa
         for date_str in stock_std: # For each day, look at deviation and close open for the day
             date_real = datetime.datetime.strptime(date_str, '%Y-%m-%d')
             stock_day_std = stock_std[date_str]
-            if (stock_day_std['total_w']['std'] == 0 or stock_day_std['total_tweet_w'] <= 3.1):
+            if (stock_day_std['total_w']['std'] == 0 or stock_day_std['total_tweet_w'] <= 3.3):
                 continue
             deviation = (stock_day_std['total_w']['val'] - stock_day_std['total_w']['avg']) / stock_day_std['total_w']['std']
 
@@ -393,7 +393,7 @@ def makePrediction(preprocessed_user_features, stock_close_opens, weightings, pa
                 continue
 
             # print(symbol, date_str, round(stock_day_std['total_w']['val'] , 2), round(deviation, 2), round(close_open[2], 2))
-            if (deviation > params[2] or deviation < -2.3):
+            if (deviation > 1.82 or deviation < -2.3):
                 if (date_str not in picked_stocks):
                     picked_stocks[date_str] = []
                 picked_stocks[date_str].append([symbol, deviation, close_open[2]])
@@ -444,6 +444,7 @@ def newDailyPrediction(date):
     preprocessed_user_features = findAllStockFeatures(start_date, end_date, user_features, path, update=True)
     weightings = [0.5, 1.5, 1, 3, 0.4, 1.3, 0.9]
     non_close_open = {}
+    params=[]
 
     # Find each stocks std per day
     for symbol in constants['good_stocks']:
@@ -451,7 +452,7 @@ def newDailyPrediction(date):
             continue
 
         stock_features = preprocessed_user_features[symbol]
-        stock_std = findStockStd(symbol, stock_features, weightings, mode, 1, 1)
+        stock_std = findStockStd(symbol, stock_features, weightings, mode, params)
 
         for date_str in stock_std: # For each day, look at deviation and close open for the day
             stock_day_std = stock_std[date_str]
@@ -489,16 +490,61 @@ def newDailyPrediction(date):
     print(stocks_today)
 
 
+"""
+                              -- Prediction Algo (v3) --
+    Based on "expert" user predictions per day, pick stocks that have the highest rating
+    by these selected users. Stocks each day are ranked based on deviation of ratings from previous
+    trading days to now. Ratings per stock, per day are calculated based on linear combination of
+    "expert" user predictions. Users are differentiated and ranked based on historical prediction
+    accuracy, return, etc. Certain thresholds must be met such as total tweet weight and deviation
+    per stock per day.
 
+    Steps required to setup project for prediction
+    1. Saving all user tweets to disk (Must have min of 20 tweets to be saved)
+    2. Generate user features based on each user's bull/bear tweets
+        a. Features are stored on a daily changing basis so that when predicting, we only look
+           at user features before a given date
+        b. User features are saved in this structure:
+            {
+                'general': {
+                    '2020-02-13': {
+                        'unique_correct_predictions': {
+                            'bull': 5,
+                            'bear': 3
+                        }
+                        'unique_num_predictions': {
+                            'bull': 10,
+                            'bear': 2
+                        } ...
+                    } ...
+                },
+                'perStock': {
+                    'AAPL': {
+                        '2020-02-13': {
+                            ...
+                        } ...
+                    } ...
+                }
+            }
+
+        c. They are split up into these general and stock specific features and each have a 
+           bear/bull attribute
+            i.   unique_correct_predictions
+            ii.  unique_num_predictions
+            iii. unique_return - sum of returns made from 4:00 PM to 9:30 AM
+            iv.  unique_return_log - sum of returns weighted by number of times posted that day
+            v.   unique_return_w - sum of returns weighted by time of last post that day
+
+    
+
+"""
 def predictionV3():
     start_date = datetime.datetime(2019, 6, 3) # Prediction start date
     end_date = datetime.datetime(2020, 7, 16) # Prediction end date
-    mode = 1
+    mode = 1 # 4:00 PM to 9:30 AM next trading day
 
     # STEP 1: Fetch all user tweets
     # saveUserTweets()
-
-    # saveLocalTweets(end_date, end_date)
 
     # STEP 2: Calculate and save individual user features
     user_features = pregenerateAllUserFeatures(update=False, path='newPickled/user_features.pickle', mode=mode)
@@ -520,6 +566,11 @@ def predictionV3():
     # (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, weightings, params, print_info=True, mode=mode)
     # print(overall, top, accuracy_overall, accuracy_top, returns)
 
+
+    # 5.4 - 5.6
+    # 8
+    # 3.2-3.5
+    # 1.8-1.84
     # res = []
     # for i in range(0, 11): # 5
     #     i = 4 + (i / 5)
@@ -534,11 +585,11 @@ def predictionV3():
     #                 res.append([params, overall, top, returns, accuracy_overall, accuracy_top])
 
     res = []
-    for i in range(0, 45): # 4
+    for i in range(30, 50): # 4
         i = i/10
-        for j in range(5, 10): # 6
-            for k in range(0, 9): # 1.8
-                k = 1.76 + (k / 50)
+        for j in range(7, 12): # 6
+            for k in range(0, 7): # 1.8
+                k = 1.78 + (k / 100)
                 params = [i, j, k]
                 (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, weightings, params, print_info=False, mode=mode)
                 if (accuracy_top[0] < 150):
