@@ -179,12 +179,12 @@ def sigmoidFn(date, mode, params):
 def findStockStd(symbol, stock_features, weightings, mode, params):
     days_back = 8 # Days to look back for generated daily stock features
     bull_weight = 1
-    bear_weight = params[0]
+    bear_weight = 4.9
 
     features = ['accuracy_unique', 'accuracy_unique_s', 'num_tweets', 'num_tweets_s', 
         'return_unique', 'return_unique_s', 'return_unique_log', 
         'return_unique_log_s', 'return_unique_w1']
-    feature_avgstd = SlidingWindowCalc(params[1], features)
+    feature_avgstd = SlidingWindowCalc(11, features)
 
     result_features = ['total_w']
     result_feature_avgstd = SlidingWindowCalc(days_back, result_features)
@@ -393,7 +393,7 @@ def makePrediction(preprocessed_user_features, stock_close_opens, weightings, pa
                 continue
 
             # print(symbol, date_str, round(stock_day_std['total_w']['val'] , 2), round(deviation, 2), round(close_open[2], 2))
-            if (deviation > params[2] or deviation < -2.3):
+            if (deviation > 1.82 or deviation < -2.3):
                 if (date_str not in picked_stocks):
                     picked_stocks[date_str] = []
                 picked_stocks[date_str].append([symbol, deviation, close_open[2]])
@@ -536,8 +536,8 @@ def newDailyPrediction(date):
             v.   unique_return_w - sum of returns weighted by time of last post that day
 
     
-
 """
+
 def predictionV3():
     start_date = datetime.datetime(2019, 6, 3) # Prediction start date
     end_date = datetime.datetime(2020, 7, 16) # Prediction end date
@@ -547,7 +547,7 @@ def predictionV3():
     # saveUserTweets()
 
     # STEP 2: Calculate and save individual user features
-    user_features = pregenerateAllUserFeatures(update=False, path='newPickled/user_features.pickle', mode=mode)
+    # user_features = pregenerateAllUserFeatures(update=False, path='newPickled/user_features.pickle', mode=mode)
 
     # STEP 3: Fetch all stock tweets
     # writeAllTweets(start_date, end_date)
@@ -557,13 +557,13 @@ def predictionV3():
 
     # STEP 5: Calculate stock features per day
     path = 'newPickled/preprocessed_stock_user_features.pickle'
-    preprocessed_user_features = findAllStockFeatures(start_date, end_date, user_features, path, update=False, mode=mode)
+    preprocessed_user_features = findAllStockFeatures(start_date, end_date, {}, path, update=False, mode=mode)
 
     # STEP 6: Make prediction
     # 6, 8, 3.1, 1.8
-    weightings = [0.5, 1.5, 1, 3, 0.4, 1.3, 0.9]
+    # weightings = [0.5, 1.5, 1, 3, 0.4, 1.3, 0.9]
     # params = [5.33, 8, 3.3, 1.8]
-    # (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, weightings, params, print_info=True, mode=mode)
+    # (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, weightings, [], print_info=True, mode=mode)
     # print(overall, top, accuracy_overall, accuracy_top, returns)
 
 
@@ -584,40 +584,45 @@ def predictionV3():
     #                 print(params, overall, top, accuracy_overall, accuracy_top, returns)
     #                 res.append([params, overall, top, returns, accuracy_overall, accuracy_top])
 
+    # res = []
+    # for i in range(30, 50): # 4
+    #     i = i/10
+    #     for j in range(7, 12): # 6
+    #         for k in range(0, 7): # 1.8
+    #             k = 1.78 + (k / 100)
+    #             params = [i, j, k]
+    #             (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, weightings, params, print_info=False, mode=mode)
+    #             if (accuracy_top[0] < 150):
+    #                 continue
+    #             print(params, overall, top, accuracy_overall, accuracy_top, returns)
+    #             res.append([params, overall, top, returns, accuracy_overall, accuracy_top])
+
+    # res.sort(key=lambda x: x[1] + x[2])
+    # for x in res:
+    #     print(x)
+
+
+    # weightings = [0.5, 1.5, 1, 3, 0.4, 1.3, 0.9]
+
     res = []
-    for i in range(30, 50): # 4
-        i = i/10
-        for j in range(7, 12): # 6
-            for k in range(0, 7): # 1.8
-                k = 1.78 + (k / 100)
-                params = [i, j, k]
-                (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, weightings, params, print_info=False, mode=mode)
-                if (accuracy_top[0] < 150):
-                    continue
-                print(params, overall, top, accuracy_overall, accuracy_top, returns)
-                res.append([params, overall, top, returns, accuracy_overall, accuracy_top])
+    for i in range(0, 10):
+        i = i / 10
+        for j in range(0, 10):
+            j = 1 + (j / 10)
+            for k in range(0, 10):
+                k = 0.5 + (k / 10)
+                for l in range(0, 10):
+                    l = 2 + (k / 5)
+                    weightings = [i, j, k, l, 0.4, 1.3, 0.9]
+                    (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, weightings, [], print_info=False)
+                    if (accuracy_top[0] < 200):
+                        continue
+                    print(weightings, overall, top, accuracy_overall, accuracy_top, returns)
+                    res.append([weightings, overall, top, returns, accuracy_overall, accuracy_top])
 
     res.sort(key=lambda x: x[1] + x[2])
     for x in res:
         print(x)
-
-
-    # res = []
-    # for i in range(0, 10):
-    #     weightings = [0.5, 1.5, 1, 3 + i/5, 0.4, 1.3, 0.9]
-    #     (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, weightings, 1, 1, print_info=False)
-    #     print(3 + i/5, overall, top, accuracy_overall, accuracy_top, returns)
-        # res.append([3 + i/5, overall, top, returns, accuracy_overall, accuracy_top])
-    #     for j in range(0, 10):
-    #         for k in range(0, 10):
-    #             weightings = [0.5, 1 + i/10, 1, 2 + j/10, 0.4, 1.3, k/10]
-    #             (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, weightings, 1, 1, print_info=False)
-    #             print(1 + i/10, 2 + j/10, k/10, overall, top, accuracy_overall, accuracy_top, returns)
-    #             res.append([1 + i/10, 2 + j/10, k/10, overall, top, returns, accuracy_overall, accuracy_top])
-
-    # res.sort(key=lambda x: x[3] + x[4])
-    # for x in res:
-    #     print(x)
 
     # STEP FINAL - DAILY PREDICTION
     # dailyPrediction()
