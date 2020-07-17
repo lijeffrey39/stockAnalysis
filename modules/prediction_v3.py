@@ -169,7 +169,7 @@ def sigmoidFn(date, mode, params):
     total_seconds = (start_date - end_date).total_seconds()
 
     new_difference = difference - total_seconds # set difference from 0 to be all negative
-    new_difference = new_difference + (60 * 60 * params[0]) # add 4 hours to the time...any time > 0 has y value > 0.5
+    new_difference = new_difference + (60 * 60 * 6) # add 4 hours to the time...any time > 0 has y value > 0.5
     new_x = new_difference / total_seconds
     new_x *= 24
 
@@ -177,14 +177,14 @@ def sigmoidFn(date, mode, params):
 
 
 def findStockStd(symbol, stock_features, weightings, mode, params):
-    days_back = params[1] # Days to look back for generated daily stock features
+    days_back = 8 # Days to look back for generated daily stock features
     bull_weight = 1
-    bear_weight = 4
+    bear_weight = params[0]
 
     features = ['accuracy_unique', 'accuracy_unique_s', 'num_tweets', 'num_tweets_s', 
         'return_unique', 'return_unique_s', 'return_unique_log', 
         'return_unique_log_s', 'return_unique_w1']
-    feature_avgstd = SlidingWindowCalc(6, features)
+    feature_avgstd = SlidingWindowCalc(params[1], features)
 
     result_features = ['total_w']
     result_feature_avgstd = SlidingWindowCalc(days_back, result_features)
@@ -380,7 +380,7 @@ def makePrediction(preprocessed_user_features, stock_close_opens, weightings, pa
         for date_str in stock_std: # For each day, look at deviation and close open for the day
             date_real = datetime.datetime.strptime(date_str, '%Y-%m-%d')
             stock_day_std = stock_std[date_str]
-            if (stock_day_std['total_w']['std'] == 0 or stock_day_std['total_tweet_w'] <= params[2]):
+            if (stock_day_std['total_w']['std'] == 0 or stock_day_std['total_tweet_w'] <= 3.1):
                 continue
             deviation = (stock_day_std['total_w']['val'] - stock_day_std['total_w']['avg']) / stock_day_std['total_w']['std']
 
@@ -393,7 +393,7 @@ def makePrediction(preprocessed_user_features, stock_close_opens, weightings, pa
                 continue
 
             # print(symbol, date_str, round(stock_day_std['total_w']['val'] , 2), round(deviation, 2), round(close_open[2], 2))
-            if (deviation > params[3] or deviation < -2.3):
+            if (deviation > params[2] or deviation < -2.3):
                 if (date_str not in picked_stocks):
                     picked_stocks[date_str] = []
                 picked_stocks[date_str].append([symbol, deviation, close_open[2]])
@@ -520,20 +520,33 @@ def predictionV3():
     # (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, weightings, params, print_info=True, mode=mode)
     # print(overall, top, accuracy_overall, accuracy_top, returns)
 
-    res = []
-    for i in range(0, 11): # 5
-        i = 4 + (i / 5)
-        for j in range(7, 11): # 8
-            for k in range(29, 36): # 3.1
-                k = k / 10
-                for l in range(0, 9): # 1.8
-                    l = 1.76 + (l / 50)
-                    params = [i, j, k, l]
-                    (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, weightings, params, print_info=False, mode=mode)
-                    print(params, overall, top, accuracy_overall, accuracy_top, returns)
-                    res.append([params, overall, top, returns, accuracy_overall, accuracy_top])
+    # res = []
+    # for i in range(0, 11): # 5
+    #     i = 4 + (i / 5)
+    #     for j in range(7, 11): # 8
+    #         for k in range(29, 36): # 3.1
+    #             k = k / 10
+    #             for l in range(0, 9): # 1.8
+    #                 l = 1.76 + (l / 50)
+    #                 params = [i, j, k, l]
+    #                 (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, weightings, params, print_info=False, mode=mode)
+    #                 print(params, overall, top, accuracy_overall, accuracy_top, returns)
+    #                 res.append([params, overall, top, returns, accuracy_overall, accuracy_top])
 
-    res.sort(key=lambda x: x[1])
+    res = []
+    for i in range(0, 45): # 4
+        i = i/10
+        for j in range(5, 10): # 6
+            for k in range(0, 9): # 1.8
+                k = 1.76 + (k / 50)
+                params = [i, j, k]
+                (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, weightings, params, print_info=False, mode=mode)
+                if (accuracy_top[0] < 150):
+                    continue
+                print(params, overall, top, accuracy_overall, accuracy_top, returns)
+                res.append([params, overall, top, returns, accuracy_overall, accuracy_top])
+
+    res.sort(key=lambda x: x[1] + x[2])
     for x in res:
         print(x)
 
