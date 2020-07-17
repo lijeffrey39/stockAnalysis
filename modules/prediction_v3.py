@@ -169,9 +169,9 @@ def sigmoidFn(date, mode, params):
     total_seconds = (start_date - end_date).total_seconds()
 
     new_difference = difference - total_seconds # set difference from 0 to be all negative
-    new_difference = new_difference + (60 * 60 * params[2]) # add 4 hours to the time...any time > 0 has y value > 0.5
+    new_difference = new_difference + (60 * 60 * 5.2) # add 4 hours to the time...any time > 0 has y value > 0.5
     new_x = new_difference / total_seconds
-    new_x *= params[3]
+    new_x *= 23
 
     return 1 / (1 + math.exp(-new_x))
 
@@ -179,12 +179,12 @@ def sigmoidFn(date, mode, params):
 def findStockStd(symbol, stock_features, weightings, mode, params):
     days_back = 8 # Days to look back for generated daily stock features
     bull_weight = 1
-    bear_weight = params[0]
+    bear_weight = 5
 
     features = ['accuracy_unique', 'accuracy_unique_s', 'num_tweets', 'num_tweets_s', 
         'return_unique', 'return_unique_s', 'return_unique_log', 
         'return_unique_log_s', 'return_unique_w1']
-    feature_avgstd = SlidingWindowCalc(params[1], features)
+    feature_avgstd = SlidingWindowCalc(14, features)
 
     result_features = ['total_w']
     result_feature_avgstd = SlidingWindowCalc(days_back, result_features)
@@ -535,6 +535,24 @@ def newDailyPrediction(date):
             iv.  unique_return_log - sum of returns weighted by number of times posted that day
             v.   unique_return_w - sum of returns weighted by time of last post that day
 
+        d. Sigmoid Function - used to determine weight (0 - 1) based on time of tweet from 4:00 PM
+            i.  1 / (1 + e^-x)
+            ii. Center point of function is -5.5 hours back so at point, the weight is 0.5
+    3. Save all stock tweets for given dates
+        a. Stocks for each day are based top 80 popular stocks from the previous day
+    4. Save close open stock data
+    5. Store top user features per stock per day
+        1. Time of tweet
+        2. Bull/bear
+        3. User features NOTE: every feature has corresponding stock specific feature
+            - accuracy_unique: weighted accuracy between bull/bear and total accuracy
+            - num_tweets: total bull and bear tweets
+            - return_unique: sum of returns (average of bull/bear)
+            - return_unique_log: 
+            - return_unique_w1
+            - return_unique_label
+    6. Prediction - 
+    
     
 """
 
@@ -561,9 +579,9 @@ def predictionV3():
 
     # STEP 6: Make prediction
     # 6, 8, 3.1, 1.8
-    weightings = [0.5, 1.5, 1, 3, 0.4, 1.3, 0.9]
-    # params = [5.33, 8, 3.3, 1.8]
-    # (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, weightings, [], print_info=True, mode=mode)
+    weightings = [0.8, 1.7, 0.9, 2.8, 0.4, 1.3, 0.9]
+    # params=[]
+    # (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, weightings, params, print_info=True, mode=mode)
     # print(overall, top, accuracy_overall, accuracy_top, returns)
 
 
@@ -584,42 +602,38 @@ def predictionV3():
     #                 print(params, overall, top, accuracy_overall, accuracy_top, returns)
     #                 res.append([params, overall, top, returns, accuracy_overall, accuracy_top])
 
-    res = []
-    for i in range(45, 60): # 5
-        i = i/10
-        for j in range(9, 15): # 11
-            for k in range(0, 10): # 1.8
-                k = 5 + (k/10)
-                for l in range(20, 30):
-                    params = [i, j, k, l]
-                    (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, weightings, params, print_info=False, mode=mode)
-                    if (accuracy_top[0] < 200):
-                        continue
-                    print(params, overall, top, accuracy_overall, accuracy_top, returns)
-                    res.append([params, overall, top, returns, accuracy_overall, accuracy_top])
+    # res = []
+    # for i in range(45, 60): # 5
+    #     i = i / 10
+    #     for j in range(21, 25): # 11
+    #         j = j / 10
+    #         params = [i, j]
+    #         (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, weightings, params, print_info=False, mode=mode)
+    #         if (accuracy_top[0] < 200):
+    #             continue
+    #         print(params, overall, top, accuracy_overall, accuracy_top, returns)
+    #         res.append([params, overall, top, returns, accuracy_overall, accuracy_top])
 
-    res.sort(key=lambda x: x[1] + x[2])
-    for x in res:
-        print(x)
+    # res.sort(key=lambda x: x[1] + x[2])
+    # for x in res:
+    #     print(x)
 
 
     # weightings = [0.5, 1.5, 1, 3, 0.4, 1.3, 0.9]
 
-    # res = []
-    # for i in range(0, 10):
-    #     i = i / 10
-    #     for j in range(0, 10):
-    #         j = 1 + (j / 10)
-    #         for k in range(0, 10):
-    #             k = 0.5 + (k / 10)
-    #             for l in range(0, 10):
-    #                 l = 2 + (k / 5)
-    #                 weightings = [i, j, k, l, 0.4, 1.3, 0.9]
-    #                 (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, weightings, [], print_info=False)
-    #                 if (accuracy_top[0] < 200):
-    #                     continue
-    #                 print(weightings, overall, top, accuracy_overall, accuracy_top, returns)
-    #                 res.append([weightings, overall, top, returns, accuracy_overall, accuracy_top])
+    res = []
+    for i in range(0, 10):
+        i = i / 10
+        for j in range(0, 10):
+            j = 1 + (j / 10)
+            for k in range(0, 10):
+                k = 0.5 + (k / 10)
+                weightings = [0.8, 1.7, 0.9, 2.8, i, j, k]
+                (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, weightings, [], print_info=False)
+                if (accuracy_top[0] < 200):
+                    continue
+                print(weightings, overall, top, accuracy_overall, accuracy_top, returns)
+                res.append([weightings, overall, top, returns, accuracy_overall, accuracy_top])
 
     # res.sort(key=lambda x: x[1] + x[2])
     # for x in res:

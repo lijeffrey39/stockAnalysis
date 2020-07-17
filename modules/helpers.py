@@ -46,7 +46,7 @@ def sigmoidFn(date, mode=1):
     total_seconds = (start_date - end_date).total_seconds()
 
     new_difference = difference - total_seconds # set difference from 0 to be all negative
-    new_difference = new_difference + (60 * 60 * 6) # add 4 hours to the time...any time > 0 has y value > 0.5
+    new_difference = new_difference + (60 * 60 * 5.5) # add 4 hours to the time...any time > 0 has y value > 0.5
     new_x = new_difference / total_seconds
     new_x *= 24
 
