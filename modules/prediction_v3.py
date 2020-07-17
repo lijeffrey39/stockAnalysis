@@ -393,7 +393,7 @@ def makePrediction(preprocessed_user_features, stock_close_opens, weightings, pa
                 continue
 
             # print(symbol, date_str, round(stock_day_std['total_w']['val'] , 2), round(deviation, 2), round(close_open[2], 2))
-            if (deviation > 1.82 or deviation < -2.3):
+            if (deviation > params[2] or deviation < -2.3):
                 if (date_str not in picked_stocks):
                     picked_stocks[date_str] = []
                 picked_stocks[date_str].append([symbol, deviation, close_open[2]])
