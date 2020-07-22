@@ -888,7 +888,7 @@ def fetchTweets(date_start, date_end, symbol):
 def buildStockFeatures():
     result = {}
     labels = ['bull', 'bear', 'bull_w', 'bear_w']
-    features = ['return_w1', 'return_w1_s', 'return', 'return_log', 'return_s', 'return_log_s']
+    features = ['return', 'return_w1', 'return_log', 'return_s', 'return_w1_s', 'return_log_s']
     for l in labels:
         result[l] = 0
         for f in features:
@@ -898,14 +898,8 @@ def buildStockFeatures():
 
 
 # Retrieve cached pregenerated user features
-def newCalculateUserFeatures(username, symbol, date, all_user_features):
-    if (username not in all_user_features): # Check that user features are generated
-        return None
-
-    features = all_user_features[username]
-
-    # Find general stats
-    result = {}
+def newCalculateUserFeatures(symbol, date, features):
+    result = {} # Find general stats
     general_features = features['general']
     general_dates = features['general_dates']
     curr_date_str = '%d-%02d-%02d' % (date.year, date.month, date.day)
@@ -964,58 +958,43 @@ def officialCutOff(user_info, symbol, label):
 # Return feature parameters based on tweets for a given trading day/s
 # Builds user features as more information is seen about that user
 def stockFeatures(tweets, date_str, symbol, all_user_features, feature_stats, preprocessed_user_features):
-    result = buildStockFeatures()
     seen_users = {}
 
     # STEP 1 : Find all last predictions and counts
     # Assume tweets sorted from new to old
     for tweet in tweets:
         username = tweet['user']
-        # Don't analyze if not an expert user
-        if (username not in all_user_features):
+        if (username not in all_user_features): # Don't analyze if not an expert user
             continue
         isBull = tweet['isBull']
         tweeted_date = tweet['time']
-        w = tweet['w']
-        # Only look at the most recent prediction by user
-        if (username in seen_users):
+        if (username in seen_users): # Only look at the most recent prediction by user
             # If previous prediction was the same as last prediction, add to weighting
             prev_prediction = seen_users[username]['isBull']
             if (isBull == prev_prediction):
-                seen_users[username]['count'] += w
-                seen_users[username]['times'].append(tweet['time'])
+                seen_users[username]['times'].append(tweeted_date)
             continue
         seen_users[username] = {
-            'time': tweet['time'],
-            'times': [tweet['time']],
-            'isBull': isBull,
-            'count': w,
-            'tweeted_weight': w
+            'time': tweeted_date,
+            'times': [tweeted_date],
+            'isBull': isBull
         }
 
 
     # STEP 2 : Look at all unique predictions and their counts
-    found_user_features = {}
     for username in seen_users:
         tweeted_date = seen_users[username]['time']
-        label = 'bull' if seen_users[username]['isBull'] else 'bear'
 
         # Find user features (return, accuracy, etc.) before tweeted date
-        user_info = newCalculateUserFeatures(username, symbol, tweeted_date, all_user_features)
+        user_features = all_user_features[username]
+        user_info = newCalculateUserFeatures(symbol, tweeted_date, user_features)
         if (user_info == None):
             continue
 
-        user_values = officialCutOff(user_info, symbol, label)
-        if (user_values == None): # If didn't meet cutoff
-            continue
-
         # Append all user features to list
-        user_values['prediction'] = seen_users[username]['isBull']
-        user_values['times'] = seen_users[username]['times']
-        preprocessed_user_features[symbol][date_str][username] = user_values
-
-
-    return result
+        user_info['prediction'] = seen_users[username]['isBull']
+        user_info['times'] = seen_users[username]['times']
+        preprocessed_user_features[symbol][date_str][username] = user_info
 
 
 

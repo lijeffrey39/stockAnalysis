@@ -186,10 +186,10 @@ def findFeature(feature_info, symbol, feature_name, bull_bear):
     # Not bull or bear specific feature
     if (bull_bear == None):
         if (feature_name == 'accuracy'): # looking for a fraction
-            bull_res_n = feature_info['unique_correct_predictions']['bull']
-            bear_res_n = feature_info['unique_correct_predictions']['bear']
-            bull_res_d = feature_info['unique_num_predictions']['bull']
-            bear_res_d = feature_info['unique_num_predictions']['bear']
+            bull_res_n = feature_info['correct_predictions']['bull']
+            bear_res_n = feature_info['correct_predictions']['bear']
+            bull_res_d = feature_info['num_predictions']['bull']
+            bear_res_d = feature_info['num_predictions']['bear']
             total_nums = bull_res_d + bear_res_d
             # If never tweeted about this stock
             if (total_nums == 0):
@@ -201,18 +201,18 @@ def findFeature(feature_info, symbol, feature_name, bull_bear):
             return bull_res + bear_res
     else:
         if (feature_name == 'accuracy'): # looking for a fraction
-            correct = feature_info['unique_correct_predictions'][bull_bear]
-            total_nums = feature_info['unique_num_predictions'][bull_bear]
+            correct = feature_info['correct_predictions'][bull_bear]
+            total_nums = feature_info['num_predictions'][bull_bear]
             if (total_nums == 0): # If never tweeted about this stock
                 return 0
             spec_acc = correct / total_nums # bull/bear specific accuracy
             return spec_acc
 
             # General accuracy
-            bull_res_n = feature_info['unique_correct_predictions']['bull']
-            bear_res_n = feature_info['unique_correct_predictions']['bear']
-            bull_res_d = feature_info['unique_num_predictions']['bull']
-            bear_res_d = feature_info['unique_num_predictions']['bear']
+            bull_res_n = feature_info['correct_predictions']['bull']
+            bear_res_n = feature_info['correct_predictions']['bear']
+            bull_res_d = feature_info['num_predictions']['bull']
+            bear_res_d = feature_info['num_predictions']['bear']
             total_nums = bull_res_d + bear_res_d
             general_acc = (bull_res_n + bear_res_n) / total_nums
             return (general_acc + spec_acc) / 2
@@ -225,11 +225,11 @@ def calculateAccuracyUser(user_info, symbol, label):
     if (symbol in user_info):
         user_info = user_info[symbol]
 
-    total_tweets = user_info['unique_num_predictions'][label]
+    total_tweets = user_info['num_predictions'][label]
     if (total_tweets == 0):
         total_tweets = 1
 
-    correct_tweets = user_info['unique_correct_predictions'][label]
+    correct_tweets = user_info['correct_predictions'][label]
     accuracy = correct_tweets / total_tweets
     return accuracy
 
@@ -237,6 +237,14 @@ def calculateAccuracyUser(user_info, symbol, label):
 
 def userCutoff(user_info, symbol, prediction, params, bucket):
     label = 'bull' if prediction else 'bear'
+    num_tweets_unique = user_info['num_predictions']['bull'] + user_info['num_predictions']['bear']
+    num_tweets_s_unique = findFeature(user_info, symbol, 'num_predictions', None)
+
+    # Filter by number of tweets
+    if (num_tweets_unique <= 52 or num_tweets_s_unique < 12):
+        return None
+
+    # print(user_info)
     accuracy_s_bull = calculateAccuracyUser(user_info, symbol, 'bull')
     accuracy_s_bear = calculateAccuracyUser(user_info, symbol, 'bear')
 
@@ -247,42 +255,35 @@ def userCutoff(user_info, symbol, prediction, params, bucket):
     if (max(accuracy_bull, accuracy_bear) < 0.5 or max(accuracy_s_bull, accuracy_s_bear) < 0.5):
         return None
 
-    num_tweets_unique = user_info['unique_num_predictions']['bull'] + user_info['unique_num_predictions']['bear']
-    num_tweets_s_unique = findFeature(user_info, symbol, 'unique_num_predictions', None)
-
-    # Filter by number of tweets
-    if (num_tweets_unique <= 52 or num_tweets_s_unique < 12):
-        return None
-
-    return_unique = (user_info['unique_return']['bear'] + user_info['unique_return']['bull']) / 2
-    return_unique_s = findFeature(user_info, symbol, 'unique_return', None) / 2
+    return_unique = (user_info['return']['bear'] + user_info['return']['bull']) / 2
+    return_unique_s = findFeature(user_info, symbol, 'return', None) / 2
     return_unique -= return_unique_s
 
 
-    return_unique_s_bull = user_info[symbol]['unique_return']['bull']
-    return_unique_s_bear = user_info[symbol]['unique_return']['bear']
+    return_unique_s_bull = user_info[symbol]['return']['bull']
+    return_unique_s_bear = user_info[symbol]['return']['bear']
 
 
-    return_unique_bull = user_info['unique_return']['bull'] - return_unique_s_bull
-    return_unique_bear = user_info['unique_return']['bear'] - return_unique_s_bear
+    return_unique_bull = user_info['return']['bull'] - return_unique_s_bull
+    return_unique_bear = user_info['return']['bear'] - return_unique_s_bear
 
-    bucket['return_unique_bull'].append(return_unique_bull)
-    bucket['return_unique_bear'].append(return_unique_bear)
-    bucket['return_unique'].append(return_unique)
+    # bucket['return_unique_bull'].append(return_unique_bull)
+    # bucket['return_unique_bear'].append(return_unique_bear)
+    # bucket['return_unique'].append(return_unique)
 
-    if ((return_unique_bull < params[2] and return_unique_bear < 1) or return_unique_s < 5):
-        return None
-    # if (return_unique < params[2] or return_unique_s < 5):
+    # if ((return_unique_bull < params[2] and return_unique_bear < 1) or return_unique_s < 5):
     #     return None
+    if (return_unique < 20 or return_unique_s < 5):
+        return None
 
-    return_unique_label = user_info['unique_return'][label]
-    return_unique_log = (user_info['unique_return_log']['bear'] + user_info['unique_return_log']['bull']) / 2
-    return_unique_w1 = (user_info['unique_return_w']['bear'] + user_info['unique_return_w']['bull']) / 2
-    return_unique_log_s = findFeature(user_info, symbol, 'unique_return_log', None) / 2
-    return_unique_w1_s = findFeature(user_info, symbol, 'unique_return_w', None) / 2
+    return_unique_label = user_info['return'][label]
+    return_unique_log = (user_info['return_log']['bear'] + user_info['return_log']['bull']) / 2
+    return_unique_w1 = (user_info['return_w']['bear'] + user_info['return_w']['bull']) / 2
+    return_unique_log_s = findFeature(user_info, symbol, 'return_log', None) / 2
+    return_unique_w1_s = findFeature(user_info, symbol, 'return_w', None) / 2
 
-    return_unique_w1_bull = user_info['unique_return_w']['bull'] - user_info[symbol]['unique_return_w']['bull']
-    return_unique_w1_bear = user_info['unique_return_w']['bear'] - user_info[symbol]['unique_return_w']['bear']
+    return_unique_w1_bull = user_info['return_w']['bull'] - user_info[symbol]['return_w']['bull']
+    return_unique_w1_bear = user_info['return_w']['bear'] - user_info[symbol]['return_w']['bear']
 
 
     user_values = {
@@ -736,8 +737,7 @@ def predictionV3():
     # saveUserTweets()
 
     # STEP 2: Calculate and save individual user features
-    user_features = pregenerateAllUserFeatures(update=True, path='newPickled/user_features_test.pickle', mode=mode)
-    return
+    # user_features = pregenerateAllUserFeatures(update=False, path='newPickled/user_features_v3.pickle', mode=mode)
 
     # STEP 3: Fetch all stock tweets
     # writeAllTweets(start_date, end_date)
@@ -746,23 +746,23 @@ def predictionV3():
     close_opens = exportCloseOpen(update=False)
 
     # STEP 5: Calculate stock features per day
-    path = 'newPickled/preprocessed_stock_user_features_test.pickle'
+    path = 'newPickled/preprocessed_stock_user_features_v3.pickle'
     preprocessed_user_features = findAllStockFeatures(start_date, end_date, {}, path, update=False, mode=mode)
 
     # STEP 6: Make prediction
     # 6, 8, 3.1, 1.8
     weightings = [0.8, 1.7, 0.9, 2.8, 0.4, 1.3, 0.9]
-    # params = [1, 0, 20]
-    # (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, 
-    #     weightings, params, start_date, end_date, print_info=True, mode=mode)
-    # print(overall, top, accuracy_overall, accuracy_top, returns)
+    params = [1, 0, 20]
+    (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, 
+        weightings, params, start_date, end_date, print_info=True, mode=mode)
+    print(overall, top, accuracy_overall, accuracy_top, returns)
 
-    for i in range(40, 70):
-        # for j in range(6, 10):
-        params = [1, 0, i]
-        (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, 
-            weightings, params, start_date, end_date, print_info=False, mode=mode)
-        print(params, overall, top, accuracy_overall, accuracy_top, returns)
+    # for i in range(40, 70):
+    #     # for j in range(6, 10):
+    #     params = [1, 0, i]
+    #     (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, 
+    #         weightings, params, start_date, end_date, print_info=False, mode=mode)
+    #     print(params, overall, top, accuracy_overall, accuracy_top, returns)
 
 
     # 5.4 - 5.6
