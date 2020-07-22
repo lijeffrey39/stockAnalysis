@@ -271,10 +271,10 @@ def userCutoff(user_info, symbol, prediction, params, bucket):
     # bucket['return_unique_bear'].append(return_unique_bear)
     # bucket['return_unique'].append(return_unique)
 
-    # if ((return_unique_bull < params[2] and return_unique_bear < 1) or return_unique_s < 5):
-    #     return None
-    if (return_unique < 20 or return_unique_s < 5):
+    if ((return_unique_bull < params[2] and return_unique_bear < params[3]) or return_unique_s < 5):
         return None
+    # if (return_unique < 20 or return_unique_s < 5):
+    #     return None
 
     return_unique_label = user_info['return'][label]
     return_unique_log = (user_info['return_log']['bear'] + user_info['return_log']['bull']) / 2
@@ -725,6 +725,10 @@ def newDailyPrediction(date):
             6. Number of days to look back for calculating deviation (8 days)
             7. Hours back for tweet to be weighted half (5.2 hours)
             8. Ratio of stock weight to number of tweets
+            9. User bull return cutoff ()
+            10. User bear return cutoff ()
+            11. User min tweet cutoff (52)
+            12. User min tweet stock cutoff (12)
     
 """
 
@@ -752,17 +756,17 @@ def predictionV3():
     # STEP 6: Make prediction
     # 6, 8, 3.1, 1.8
     weightings = [0.8, 1.7, 0.9, 2.8, 0.4, 1.3, 0.9]
-    params = [1, 0, 20]
+    params = [1, 0, 1, 1]
     (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, 
         weightings, params, start_date, end_date, print_info=True, mode=mode)
     print(overall, top, accuracy_overall, accuracy_top, returns)
 
-    # for i in range(40, 70):
-    #     # for j in range(6, 10):
-    #     params = [1, 0, i]
-    #     (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, 
-    #         weightings, params, start_date, end_date, print_info=False, mode=mode)
-    #     print(params, overall, top, accuracy_overall, accuracy_top, returns)
+    for i in range(1, 20):
+        # for j in range(1, 10):
+        params = [1, 0.5, i, 1]
+        (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, 
+            weightings, params, start_date, end_date, print_info=False, mode=mode)
+        print(params, overall, top, accuracy_overall, accuracy_top, returns)
 
 
     # 5.4 - 5.6

@@ -280,9 +280,9 @@ def main():
 
         # print(len(constants['good_stocks']))
 
-        predictionV3()
-        # dailyPrediction(datetime.datetime(2020, 7, 21))
-        # newDailyPrediction(datetime.datetime(2020, 7, 21))
+        # predictionV3()
+        # dailyPrediction(datetime.datetime(2020, 7, 22))
+        newDailyPrediction(datetime.datetime(2020, 7, 22))
 
         # bucket = readPickleObject('bucket.pkl')
         # res = bucket['return_unique_bull']
