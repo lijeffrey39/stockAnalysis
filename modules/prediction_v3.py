@@ -272,7 +272,7 @@ def userCutoff(user_info, symbol, prediction, params, bucket):
 
     # if ((return_unique_bull < params[2] and return_unique_bear < 1) or return_unique_s < 5):
     #     return None
-    if (return_unique < params[2] or return_unique_s < 5):
+    if (return_unique < 20 or return_unique_s < 5):
         return None
 
     return_unique_label = user_info['unique_return'][label]
