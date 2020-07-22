@@ -529,7 +529,7 @@ def makePrediction(preprocessed_user_features, stock_close_opens, weightings, pa
         for date_str in stock_std: # For each day, look at deviation and close open for the day
             date_real = datetime.datetime.strptime(date_str, '%Y-%m-%d')
             stock_day_std = stock_std[date_str]
-            if (stock_day_std['total_w']['std'] == 0 or stock_day_std['total_tweet_w'] <= 3.1):
+            if (stock_day_std['total_w']['std'] == 0 or stock_day_std['total_tweet_w'] <= params[4]):
                 continue
             deviation = (stock_day_std['total_w']['val'] - stock_day_std['total_w']['avg']) / stock_day_std['total_w']['std']
 
@@ -542,7 +542,7 @@ def makePrediction(preprocessed_user_features, stock_close_opens, weightings, pa
                 continue
 
             # Minimum devation to keep a stock
-            if (deviation > 1.82 or deviation < -2.3):
+            if (deviation > params[5] or deviation < -2.3):
                 if (date_str not in picked_stocks):
                     picked_stocks[date_str] = []
                 picked_stocks[date_str].append([symbol, deviation, close_open[2]])
@@ -756,14 +756,14 @@ def predictionV3():
     # STEP 6: Make prediction
     # 6, 8, 3.1, 1.8
     weightings = [0.8, 1.7, 0.9, 2.8, 0.4, 1.3, 0.9]
-    params = [1, 0, 1, 1]
-    (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, 
-        weightings, params, start_date, end_date, print_info=True, mode=mode)
-    print(overall, top, accuracy_overall, accuracy_top, returns)
+    # params = [1, 0, 1, 1]
+    # (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, 
+    #     weightings, params, start_date, end_date, print_info=True, mode=mode)
+    # print(overall, top, accuracy_overall, accuracy_top, returns)
 
-    for i in range(1, 20):
+    for i in range(25, 50):
         # for j in range(1, 10):
-        params = [1, 0.5, i, 1]
+        params = [1, 0.5, 12, 5, i / 10]
         (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, 
             weightings, params, start_date, end_date, print_info=False, mode=mode)
         print(params, overall, top, accuracy_overall, accuracy_top, returns)
