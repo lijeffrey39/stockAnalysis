@@ -135,8 +135,8 @@ def findValidUsers():
 
 # Whether to keep a user based on minimum criteria
 def cutoffUser(user_info):
-    num_tweets_bull = user_info['unique_num_predictions']['bull']
-    num_tweets_bear = user_info['unique_num_predictions']['bear']
+    num_tweets_bull = user_info['num_predictions']['bull']
+    num_tweets_bear = user_info['num_predictions']['bear']
 
     # Filter by number of tweets
     if (max(num_tweets_bull, num_tweets_bear) < 20):
@@ -144,20 +144,19 @@ def cutoffUser(user_info):
 
     if (num_tweets_bull == 0):
         num_tweets_bull = 1
-
     if (num_tweets_bear == 0):
         num_tweets_bear = 1
 
-    correct_tweets_bull = user_info['unique_correct_predictions']['bull']
-    correct_tweets_bear = user_info['unique_correct_predictions']['bear']
+    correct_tweets_bull = user_info['correct_predictions']['bull']
+    correct_tweets_bear = user_info['correct_predictions']['bear']
 
     accuracy_bull = correct_tweets_bull / num_tweets_bull
     accuracy_bear = correct_tweets_bear / num_tweets_bear
     if (max(accuracy_bull, accuracy_bear) < 0.5): # Filter by number of accuracy
         return False
 
-    bull_return = user_info['unique_return']['bull']
-    bear_return = user_info['unique_return']['bear']
+    bull_return = user_info['return']['bull']
+    bear_return = user_info['return']['bear']
     if (max(bull_return, bear_return) < 1): # Filter by return
         return False
 
@@ -166,7 +165,7 @@ def cutoffUser(user_info):
 
 # Generate features from users historical tweets
 # Return stock specific user features and general user features
-def pregenerateUserFeatures(username, default_stocks, mode):
+def pregenerateUserFeatures(username, mode):
     day_increment = datetime.timedelta(days=1)
     cached_tweets = cachedUserTweets(username) # Tweets from user
     if (cached_tweets == None):
@@ -198,16 +197,18 @@ def pregenerateUserFeatures(username, default_stocks, mode):
     dates = sorted(list(dates))
     result_general = {}
     result_perstock = {}
-    buildup_result = {} # cached result that is being built up
     prev_day = {}
+
+    user_features = initializeUserFeatures() # initialize user features for first time
+    user_features['last_updated'] = dates[0] - datetime.timedelta(days=5)
+
     for date in dates:
-        day_res = calculateUserFeatures(username, date, buildup_result, cached_tweets, default_stocks, mode)
-        if (cutoffUser(day_res) == False):
+        calculateUserFeatures(date, user_features, cached_tweets, mode)
+        if (cutoffUser(user_features) == False):
             continue
 
-        copied_res = copy.deepcopy(day_res)
-        del copied_res['_id']
-        del copied_res['last_updated']
+        copied_res = copy.deepcopy(user_features)
+        del copied_res['last_updated'] # Don't check for last updated time in equality
         if (prev_day == copied_res):
             continue
         prev_day = copied_res
@@ -235,23 +236,6 @@ def pregenerateUserFeatures(username, default_stocks, mode):
 
     return {'general': result_general, 'per_stock': result_perstock}
 
-
-def insertUser():
-    valid_users = findValidUsers()
-    # user_info_collection = constants['local_client']['user_info_db']['user_info']
-    user_info_collection = constants['stocktweets_client'].get_database('user_info_db').user_info
-
-    i = 0
-    for username in valid_users:
-        i += 1
-        path = 'user_pickle_files/' + username + '.pkl'
-        user_feature = readPickleObject(path)
-        user_feature['_id'] = username
-        user_info_collection.insert_one(user_feature)
-        if (i % 1000 == 0):
-            print(i)
-
-
 # Pregenerate all user features based off tweets
 # Extract GENERAL and STOCK specific user return, accuracy, tweet count, etc.
 def pregenerateAllUserFeatures(update, path, mode=1):
@@ -261,7 +245,6 @@ def pregenerateAllUserFeatures(update, path, mode=1):
 
     users = findUserList() # Based off of users in the user_tweets/ folder
     print(len(users))
-    default_stocks = getActualAllStocks()
     result = {}
     not_found = 0
     cutoff_date = '2019-06-01'
@@ -271,7 +254,7 @@ def pregenerateAllUserFeatures(update, path, mode=1):
             print(i)
 
         username = users[i]
-        pregenerated = pregenerateUserFeatures(username, default_stocks, mode) # Find user features
+        pregenerated = pregenerateUserFeatures(username, mode) # Find user features
 
         # If no dates/features were found or doesn't meet minimum user requirements
         if (len(pregenerated['general']) == 0):
@@ -801,16 +784,13 @@ def cachedUserTweets(username):
 
 
 # Initialize user features 
-def initializeUserFeatures(user):
+def initializeUserFeatures():
     result = {}
-    result['_id'] = user
-    keys = ['unique_correct_predictions', 'unique_num_predictions', 
-            'unique_return', 'unique_return_log', 'unique_return_w']
-
-    for k in keys:
-        result[k] = {}
-        result[k]['bull'] = 0
-        result[k]['bear'] = 0
+    features = ['correct_predictions', 'num_predictions', 'return', 'return_log', 'return_w']
+    for f in features:
+        result[f] = {}
+        result[f]['bull'] = 0
+        result[f]['bear'] = 0
 
     result['perStock'] = {}
     return result
@@ -818,28 +798,16 @@ def initializeUserFeatures(user):
 
 # Calculate user's features based on tweets before this date
 # Loop through all tweets made by user and feature extract per user
-def calculateUserFeatures(username, date, all_user_features, tweets, default_stocks, mode):
+def calculateUserFeatures(date, user_features, tweets, mode):
     unique_stocks = {} # Keep track of unique tweets per day/stock
-    result = {} # Resulting user features
-
-    if (username in all_user_features):
-        result = all_user_features[username]
-        last_updated = result['last_updated'] # last time that was parsed
-
-        # Filter by tweets before the current date and after last updated date
-        for tweet in tweets:
-            if (tweet['time'] >= last_updated and tweet['time'] < date and tweet['symbol'] in default_stocks):
-                updateUserFeatures(result, tweet, unique_stocks, mode)
-    else:
-        result = initializeUserFeatures(username) # initialize user features for first time
-        for tweet in tweets: # Only filter by all tweets before current date
-            if (tweet['time'] < date and tweet['symbol'] in default_stocks):
-                updateUserFeatures(result, tweet, unique_stocks, mode)
+    last_updated = user_features['last_updated'] # last time that was parsed
+    for tweet in tweets: # Filter by tweets before the current date and after last updated date
+        if (tweet['time'] >= last_updated and tweet['time'] < date and tweet['symbol'] in constants['good_stocks']):
+            updateUserFeatures(user_features, tweet, unique_stocks, mode)
 
     # Update unique predictions per day features
     for time_string in unique_stocks:
-        tweeted_date = unique_stocks[time_string]['time']
-        w = sigmoidFn(tweeted_date, mode) # weighted based on time of tweet
+        w = unique_stocks[time_string]['w'] # weighted based on time of tweet
         symbol = unique_stocks[time_string]['symbol']
 
         # Find whether tweet was bull or bear based on last tweet prediction
@@ -850,26 +818,25 @@ def calculateUserFeatures(username, date, all_user_features, tweets, default_sto
         correct_prediction_num = 1 if correct_prediction else 0
         percent_return = abs(percent_change) if correct_prediction else -abs(percent_change)
 
-        result['unique_return_w'][label] += w * percent_return
-        result['unique_correct_predictions'][label] += correct_prediction_num
-        result['unique_num_predictions'][label] += 1
-        result['unique_return'][label] += percent_return
-
         # return unique (log) Weighted by number of times posted that day
-        num_labels = unique_stocks[time_string]['total_weight']
-        val = percent_return * (math.log10(num_labels) + 1)
-        result['unique_return_log'][label] += val
+        total_weight = unique_stocks[time_string]['total_weight']
+        return_log = percent_return * (math.log10(total_weight) + 1)
 
-        if (symbol in constants['good_stocks']):
-            result['perStock'][symbol]['unique_return_log'][label] += val
-            result['perStock'][symbol]['unique_return_w'][label] += w * percent_return
-            result['perStock'][symbol]['unique_correct_predictions'][label] += correct_prediction_num
-            result['perStock'][symbol]['unique_num_predictions'][label] += 1
-            result['perStock'][symbol]['unique_return'][label] += percent_return
+        # Update general
+        user_features['correct_predictions'][label] += correct_prediction_num
+        user_features['num_predictions'][label] += 1
+        user_features['return'][label] += percent_return
+        user_features['return_w'][label] += (w * percent_return)
+        user_features['return_log'][label] += return_log
 
-    result['last_updated'] = date # update time it was parsed so dont have to reparse
-    all_user_features[username] = result
-    return result
+        # Update per stock
+        user_features['perStock'][symbol]['correct_predictions'][label] += correct_prediction_num
+        user_features['perStock'][symbol]['num_predictions'][label] += 1
+        user_features['perStock'][symbol]['return'][label] += percent_return
+        user_features['perStock'][symbol]['return_w'][label] += (w * percent_return)
+        user_features['perStock'][symbol]['return_log'][label] += return_log
+
+    user_features['last_updated'] = date # update time it was parsed so dont have to reparse
 
 
 # Finds tweets for the given date range and stores them locally to be cached

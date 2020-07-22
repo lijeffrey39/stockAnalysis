@@ -465,37 +465,30 @@ def initializeResult(tweets, user):
 # Initialize per stock features 
 def initializePerStockFeatures(symbol, result):
     result['perStock'][symbol] = {}
-    keys = ['unique_correct_predictions', 'unique_num_predictions', 
-            'unique_return', 'unique_return_log', 'unique_return_w']
-    for k in keys:
-        result['perStock'][symbol][k] = {}
-        result['perStock'][symbol][k]['bull'] = 0
-        result['perStock'][symbol][k]['bear'] = 0
+    features = ['correct_predictions', 'num_predictions', 'return', 'return_log', 'return_w']
+    for f in features:
+        result['perStock'][symbol][f] = {}
+        result['perStock'][symbol][f]['bull'] = 0
+        result['perStock'][symbol][f]['bear'] = 0
 
 
 # Update feature results for a user given close open prices
 # Not using functions for now ('1' by default)
 # TODO: pReturnCloseOpen look at price at time of posting
-def updateUserFeatures(result, tweet, uniqueStocks, mode):
+def updateUserFeatures(user_features, tweet, uniqueStocks, mode):
     cached_prices = constants['cached_prices']
     time = tweet['time']
     symbol = tweet['symbol']
     isBull = tweet['isBull']
 
-    if (symbol == ''):
-        return
-
     closeOpen = findCloseOpenCached(symbol, time, cached_prices, mode=mode)
     if (closeOpen is None):
         return
 
-    percent_change = closeOpen[2]
+    if (symbol not in user_features['perStock']): # Initialize perstock object
+        initializePerStockFeatures(symbol, user_features)
 
-    if (symbol in constants['good_stocks']):
-        if (symbol not in result['perStock']): # Initialize perstock object
-            initializePerStockFeatures(symbol, result)
-
-    # For unique predictions per day, only count (bull/bear) if its last prediction
+    # For unique predictions per day, only count (bull/bear) if it's last prediction
     time_string = symbol + ' ' + findDateString(time, cached_prices)
     if (time_string in uniqueStocks):
         if (isBull == uniqueStocks[time_string]['last_prediction']):
@@ -503,11 +496,11 @@ def updateUserFeatures(result, tweet, uniqueStocks, mode):
             uniqueStocks[time_string]['total_weight'] += w
     else:
         w = sigmoidFn(time, mode)
-        time_result = {'time': time, 
-                    'symbol': symbol, 
-                    'percent_change': percent_change,
-                    'last_prediction': isBull,
-                    'total_weight': w}
+        time_result = {'symbol': symbol, 
+                        'percent_change': closeOpen[2], # Percent change to next day
+                        'last_prediction': isBull,
+                        'total_weight': w,
+                        'w': w}
         uniqueStocks[time_string] = time_result
 
 

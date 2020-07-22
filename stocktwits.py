@@ -30,7 +30,7 @@ from modules.tests import (findBadMessages, removeMessagesWithStock,
                         
 from modules.newPrediction import (findTweets, weightedUserPrediction, writeTweets, calculateUserFeatures, dailyPrediction, fetchTweets,
                                     editCachedTweets, prediction, findFeatures, pregenerateAllUserFeatures, pregenerateUserFeatures,
-                                    saveUserTweets, cachedUserTweets, optimizeParams, findStockCounts, insertUser, modifyTweets, getTopStocksCached)
+                                    saveUserTweets, cachedUserTweets, optimizeParams, findStockCounts, modifyTweets, getTopStocksCached)
 from modules.prediction_v3 import (predictionV3, fetchStockTweets, writeAllTweets, sigmoidFn, 
                                     newDailyPrediction, saveLocalTweets)
 
@@ -277,6 +277,8 @@ def main():
         # res = analyzedUsers.aggregate([{'$group' : { '_id' : '$error', 'count' : {'$sum' : 1}}}, { "$sort": { "count": 1 } },])
         # for i in res:
         #     print(i)
+
+        # print(len(constants['good_stocks']))
 
         predictionV3()
         # dailyPrediction(datetime.datetime(2020, 7, 21))

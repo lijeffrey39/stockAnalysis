@@ -736,7 +736,8 @@ def predictionV3():
     # saveUserTweets()
 
     # STEP 2: Calculate and save individual user features
-    # user_features = pregenerateAllUserFeatures(update=False, path='newPickled/user_features.pickle', mode=mode)
+    user_features = pregenerateAllUserFeatures(update=True, path='newPickled/user_features_test.pickle', mode=mode)
+    return
 
     # STEP 3: Fetch all stock tweets
     # writeAllTweets(start_date, end_date)
