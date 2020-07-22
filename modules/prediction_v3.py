@@ -264,8 +264,8 @@ def userCutoff(user_info, symbol, prediction, params, bucket):
     return_unique_s_bear = user_info[symbol]['return']['bear']
 
 
-    return_unique_bull = user_info['return']['bull'] - return_unique_s_bull
-    return_unique_bear = user_info['return']['bear'] - return_unique_s_bear
+    return_unique_bull = user_info['return']['bull']
+    return_unique_bear = user_info['return']['bear']
 
     # bucket['return_unique_bull'].append(return_unique_bull)
     # bucket['return_unique_bear'].append(return_unique_bear)
@@ -761,12 +761,18 @@ def predictionV3():
     #     weightings, params, start_date, end_date, print_info=True, mode=mode)
     # print(overall, top, accuracy_overall, accuracy_top, returns)
 
-    for i in range(25, 50):
-        # for j in range(1, 10):
-        params = [1, 0.5, 12, 5, i / 10]
-        (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, 
-            weightings, params, start_date, end_date, print_info=False, mode=mode)
-        print(params, overall, top, accuracy_overall, accuracy_top, returns)
+    res = []
+    for i in range(10, 30):
+        for j in range(1, 10):
+            params = [1, 0.5, i, j, 3, 1.8]
+            (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, 
+                weightings, params, start_date, end_date, print_info=False, mode=mode)
+            print(params, overall, top, accuracy_overall, accuracy_top, returns)
+            res.append([params, overall, top, returns, accuracy_overall, accuracy_top])
+
+    res.sort(key=lambda x: x[1] + x[2])
+    for x in res:
+        print(x)
 
 
     # 5.4 - 5.6
