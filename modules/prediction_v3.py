@@ -88,60 +88,59 @@ class SlidingWindowCalc:
         return math.sqrt(self.variance(feature))
 
 
+def findStandardizedFeature(value, avg_std, feature_name, log=False):
+    if (log):
+        if (value > 1):
+            value = math.log10(value)
+        else:
+            value = 0
+    max_value = avg_std[feature_name]['avg'] + (3 * avg_std[feature_name]['std'])
+    if (max_value <= 1):
+        return 0
+    result = (value) / math.log10(max_value)
+    result = (result / 1.5) + 0.33
+
+    if (result > 1):
+        result = 1
+    return result
 
 
-def userWeight(user_values, feature_avg_std, weightings, params):
-    num_tweets = user_values['num_tweets']
-    num_tweets_s = user_values['num_tweets_s']
+def findFeatureWeighted(user_values, feature_name, params, label, feature_avg_std):
+    bull_name = feature_name + '_bull'
+    bear_name = feature_name + '_bear'
+    bull_feature = findStandardizedFeature(user_values[bull_name], feature_avg_std, bull_name, log=True)
+    bear_feature = findStandardizedFeature(user_values[bear_name], feature_avg_std, bear_name, log=True)
+    result = 0
+    if (label == 'bull'):
+        result = ((params[0] * bull_feature) + (params[1] * bear_feature)) / (params[0] + params[1])
+    else:
+        result = ((params[0] * bear_feature) + (params[1] * bull_feature)) / (params[0] + params[1])
+    return result
 
-    # (1) Scale Tweet Number
-    max_value = feature_avg_std['num_tweets'][ 'avg'] + (3 * feature_avg_std['num_tweets']['std'])
-    scaled_num_tweets = (num_tweets) / math.log10(max_value)
-    scaled_num_tweets = (scaled_num_tweets / 1.5) + 0.33
 
-    if (scaled_num_tweets > 1):
-        scaled_num_tweets = 1
+def userWeight(user_values, feature_avg_std, weightings, params, prediction):
+    label = 'bull' if prediction else 'bear'
 
-    max_value = feature_avg_std['num_tweets_s'][ 'avg'] + (3 * feature_avg_std['num_tweets_s']['std'])
-    scaled_num_tweets_s = (num_tweets_s) / math.log10(max_value)
-    scaled_num_tweets_s = (scaled_num_tweets_s / 1.5) + 0.33
-
-    if (scaled_num_tweets_s > 1):
-        scaled_num_tweets_s = 1
+    # (1) Scale tweet number
+    scaled_num_tweets = findStandardizedFeature(user_values['num_tweets'], feature_avg_std, 'num_tweets')
+    scaled_num_tweets_s = findStandardizedFeature(user_values['num_tweets_s'], feature_avg_std, 'num_tweets_s')
 
     # (2) Scale user returns
-    return_unique = user_values['return_unique']
-    return_unique_w1 = user_values['return_unique_w1']
-    return_unique_s = user_values['return_unique_s']
+    scaled_return_unique = findFeatureWeighted(user_values, 'return_unique', params, label, feature_avg_std)
+    scaled_return_unique_w1 = findFeatureWeighted(user_values, 'return_unique_w1', params, label, feature_avg_std)
+    scaled_return_unique_s = findFeatureWeighted(user_values, 'return_unique_s', params, label, feature_avg_std)
 
-    max_value = feature_avg_std['return_unique']['avg'] + (3 * feature_avg_std['return_unique']['std'])
-    scaled_return_unique = (math.log10(return_unique)) / math.log10(max_value)
-    scaled_return_unique = (scaled_return_unique / 1.5) + 0.33
-
-    max_value = feature_avg_std['return_unique_w1']['avg'] + (3 * feature_avg_std['return_unique_w1']['std'])
-    scaled_return_unique_label = 0
-    if (return_unique_w1 > 1 and max_value > 1):
-        scaled_return_unique_label = (math.log10(return_unique_w1)) / math.log10(max_value)
-        scaled_return_unique_label = (scaled_return_unique_label / 1.5) + 0.33
-
-    max_value = feature_avg_std['return_unique_s']['avg'] + (3 * feature_avg_std['return_unique_s']['std'])
-    scaled_return_unique_s = (math.log10(return_unique_s - 4)) / math.log10(max_value)
-    scaled_return_unique_s = (scaled_return_unique_s / 1.5) + 0.33
-
-    if (scaled_return_unique > 1):
-        scaled_return_unique = 1
-    if (scaled_return_unique_s > 1):
-        scaled_return_unique_s = 1
-
-    # (3) all features combined (scale accuracy from 0.5 - 1 to between 0.7 - 1.2)
-    accuracy_unique = user_values['accuracy_unique']
+    # (3) Scale user accuracy
+    accuracy_unique = findFeatureWeighted(user_values, 'accuracy_unique', params, label, feature_avg_std)
     accuracy_unique_s = user_values['accuracy_unique_s']
+
     all_features = accuracy_unique * scaled_num_tweets * scaled_return_unique
     all_features_s = accuracy_unique_s * scaled_num_tweets_s * scaled_return_unique_s
 
     return ((weightings[0] * scaled_return_unique) + (weightings[1] * accuracy_unique) + 
         (weightings[2] * accuracy_unique_s) + (weightings[3] * scaled_return_unique_s) + 
-        (weightings[4] * scaled_return_unique_label) + (weightings[5] * all_features) + (weightings[6] * all_features_s)) / sum(weightings)
+        (weightings[4] * scaled_return_unique_w1) + (weightings[5] * all_features) + 
+        (weightings[6] * all_features_s)) / sum(weightings)
 
 
 
@@ -176,45 +175,186 @@ def sigmoidFn(date, mode, params):
     return 1 / (1 + math.exp(-new_x))
 
 
-def findStockStd(symbol, stock_features, weightings, mode, params):
+# Find feature for given user based on symbol and feature name
+def findFeature(feature_info, symbol, feature_name, bull_bear):
+    # If finding stock specific feature, check if data exists, else just use general data
+    if (symbol in feature_info):
+        if (len(feature_info[symbol]) == 0): # If first time tweeting about stock
+            return 0
+        feature_info = feature_info[symbol]
+
+    # Not bull or bear specific feature
+    if (bull_bear == None):
+        if (feature_name == 'accuracy'): # looking for a fraction
+            bull_res_n = feature_info['unique_correct_predictions']['bull']
+            bear_res_n = feature_info['unique_correct_predictions']['bear']
+            bull_res_d = feature_info['unique_num_predictions']['bull']
+            bear_res_d = feature_info['unique_num_predictions']['bear']
+            total_nums = bull_res_d + bear_res_d
+            # If never tweeted about this stock
+            if (total_nums == 0):
+                return 0
+            return (bull_res_n + bear_res_n) / total_nums
+        else: # only looking for one value
+            bull_res = feature_info[feature_name]['bull']
+            bear_res = feature_info[feature_name]['bear']
+            return bull_res + bear_res
+    else:
+        if (feature_name == 'accuracy'): # looking for a fraction
+            correct = feature_info['unique_correct_predictions'][bull_bear]
+            total_nums = feature_info['unique_num_predictions'][bull_bear]
+            if (total_nums == 0): # If never tweeted about this stock
+                return 0
+            spec_acc = correct / total_nums # bull/bear specific accuracy
+            return spec_acc
+
+            # General accuracy
+            bull_res_n = feature_info['unique_correct_predictions']['bull']
+            bear_res_n = feature_info['unique_correct_predictions']['bear']
+            bull_res_d = feature_info['unique_num_predictions']['bull']
+            bear_res_d = feature_info['unique_num_predictions']['bear']
+            total_nums = bull_res_d + bear_res_d
+            general_acc = (bull_res_n + bear_res_n) / total_nums
+            return (general_acc + spec_acc) / 2
+        else: # only looking for one value
+            res = feature_info[feature_name][bull_bear]
+            return res
+
+
+def calculateAccuracyUser(user_info, symbol, label):
+    if (symbol in user_info):
+        user_info = user_info[symbol]
+
+    total_tweets = user_info['unique_num_predictions'][label]
+    if (total_tweets == 0):
+        total_tweets = 1
+
+    correct_tweets = user_info['unique_correct_predictions'][label]
+    accuracy = correct_tweets / total_tweets
+    return accuracy
+
+
+
+def userCutoff(user_info, symbol, prediction, params, bucket):
+    label = 'bull' if prediction else 'bear'
+    accuracy_s_bull = calculateAccuracyUser(user_info, symbol, 'bull')
+    accuracy_s_bear = calculateAccuracyUser(user_info, symbol, 'bear')
+
+    accuracy_bull = calculateAccuracyUser(user_info, '', 'bull')
+    accuracy_bear = calculateAccuracyUser(user_info, '', 'bear')
+
+    # Filter by accuracy
+    if (max(accuracy_bull, accuracy_bear) < 0.5 or max(accuracy_s_bull, accuracy_s_bear) < 0.5):
+        return None
+
+    num_tweets_unique = user_info['unique_num_predictions']['bull'] + user_info['unique_num_predictions']['bear']
+    num_tweets_s_unique = findFeature(user_info, symbol, 'unique_num_predictions', None)
+
+    # Filter by number of tweets
+    if (num_tweets_unique <= 52 or num_tweets_s_unique < 12):
+        return None
+
+    return_unique = (user_info['unique_return']['bear'] + user_info['unique_return']['bull']) / 2
+    return_unique_s = findFeature(user_info, symbol, 'unique_return', None) / 2
+    return_unique -= return_unique_s
+
+
+    return_unique_s_bull = user_info[symbol]['unique_return']['bull']
+    return_unique_s_bear = user_info[symbol]['unique_return']['bear']
+
+
+    return_unique_bull = user_info['unique_return']['bull'] - return_unique_s_bull
+    return_unique_bear = user_info['unique_return']['bear'] - return_unique_s_bear
+
+    bucket['return_unique_bull'].append(return_unique_bull)
+    bucket['return_unique_bear'].append(return_unique_bear)
+    bucket['return_unique'].append(return_unique)
+
+    if ((return_unique_bull < params[2] and return_unique_bear < 1) or return_unique_s < 5):
+        return None
+    # if (return_unique < params[2] or return_unique_s < 5):
+    #     return None
+
+    return_unique_label = user_info['unique_return'][label]
+    return_unique_log = (user_info['unique_return_log']['bear'] + user_info['unique_return_log']['bull']) / 2
+    return_unique_w1 = (user_info['unique_return_w']['bear'] + user_info['unique_return_w']['bull']) / 2
+    return_unique_log_s = findFeature(user_info, symbol, 'unique_return_log', None) / 2
+    return_unique_w1_s = findFeature(user_info, symbol, 'unique_return_w', None) / 2
+
+    return_unique_w1_bull = user_info['unique_return_w']['bull'] - user_info[symbol]['unique_return_w']['bull']
+    return_unique_w1_bear = user_info['unique_return_w']['bear'] - user_info[symbol]['unique_return_w']['bear']
+
+
+    user_values = {
+        'return_unique_bull': return_unique_bull,
+        'return_unique_bear': return_unique_bear,
+        'return_unique_s_bull': return_unique_s_bull,
+        'return_unique_s_bear': return_unique_s_bear,
+        'return_unique_w1_bull': return_unique_w1_bull,
+        'return_unique_w1_bear': return_unique_w1_bear,
+
+        'accuracy_unique_bull': accuracy_bull,
+        'accuracy_unique_bear': accuracy_bear,
+
+        'accuracy_unique_s': (accuracy_s_bull + accuracy_s_bear) / 2,
+        'num_tweets': num_tweets_unique,
+        'num_tweets_s': num_tweets_s_unique,
+        'return_unique': return_unique,
+        'return_unique_label': return_unique_label,
+        'return_unique_s': return_unique_s,
+        'return_unique_log': return_unique_log,
+        'return_unique_log_s': return_unique_log_s,
+        'return_unique_w1': return_unique_w1,
+        'return_unique_w1_s': return_unique_w1_s,
+    }
+
+    return user_values
+
+
+def findStockStd(symbol, stock_features, weightings, mode, params, bucket):
     days_back = 8 # Days to look back for generated daily stock features
     bull_weight = 1
     bear_weight = 5
 
-    features = ['accuracy_unique', 'accuracy_unique_s', 'num_tweets', 'num_tweets_s', 
+    features = ['accuracy_unique_s', 'num_tweets', 'num_tweets_s', 
         'return_unique', 'return_unique_s', 'return_unique_log', 
-        'return_unique_log_s', 'return_unique_w1']
+        'return_unique_log_s', 'return_unique_w1', 
+        'return_unique_bull', 'return_unique_bear',
+        'return_unique_w1_bull', 'return_unique_w1_bear',
+        'return_unique_s_bull', 'return_unique_s_bear',
+        'accuracy_unique_bull', 'accuracy_unique_bear']
     feature_avgstd = SlidingWindowCalc(14, features)
 
     result_features = ['total_w']
     result_feature_avgstd = SlidingWindowCalc(days_back, result_features)
     result = {}
 
-    # tweet_count = SlidingWindowCalc(param1, ['tweet_count'])
-
     # Look at each day's experts for this stock
     for date_str in stock_features:
         day_features = stock_features[date_str] # Users that tweeted that day
         bull_count = 0
         bear_count = 0
+        found_users = {}
 
         # Update stock's user feature avg and std
         for username in day_features:
-            user_features = day_features[username]
-            if (user_features['return_unique'] < 20 or 
-                user_features['return_unique_s'] < 5 or 
-                user_features['num_tweets'] <= 52 or 
-                user_features['num_tweets_s'] < 12):
+            temp_features = day_features[username]
+            prediction = day_features[username]['prediction']
+            user_features = userCutoff(temp_features, symbol, prediction, params, bucket)
+            if (user_features == None):
                 continue
+
             for feature in features:
-                if (feature == 'times' or feature == 'prediction'):
-                    continue
                 feature_avgstd.update(feature, user_features[feature])
 
             if (day_features[username]['prediction']):
                 bull_count += 1
             else:
                 bear_count += 1
+
+            user_features['times'] = day_features[username]['times']
+            user_features['prediction'] = prediction
+            found_users[username] = user_features
 
         # Calculate each feature's avg and std
         weightings_avgstd = {}
@@ -225,20 +365,14 @@ def findStockStd(symbol, stock_features, weightings, mode, params):
 
         bull_w = 0
         bear_w = 0
-        tweet_total_w = 0
-        for username in day_features:
-            if (day_features[username]['return_unique'] < 20 or
-                day_features[username]['return_unique_s'] < 5 or 
-                day_features[username]['num_tweets'] <= 52 or 
-                day_features[username]['num_tweets_s'] < 12):
-                continue
+        total_tweet_w = 0
+        for username in found_users:
+            user_features = found_users[username]
 
-            user_w = userWeight(day_features[username], weightings_avgstd, weightings, params)
-            tweet_w = sigmoidFn(day_features[username]['times'][0], mode, params) # Most recent posted time
-            tweet_total_w += tweet_w
-            # for time in day_features[username]['times']:
-            #     tweet_w += sigmoidFn(time)
-            if (day_features[username]['prediction']):
+            user_w = userWeight(user_features, weightings_avgstd, weightings, params, user_features['prediction'])
+            tweet_w = sigmoidFn(user_features['times'][0], mode, params) # Most recent posted time
+            total_tweet_w += tweet_w
+            if (user_features['prediction']):
                 bull_w += (user_w * tweet_w)
             else:
                 bear_w += (user_w * tweet_w)
@@ -250,18 +384,17 @@ def findStockStd(symbol, stock_features, weightings, mode, params):
             #         round(user_w, 2), round(tweet_w, 2))
 
         total_w = (bull_weight * bull_w) - (bear_weight * bear_w)
-
         result_feature_avgstd.update('total_w', total_w)
-        feature_avg_std = {}
-        feature_avg_std['total_w'] = {}
-        feature_avg_std['total_w']['val'] = total_w
-        feature_avg_std['total_w']['avg'] = result_feature_avgstd.getMean('total_w')
-        feature_avg_std['total_w']['std'] = result_feature_avgstd.getStddev('total_w')
-
-        feature_avg_std['bull_count'] = bull_count
-        feature_avg_std['bear_count'] = bear_count
-        feature_avg_std['total_tweet_w'] = tweet_total_w
-
+        feature_avg_std = {
+            'total_w': {
+                'val': total_w,
+                'avg': result_feature_avgstd.getMean('total_w'),
+                'std': result_feature_avgstd.getStddev('total_w')
+            },
+            'bull_count': bull_count,
+            'bear_count': bear_count,
+            'total_tweet_w': total_tweet_w
+        }
         result[date_str] = feature_avg_std
 
     return result
@@ -291,7 +424,6 @@ def findAllStockFeatures(start_date, end_date, all_user_features, path, update=F
             else:
                 tweets_per_stock = all_stock_tweets[symbol]
             tweets = findTweets(date, tweets_per_stock, symbol, mode) # Find tweets used for predicting for this date
-
             if (symbol not in preprocessed_features):
                 preprocessed_features[symbol] = {}
             preprocessed_features[symbol][date_str] = {}
@@ -363,11 +495,27 @@ def calculateReturns(picked_stocks, top_n_stocks, print_info):
     return (return_overall, return_top)
 
 
+def dateSymbolCounts(start_date, end_date):
+    daily_object = readPickleObject('newPickled/daily_stocks_cached.pickle')
+    trading_dates = findTradingDays(start_date, end_date)
+    result = {}
+    for date in trading_dates:
+        date_str = date.strftime("%Y-%m-%d")
+        stocks = getTopStockDailyCached(date, 80, daily_object)
+        result[date_str] = stocks
+    return result
 
-def makePrediction(preprocessed_user_features, stock_close_opens, weightings, params, print_info, mode=1):
+
+def makePrediction(preprocessed_user_features, stock_close_opens, weightings, params, start_date, end_date, print_info, mode=1):
+    # date_symbol_count = dateSymbolCounts(start_date, end_date)
     picked_stocks = {}
     top_n_stocks = 3
     non_close_open = {}
+    bucket = {
+        'return_unique_bull': [],
+        'return_unique_bear': [],
+        'return_unique': []
+    }
 
     # Find each stocks std per day
     for symbol in constants['good_stocks']:
@@ -375,12 +523,12 @@ def makePrediction(preprocessed_user_features, stock_close_opens, weightings, pa
             continue
 
         stock_features = preprocessed_user_features[symbol]
-        stock_std = findStockStd(symbol, stock_features, weightings, mode, params)
+        stock_std = findStockStd(symbol, stock_features, weightings, mode, params, bucket)
 
         for date_str in stock_std: # For each day, look at deviation and close open for the day
             date_real = datetime.datetime.strptime(date_str, '%Y-%m-%d')
             stock_day_std = stock_std[date_str]
-            if (stock_day_std['total_w']['std'] == 0 or stock_day_std['total_tweet_w'] <= 3.3):
+            if (stock_day_std['total_w']['std'] == 0 or stock_day_std['total_tweet_w'] <= 3.1):
                 continue
             deviation = (stock_day_std['total_w']['val'] - stock_day_std['total_w']['avg']) / stock_day_std['total_w']['std']
 
@@ -392,18 +540,18 @@ def makePrediction(preprocessed_user_features, stock_close_opens, weightings, pa
             if (close_open == None):
                 continue
 
-            # print(symbol, date_str, round(stock_day_std['total_w']['val'] , 2), round(deviation, 2), round(close_open[2], 2))
+            # Minimum devation to keep a stock
             if (deviation > 1.82 or deviation < -2.3):
                 if (date_str not in picked_stocks):
                     picked_stocks[date_str] = []
                 picked_stocks[date_str].append([symbol, deviation, close_open[2]])
-                # print(symbol, date_str, round(stock_day_std['total_w']['val'] , 2), deviation, close_open[2])
 
     (accuracy_overall, accuracy_top) = calculateAccuracy(picked_stocks, top_n_stocks, print_info)
     (returns_overall, returns_top) = calculateReturns(picked_stocks, top_n_stocks, False)
 
     overall = accuracy_overall[0] / (accuracy_overall[1] or not accuracy_overall[1])
     top = accuracy_top[0] / (accuracy_top[1] or not accuracy_top[1])
+    # stock_counts = [0] * 80
 
     if (print_info):
         print(accuracy_overall, accuracy_top)
@@ -412,8 +560,17 @@ def makePrediction(preprocessed_user_features, stock_close_opens, weightings, pa
         for date_str in sorted(non_close_open.keys()):
             res = sorted(non_close_open[date_str], key=lambda x: x[1], reverse=True)
             res = list(map(lambda x: [x[0], round(x[1], 2), x[2], x[3]], res))
-            print(date_str, res[:6])
+            stocks_picked = res[:6]
+            print(stocks_picked)
+            # if (date_str in date_symbol_count):
+            #     all_stocks_today = date_symbol_count[date_str]
+            #     for picked in stocks_picked:
+            #         symbol = picked[0]
+            #         rank = all_stocks_today.index(symbol)
+            #         stock_counts[rank] += 1
 
+    # print(stock_counts)
+    writePickleObject('bucket.pkl', bucket)
     return (round(overall, 4), round(top, 4), accuracy_overall, accuracy_top, returns_overall)
 
 
@@ -442,9 +599,9 @@ def newDailyPrediction(date):
     # Fetch stock features per day
     path = 'newPickled/preprocessed_daily_user_features.pickle'
     preprocessed_user_features = findAllStockFeatures(start_date, end_date, user_features, path, update=True)
-    weightings = [0.5, 1.5, 1, 3, 0.4, 1.3, 0.9]
+    weightings = [0.8, 1.7, 0.9, 2.8, 0.4, 1.3, 0.9]
     non_close_open = {}
-    params=[]
+    params=[1, 0]
 
     # Find each stocks std per day
     for symbol in constants['good_stocks']:
@@ -485,7 +642,13 @@ def newDailyPrediction(date):
             result_details[date_str].append(vals)
 
     for date_str in sorted(result_details.keys()):
-        print(date_str, result_details[date_str])
+        x = result_details[date_str]
+        result = ''
+        for a in x:
+            i = '[{:10} {:4s} {:>5.2f} {:>5.2f} {:2.0f} {:2.0f}], '.format(date_str, a[0], a[1], a[2], a[3], a[4])
+            result += i
+        print(result)
+        # print(date_str, result_details[date_str])
 
     print(stocks_today)
 
@@ -552,13 +715,21 @@ def newDailyPrediction(date):
             - return_unique_w1
             - return_unique_label
     6. Prediction - 
-    
+        paramaters to change:
+            1. Minimum user cutoff to consider stock for the day (3.1)
+            2. Devation cutoff to keep a bull stock (1.82)
+            3. Devation cutoff to keep a bear stock (-2.3)
+            4. Weight of bull predictions (1)
+            5. Weight of bear predictions (5)
+            6. Number of days to look back for calculating deviation (8 days)
+            7. Hours back for tweet to be weighted half (5.2 hours)
+            8. Ratio of stock weight to number of tweets
     
 """
 
 def predictionV3():
     start_date = datetime.datetime(2019, 6, 3) # Prediction start date
-    end_date = datetime.datetime(2020, 7, 16) # Prediction end date
+    end_date = datetime.datetime(2020, 7, 21) # Prediction end date
     mode = 1 # 4:00 PM to 9:30 AM next trading day
 
     # STEP 1: Fetch all user tweets
@@ -574,15 +745,23 @@ def predictionV3():
     close_opens = exportCloseOpen(update=False)
 
     # STEP 5: Calculate stock features per day
-    path = 'newPickled/preprocessed_stock_user_features.pickle'
+    path = 'newPickled/preprocessed_stock_user_features_test.pickle'
     preprocessed_user_features = findAllStockFeatures(start_date, end_date, {}, path, update=False, mode=mode)
 
     # STEP 6: Make prediction
     # 6, 8, 3.1, 1.8
     weightings = [0.8, 1.7, 0.9, 2.8, 0.4, 1.3, 0.9]
-    # params=[]
-    # (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, weightings, params, print_info=True, mode=mode)
+    # params = [1, 0, 20]
+    # (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, 
+    #     weightings, params, start_date, end_date, print_info=True, mode=mode)
     # print(overall, top, accuracy_overall, accuracy_top, returns)
+
+    for i in range(40, 70):
+        # for j in range(6, 10):
+        params = [1, 0, i]
+        (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, 
+            weightings, params, start_date, end_date, print_info=False, mode=mode)
+        print(params, overall, top, accuracy_overall, accuracy_top, returns)
 
 
     # 5.4 - 5.6
@@ -621,19 +800,19 @@ def predictionV3():
 
     # weightings = [0.5, 1.5, 1, 3, 0.4, 1.3, 0.9]
 
-    res = []
-    for i in range(0, 10):
-        i = i / 10
-        for j in range(0, 10):
-            j = 1 + (j / 10)
-            for k in range(0, 10):
-                k = 0.5 + (k / 10)
-                weightings = [0.8, 1.7, 0.9, 2.8, i, j, k]
-                (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, weightings, [], print_info=False)
-                if (accuracy_top[0] < 200):
-                    continue
-                print(weightings, overall, top, accuracy_overall, accuracy_top, returns)
-                res.append([weightings, overall, top, returns, accuracy_overall, accuracy_top])
+    # res = []
+    # for i in range(0, 10):
+    #     i = i / 10
+    #     for j in range(0, 10):
+    #         j = 1 + (j / 10)
+    #         for k in range(0, 10):
+    #             k = 0.5 + (k / 10)
+    #             weightings = [0.8, 1.7, 0.9, 2.8, i, j, k]
+    #             (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, weightings, [], print_info=False)
+    #             if (accuracy_top[0] < 200):
+    #                 continue
+    #             print(weightings, overall, top, accuracy_overall, accuracy_top, returns)
+    #             res.append([weightings, overall, top, returns, accuracy_overall, accuracy_top])
 
     # res.sort(key=lambda x: x[1] + x[2])
     # for x in res:

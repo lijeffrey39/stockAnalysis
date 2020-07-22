@@ -133,39 +133,32 @@ def findValidUsers():
     return users
 
 
+# Whether to keep a user based on minimum criteria
 def cutoffUser(user_info):
-    num_tweets_unique = findFeature(user_info, '', 'unique_num_predictions', None)
+    num_tweets_bull = user_info['unique_num_predictions']['bull']
+    num_tweets_bear = user_info['unique_num_predictions']['bear']
 
     # Filter by number of tweets
-    if (num_tweets_unique <= 20):
+    if (max(num_tweets_bull, num_tweets_bear) < 20):
         return False
 
-    bull_res_n = user_info['unique_correct_predictions']['bull']
-    bear_res_n = user_info['unique_correct_predictions']['bear']
-    bull_res_d = user_info['unique_num_predictions']['bull']
-    bear_res_d = user_info['unique_num_predictions']['bear']
-    # If never tweeted about this stock
-    if (bull_res_d == 0 and bear_res_d == 0):
+    if (num_tweets_bull == 0):
+        num_tweets_bull = 1
+
+    if (num_tweets_bear == 0):
+        num_tweets_bear = 1
+
+    correct_tweets_bull = user_info['unique_correct_predictions']['bull']
+    correct_tweets_bear = user_info['unique_correct_predictions']['bear']
+
+    accuracy_bull = correct_tweets_bull / num_tweets_bull
+    accuracy_bear = correct_tweets_bear / num_tweets_bear
+    if (max(accuracy_bull, accuracy_bear) < 0.5): # Filter by number of accuracy
         return False
 
-    if (bull_res_d == 0):
-        bull_res_d = 1
-    
-    if (bear_res_d == 0):
-        bear_res_d = 1
-
-    accuracy_unique_bull = bull_res_n / bull_res_d
-    accuracy_unique_bear = bear_res_n / bear_res_d
     bull_return = user_info['unique_return']['bull']
     bear_return = user_info['unique_return']['bear']
-    return_unique = max(bull_return, bear_return)
-    accuracy_unique = max(accuracy_unique_bull, accuracy_unique_bear)
-    # Filter by accuracy
-    if (accuracy_unique < 0.5):
-        return False
-
-    # Filter by return
-    if (return_unique < 1):
+    if (max(bull_return, bear_return) < 1): # Filter by return
         return False
 
     return True
@@ -990,34 +983,14 @@ def officialCutOff(user_info, symbol, label):
         return None
 
     return_unique = (user_info['unique_return']['bear'] + user_info['unique_return']['bull']) / 2
-    return_unique_label = user_info['unique_return'][label]
     return_unique_s = findFeature(user_info, symbol, 'unique_return', None) / 2
-    return_unique_log = (user_info['unique_return_log']['bear'] + user_info['unique_return_log']['bull']) / 2
-    return_unique_w1 = (user_info['unique_return_w']['bear'] + user_info['unique_return_w']['bull']) / 2
-    return_unique_log_s = findFeature(user_info, symbol, 'unique_return_log', None) / 2
-    return_unique_w1_s = findFeature(user_info, symbol, 'unique_return_w', None) / 2
-
     return_unique -= return_unique_s # Ignore the current stock's return
 
     # Filter by return
-    if (return_unique < 5 or return_unique_s < 5):
+    if (return_unique < 15 or return_unique_s < 5):
         return None
 
-    user_values = {
-        'accuracy_unique': accuracy_unique,
-        'accuracy_unique_s': accuracy_unique_s,
-        'num_tweets': num_tweets_unique,
-        'num_tweets_s': num_tweets_s_unique,
-        'return_unique': return_unique,
-        'return_unique_label': return_unique_label,
-        'return_unique_s': return_unique_s,
-        'return_unique_log': return_unique_log,
-        'return_unique_log_s': return_unique_log_s,
-        'return_unique_w1': return_unique_w1,
-        'return_unique_w1_s': return_unique_w1_s,
-    }
-
-    return user_values
+    return copy.deepcopy(user_info)
 
 
 
@@ -1025,8 +998,6 @@ def officialCutOff(user_info, symbol, label):
 # Builds user features as more information is seen about that user
 def stockFeatures(tweets, date_str, symbol, all_user_features, feature_stats, preprocessed_user_features):
     result = buildStockFeatures()
-    bull_count = 0
-    bear_count = 0
     seen_users = {}
 
     # STEP 1 : Find all last predictions and counts
@@ -1072,80 +1043,11 @@ def stockFeatures(tweets, date_str, symbol, all_user_features, feature_stats, pr
             continue
 
         # Append all user features to list
-        found_user_features[username] = user_values
-
-
-    # STEP 3 : Find/update historical average/std for each feature
-    if (symbol not in feature_stats):
-        feature_stats[symbol] = {}
-
-    feature_stats[symbol][date_str] = found_user_features
-
-    max_history = 6 # How many days in the past to store
-    sorted_dates = list(feature_stats[symbol].keys())
-    if (len(sorted_dates) > max_history):
-        first_date = sorted_dates[0]
-        del feature_stats[symbol][first_date]
-
-    # Combine historical users
-    combined_historical_features = {}
-    seen_users_set = set([])
-    for date in feature_stats[symbol]:
-        users_found = feature_stats[symbol][date]
-        for username in users_found:
-            if (username in seen_users_set):
-                continue
-            seen_users_set.add(username)
-            for feature in users_found[username]:
-                if (feature == 'w' or feature == 'times' or feature == 'prediction'):
-                    continue
-                if (feature not in combined_historical_features):
-                    combined_historical_features[feature] = []
-                combined_historical_features[feature].append(users_found[username][feature])
-
-    # print(combined_historical_features)
-    feature_avg_std = {} # avg/std for each feature
-    for feature in combined_historical_features:
-        feature_avg_std[feature] = {}
-        feature_avg_std[feature]['avg'] = statistics.mean(combined_historical_features[feature])
-        if (len(combined_historical_features[feature]) == 1):
-            feature_avg_std[feature]['std'] = 1
-            continue
-        feature_avg_std[feature]['std'] = statistics.stdev(combined_historical_features[feature])
-
-
-    # STEP 4 : Apply found average/std to features
-    for username in found_user_features:
-        w = seen_users[username]['tweeted_weight'] # weighted based on time of tweet
-        label = 'bull' if seen_users[username]['isBull'] else 'bear'
-        user_values = found_user_features[username]
-
-        # Give user a weight between 0 and 1 and apply to all features
-        user_weight = weightedUserPrediction(user_values, feature_avg_std)
-        tweet_value = user_weight * w
-
-        # Increment daily count
-        if (seen_users[username]['isBull']):
-            bull_count += 1 
-        else:
-            bear_count += 1
-
-        result[label] += tweet_value
-        return_unique = math.log10(user_values['return_unique']) + 1
-        result[label + '_return'] += tweet_value * return_unique
-
-        # return unique (log) Weighted by number of times posted that day
-        num_prediction_log = math.log10(seen_users[username]['count']) + 1
-        result[label + '_w'] += tweet_value * num_prediction_log
-        result[label + '_w_return'] += tweet_value * return_unique * num_prediction_log
-
-        # Bucket for analysis
         user_values['prediction'] = seen_users[username]['isBull']
         user_values['times'] = seen_users[username]['times']
         preprocessed_user_features[symbol][date_str][username] = user_values
 
-    result['bull_count'] = bull_count
-    result['bear_count'] = bear_count
+
     return result
 
 

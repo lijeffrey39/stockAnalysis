@@ -205,7 +205,7 @@ def main():
     dateNow = convertToEST(datetime.datetime.now())
 
     if (options.users):
-        analyzeUsers(reAnalyze=False, findNewUsers=True, updateUser=False)
+        analyzeUsers(reAnalyze=True, findNewUsers=False, updateUser=False)
     elif (options.stocks):
         now = convertToEST(datetime.datetime.now())
         date = datetime.datetime(now.year, now.month, now.day)
@@ -272,27 +272,6 @@ def main():
     elif (options.dailyuserparser):
         dailyAnalyzeUsers(reAnalyze=True, updateUser=True, daysback=14)
     else:
-        # print(findCloseOpenCached('DIS', datetime.datetime(2020, 6, 19, 9, 40), constants['cached_prices'], mode=3))
-
-        # print(findCloseOpen('AAPL', datetime.datetime(2020, 7, 12)))
-    
-        # saveLocalTweets(datetime.datetime(2019, 6, 1), datetime.datetime(2020, 7, 10))
-
-
-        # stocks_list = getActualAllStocks()
-        # print(len(stocks_list))
-        # bad_stocks = []
-
-        # stocks = os.listdir('stock_files/')
-        # for symbol_path in stocks:
-        #     if (symbol_path[-3:] != 'pkl'):
-        #         continue
-        #     symbol = symbol_path[:-4]
-        #     if (symbol not in stocks_list):
-        #         bad_stocks.append(symbol)
-        
-        # print(bad_stocks)
-        # print(len(bad_stocks))
 
         # analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
         # res = analyzedUsers.aggregate([{'$group' : { '_id' : '$error', 'count' : {'$sum' : 1}}}, { "$sort": { "count": 1 } },])
@@ -300,15 +279,16 @@ def main():
         #     print(i)
 
         predictionV3()
-        # exportCloseOpen(True)
+        # dailyPrediction(datetime.datetime(2020, 7, 21))
+        # newDailyPrediction(datetime.datetime(2020, 7, 21))
 
-        # optimizeParamsNew
-
-        # dailyPrediction(datetime.datetime(2020, 7, 16))
-
-        # newDailyPrediction(datetime.datetime(2020, 7, 16))
-
-        # bucket = readPickleObject('newPickled/bucket.pickle')
+        # bucket = readPickleObject('bucket.pkl')
+        # res = bucket['return_unique_bull']
+        # res.sort(reverse=True)
+        # res = list(filter(lambda x: x < 20 and x > 0, res))
+        # plt.hist(res[50:], density=False, bins=150)
+        # plt.show()
+    
         # res = []
         # symbol = 'ROKU'
         # date_str = '2020-07-06'
@@ -318,7 +298,6 @@ def main():
         #     res.append(val)
 
         # plt.hist(res, density=False, bins=150)
-        # plt.show()
         # return
         # bucket_stats = {}
 
