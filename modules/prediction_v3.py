@@ -127,22 +127,27 @@ def userWeight(user_values, feature_avg_std, weightings, params, prediction):
     scaled_num_tweets_s = findStandardizedFeature(user_values['num_tweets_s'], feature_avg_std, 'num_tweets_s')
 
     # (2) Scale user returns
-    scaled_return_unique = findFeatureWeighted(user_values, 'return', params, label, feature_avg_std)
-    scaled_return_unique_w1 = findFeatureWeighted(user_values, 'return_w1', params, label, feature_avg_std)
-    scaled_return_unique_s = findFeatureWeighted(user_values, 'return_s', params, label, feature_avg_std)
+    scaled_return = findFeatureWeighted(user_values, 'return', params, label, feature_avg_std)
+    scaled_return_s = findFeatureWeighted(user_values, 'return_s', params, label, feature_avg_std)
+    scaled_return_w1 = findFeatureWeighted(user_values, 'return_w1', params, label, feature_avg_std)
 
     # (3) Scale user accuracy
-    accuracy_unique = findFeatureWeighted(user_values, 'accuracy', params, label, feature_avg_std)
-    accuracy_unique_s = findFeatureWeighted(user_values, 'accuracy_s', params, label, feature_avg_std)
+    scaled_accuracy = findFeatureWeighted(user_values, 'accuracy', params, label, feature_avg_std)
+    scaled_accuracy_s = findFeatureWeighted(user_values, 'accuracy_s', params, label, feature_avg_std)
 
-    all_features = accuracy_unique * scaled_num_tweets * scaled_return_unique
-    all_features_s = accuracy_unique_s * scaled_num_tweets_s * scaled_return_unique_s
-
-    return ((weightings[0] * scaled_return_unique) + (weightings[1] * accuracy_unique) + 
-        (weightings[2] * accuracy_unique_s) + (weightings[3] * scaled_return_unique_s) + 
-        (weightings[4] * scaled_return_unique_w1) + (weightings[5] * all_features) + 
-        (weightings[6] * all_features_s)) / sum(weightings)
-
+    all_features = scaled_accuracy * scaled_num_tweets * scaled_return
+    all_features_s = scaled_accuracy_s * scaled_num_tweets_s * scaled_return_s
+    
+    user_weight = (
+        (params['return_wt'] * scaled_return) +
+        (params['return_s_wt'] * scaled_return_s) +
+        (params['return_w1_wt'] * scaled_return_w1) +
+        (params['accuracy_wt'] * scaled_accuracy) +
+        (params['accuracy_s_wt'] * scaled_accuracy_s) +
+        (params['all_features_wt'] * all_features) +
+        (params['all_features_s_wt'] * all_features_s)
+    )
+    return user_weight
 
 
 def sigmoidFn(date, mode, params):
@@ -207,7 +212,8 @@ def userCutoff(user_info, symbol, prediction, params, bucket):
     accuracy_s_bear = calculateAccuracyUser(user_info, symbol, 'bear')
 
     # Filter by accuracy
-    if (max(accuracy_bull, accuracy_bear) < 0.5 or max(accuracy_s_bull, accuracy_s_bear) < 0.5):
+    if (max(accuracy_bull, accuracy_bear) < params['accuracy_cutoff'] or 
+        max(accuracy_s_bull, accuracy_s_bear) < params['accuracy_s_cutoff']):
         return None
 
 
@@ -676,14 +682,14 @@ def newDailyPrediction(date):
 
 def predictionV3():
     start_date = datetime.datetime(2019, 6, 3) # Prediction start date
-    end_date = datetime.datetime(2020, 7, 21) # Prediction end date
+    end_date = datetime.datetime(2020, 7, 22) # Prediction end date
     mode = 1 # 4:00 PM to 9:30 AM next trading day
 
     # STEP 1: Fetch all user tweets
     # saveUserTweets()
 
     # STEP 2: Calculate and save individual user features
-    # user_features = pregenerateAllUserFeatures(update=False, path='newPickled/user_features_v3.pickle', mode=mode)
+    user_features = pregenerateAllUserFeatures(update=False, path='newPickled/user_features_v3.pickle', mode=mode)
 
     # STEP 3: Fetch all stock tweets
     # writeAllTweets(start_date, end_date)
@@ -693,16 +699,17 @@ def predictionV3():
 
     # STEP 5: Calculate stock features per day
     path = 'newPickled/preprocessed_stock_user_features_v3.pickle'
-    preprocessed_user_features = findAllStockFeatures(start_date, end_date, {}, path, update=False, mode=mode)
+    preprocessed_user_features = findAllStockFeatures(start_date, end_date, user_features, path, update=True, mode=mode)
 
     # STEP 6: Make prediction
-    # 6, 8, 3.1, 1.8
 
     parameters = {
         'label_weight': 1,
         'non_label_weight': 0.8,
         'return_bull_cutoff': 10,
         'return_bear_cutoff': 14,
+        'accuracy_cutoff': 0.5,
+        'accuracy_s_cutoff': 0.5,
         'weight_today_cutoff': 3,
         'bull_deviation_cutoff': 1.8,
         'bear_deviation_cutoff': -2.3,
@@ -712,23 +719,31 @@ def predictionV3():
         'tweet_s_cutoff': 15,
         'days_back': 8,
         'return_s_bull_cutoff': 10,
-        'return_s_bear_cutoff': 1
+        'return_s_bear_cutoff': 1,
+
+        'return_wt': 0.7,
+        'return_s_wt': 2.8,
+        'accuracy_wt': 1.7 ,
+        'accuracy_s_wt': 0.6,
+        'all_features_wt': 1.3,
+        'all_features_s_wt': 0.9,
+        'return_w1_wt': 0.7
     }
 
-    # weightings = [0.8, 1.7, 0.9, 2.8, 0.4, 1.3, 0.9]
-    # (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, 
-    #     weightings, parameters, start_date, end_date, print_info=True, mode=mode)
-    # print(overall, top, accuracy_overall, accuracy_top, returns)
+    weightings = [0.7, 1.7, 0.6, 2.8, 0.7, 1.3, 0.9]
+    (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, 
+        weightings, parameters, start_date, end_date, print_info=True, mode=mode)
+    print(overall, top, accuracy_overall, accuracy_top, returns)
 
     res = []
     for i in range(1, 10):
         for j in range(1, 10):
-            for k in range(1, 10):
-                weightings = [0.5 + (i / 10), 1 + (j / 10), 0.5 + (k / 10), 2.8, 0.4, 1.3, 0.9]
-                (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, 
-                    weightings, parameters, start_date, end_date, print_info=False, mode=mode)
-                print(weightings, overall, top, accuracy_overall, accuracy_top, returns)
-                res.append([parameters, overall, top, returns, accuracy_overall, accuracy_top, weightings])
+            parameters['accuracy_cutoff'] = 0.5 + (i / 100)
+            parameters['accuracy_s_cutoff'] = 0.5 + (j / 100)
+            (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, 
+                weightings, parameters, start_date, end_date, print_info=False, mode=mode)
+            print([0.5 + (i / 100), 0.5 + (j / 100)], overall, top, accuracy_overall, accuracy_top, returns)
+            res.append([[0.5 + (i / 100), 0.5 + (j / 100)], overall, top, returns, accuracy_overall, accuracy_top, weightings])
 
     res.sort(key=lambda x: x[1] + x[2])
     for x in res:
