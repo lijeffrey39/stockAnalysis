@@ -255,26 +255,20 @@ def userCutoff(user_info, symbol, prediction, params, bucket):
     if (max(accuracy_bull, accuracy_bear) < 0.5 or max(accuracy_s_bull, accuracy_s_bear) < 0.5):
         return None
 
-    return_unique = (user_info['return']['bear'] + user_info['return']['bull']) / 2
-    return_unique_s = findFeature(user_info, symbol, 'return', None) / 2
-    return_unique -= return_unique_s
-
 
     return_unique_s_bull = user_info[symbol]['return']['bull']
     return_unique_s_bear = user_info[symbol]['return']['bear']
+    return_unique_s = ((params[8] * return_unique_s_bull) + (params[9] * return_unique_s_bear)) / (params[8] + params[9])
 
-
-    return_unique_bull = user_info['return']['bull']
-    return_unique_bear = user_info['return']['bear']
+    return_unique_bull = user_info['return']['bull'] - return_unique_s_bull
+    return_unique_bear = user_info['return']['bear'] - return_unique_s_bear
 
     # bucket['return_unique_bull'].append(return_unique_bull)
     # bucket['return_unique_bear'].append(return_unique_bear)
     # bucket['return_unique'].append(return_unique)
 
-    if ((return_unique_bull < params[2] and return_unique_bear < params[3]) or return_unique_s < 5):
+    if ((return_unique_bull < params[2] and return_unique_bear < params[3]) or return_unique_s < params[10]):
         return None
-    # if (return_unique < 20 or return_unique_s < 5):
-    #     return None
 
     return_unique_label = user_info['return'][label]
     return_unique_log = (user_info['return_log']['bear'] + user_info['return_log']['bull']) / 2
@@ -300,7 +294,6 @@ def userCutoff(user_info, symbol, prediction, params, bucket):
         'accuracy_unique_s': (accuracy_s_bull + accuracy_s_bear) / 2,
         'num_tweets': num_tweets_unique,
         'num_tweets_s': num_tweets_s_unique,
-        'return_unique': return_unique,
         'return_unique_label': return_unique_label,
         'return_unique_s': return_unique_s,
         'return_unique_log': return_unique_log,
@@ -314,11 +307,11 @@ def userCutoff(user_info, symbol, prediction, params, bucket):
 
 def findStockStd(symbol, stock_features, weightings, mode, params, bucket):
     days_back = 8 # Days to look back for generated daily stock features
-    bull_weight = 1
-    bear_weight = 5
+    bull_weight = params[6]
+    bear_weight = params[7]
 
     features = ['accuracy_unique_s', 'num_tweets', 'num_tweets_s', 
-        'return_unique', 'return_unique_s', 'return_unique_log', 
+        'return_unique_s', 'return_unique_log', 
         'return_unique_log_s', 'return_unique_w1', 
         'return_unique_bull', 'return_unique_bear',
         'return_unique_w1_bull', 'return_unique_w1_bear',
@@ -756,15 +749,15 @@ def predictionV3():
     # STEP 6: Make prediction
     # 6, 8, 3.1, 1.8
     weightings = [0.8, 1.7, 0.9, 2.8, 0.4, 1.3, 0.9]
-    # params = [1, 0, 1, 1]
+    # params = [1, 0.8, 10, 14, 3, 1.8, 1, 4.5, 1, 1, 5]
     # (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, 
     #     weightings, params, start_date, end_date, print_info=True, mode=mode)
     # print(overall, top, accuracy_overall, accuracy_top, returns)
 
     res = []
-    for i in range(10, 30):
+    for i in range(1, 20):
         for j in range(1, 10):
-            params = [1, 0.5, i, j, 3, 1.8]
+            params = [1, 0.8, 10, 14, 3, 1.8, 1, 4.5, 1, i/10, j]
             (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, 
                 weightings, params, start_date, end_date, print_info=False, mode=mode)
             print(params, overall, top, accuracy_overall, accuracy_top, returns)
