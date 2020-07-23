@@ -127,13 +127,13 @@ def userWeight(user_values, feature_avg_std, weightings, params, prediction):
     scaled_num_tweets_s = findStandardizedFeature(user_values['num_tweets_s'], feature_avg_std, 'num_tweets_s')
 
     # (2) Scale user returns
-    scaled_return_unique = findFeatureWeighted(user_values, 'return_unique', params, label, feature_avg_std)
-    scaled_return_unique_w1 = findFeatureWeighted(user_values, 'return_unique_w1', params, label, feature_avg_std)
-    scaled_return_unique_s = findFeatureWeighted(user_values, 'return_unique_s', params, label, feature_avg_std)
+    scaled_return_unique = findFeatureWeighted(user_values, 'return', params, label, feature_avg_std)
+    scaled_return_unique_w1 = findFeatureWeighted(user_values, 'return_w1', params, label, feature_avg_std)
+    scaled_return_unique_s = findFeatureWeighted(user_values, 'return_s', params, label, feature_avg_std)
 
     # (3) Scale user accuracy
-    accuracy_unique = findFeatureWeighted(user_values, 'accuracy_unique', params, label, feature_avg_std)
-    accuracy_unique_s = user_values['accuracy_unique_s']
+    accuracy_unique = findFeatureWeighted(user_values, 'accuracy', params, label, feature_avg_std)
+    accuracy_unique_s = findFeatureWeighted(user_values, 'accuracy_s', params, label, feature_avg_std)
 
     all_features = accuracy_unique * scaled_num_tweets * scaled_return_unique
     all_features_s = accuracy_unique_s * scaled_num_tweets_s * scaled_return_unique_s
@@ -176,52 +176,6 @@ def sigmoidFn(date, mode, params):
     return 1 / (1 + math.exp(-new_x))
 
 
-# Find feature for given user based on symbol and feature name
-def findFeature(feature_info, symbol, feature_name, bull_bear):
-    # If finding stock specific feature, check if data exists, else just use general data
-    if (symbol in feature_info):
-        if (len(feature_info[symbol]) == 0): # If first time tweeting about stock
-            return 0
-        feature_info = feature_info[symbol]
-
-    # Not bull or bear specific feature
-    if (bull_bear == None):
-        if (feature_name == 'accuracy'): # looking for a fraction
-            bull_res_n = feature_info['correct_predictions']['bull']
-            bear_res_n = feature_info['correct_predictions']['bear']
-            bull_res_d = feature_info['num_predictions']['bull']
-            bear_res_d = feature_info['num_predictions']['bear']
-            total_nums = bull_res_d + bear_res_d
-            # If never tweeted about this stock
-            if (total_nums == 0):
-                return 0
-            return (bull_res_n + bear_res_n) / total_nums
-        else: # only looking for one value
-            bull_res = feature_info[feature_name]['bull']
-            bear_res = feature_info[feature_name]['bear']
-            return bull_res + bear_res
-    else:
-        if (feature_name == 'accuracy'): # looking for a fraction
-            correct = feature_info['correct_predictions'][bull_bear]
-            total_nums = feature_info['num_predictions'][bull_bear]
-            if (total_nums == 0): # If never tweeted about this stock
-                return 0
-            spec_acc = correct / total_nums # bull/bear specific accuracy
-            return spec_acc
-
-            # General accuracy
-            bull_res_n = feature_info['correct_predictions']['bull']
-            bear_res_n = feature_info['correct_predictions']['bear']
-            bull_res_d = feature_info['num_predictions']['bull']
-            bear_res_d = feature_info['num_predictions']['bear']
-            total_nums = bull_res_d + bear_res_d
-            general_acc = (bull_res_n + bear_res_n) / total_nums
-            return (general_acc + spec_acc) / 2
-        else: # only looking for one value
-            res = feature_info[feature_name][bull_bear]
-            return res
-
-
 def calculateAccuracyUser(user_info, symbol, label):
     if (symbol in user_info):
         user_info = user_info[symbol]
@@ -235,74 +189,66 @@ def calculateAccuracyUser(user_info, symbol, label):
     return accuracy
 
 
-
 def userCutoff(user_info, symbol, prediction, params, bucket):
-    label = 'bull' if prediction else 'bear'
-    num_tweets_unique = user_info['num_predictions']['bull'] + user_info['num_predictions']['bear']
-    num_tweets_s_unique = findFeature(user_info, symbol, 'num_predictions', None)
-
-    # Filter by number of tweets
-    if (num_tweets_unique <= params['tweet_cutoff'] or num_tweets_s_unique < params['tweet_s_cutoff']):
+    if (len(user_info[symbol]) == 0):
         return None
 
-    # print(user_info)
-    accuracy_s_bull = calculateAccuracyUser(user_info, symbol, 'bull')
-    accuracy_s_bear = calculateAccuracyUser(user_info, symbol, 'bear')
+    label = 'bull' if prediction else 'bear'
+    num_tweets = user_info['num_predictions']['bull'] + user_info['num_predictions']['bear']
+    num_tweets_s = user_info[symbol]['num_predictions']['bull'] + user_info[symbol]['num_predictions']['bear']
+
+    # Filter by number of tweets
+    if (num_tweets <= params['tweet_cutoff'] or num_tweets_s < params['tweet_s_cutoff']):
+        return None
 
     accuracy_bull = calculateAccuracyUser(user_info, '', 'bull')
     accuracy_bear = calculateAccuracyUser(user_info, '', 'bear')
+    accuracy_s_bull = calculateAccuracyUser(user_info, symbol, 'bull')
+    accuracy_s_bear = calculateAccuracyUser(user_info, symbol, 'bear')
 
     # Filter by accuracy
     if (max(accuracy_bull, accuracy_bear) < 0.5 or max(accuracy_s_bull, accuracy_s_bear) < 0.5):
         return None
 
 
-    return_unique_s_bull = user_info[symbol]['return']['bull']
-    return_unique_s_bear = user_info[symbol]['return']['bear']
-    return_unique_s = ((1 * return_unique_s_bull) + (1 * return_unique_s_bear)) / 2
+    return_s_bull = user_info[symbol]['return']['bull']
+    return_s_bear = user_info[symbol]['return']['bear']
+    return_unique_s = ((1 * return_s_bull) + (1 * return_s_bear)) / 2
 
-    return_unique_bull = user_info['return']['bull'] - return_unique_s_bull
-    return_unique_bear = user_info['return']['bear'] - return_unique_s_bear
+    return_bull = user_info['return']['bull'] - return_s_bull
+    return_bear = user_info['return']['bear'] - return_s_bear
 
-    bucket['return_unique_bull'].append(return_unique_s_bull)
-    bucket['return_unique_bear'].append(return_unique_s_bear)
-    bucket['return_unique'].append(return_unique_s)
-
-    if ((return_unique_bull < params['return_bull_cutoff'] and return_unique_bear < params['return_bear_cutoff']) 
-        # or return_unique_s < 5):
-        or (return_unique_s_bull < params['return_s_bull_cutoff'] and return_unique_s_bear < params['return_s_bear_cutoff'])):
+    if ((return_bull < params['return_bull_cutoff'] and return_bear < params['return_bear_cutoff']) 
+        or return_unique_s < 5):
+        # or (return_s_bull < params['return_s_bull_cutoff'] and return_s_bear < params['return_s_bear_cutoff'])):
         return None
 
-    return_unique_label = user_info['return'][label]
-    return_unique_log = (user_info['return_log']['bear'] + user_info['return_log']['bull']) / 2
-    return_unique_w1 = (user_info['return_w']['bear'] + user_info['return_w']['bull']) / 2
-    return_unique_log_s = findFeature(user_info, symbol, 'return_log', None) / 2
-    return_unique_w1_s = findFeature(user_info, symbol, 'return_w', None) / 2
-
-    return_unique_w1_bull = user_info['return_w']['bull'] - user_info[symbol]['return_w']['bull']
-    return_unique_w1_bear = user_info['return_w']['bear'] - user_info[symbol]['return_w']['bear']
+    return_label = user_info['return'][label]
+    return_log = (user_info['return_log']['bear'] + user_info['return_log']['bull']) / 2
+    return_w1_bull = user_info['return_w']['bull'] - user_info[symbol]['return_w']['bull']
+    return_w1_bear = user_info['return_w']['bear'] - user_info[symbol]['return_w']['bear']
 
 
     user_values = {
-        'return_unique_bull': return_unique_bull,
-        'return_unique_bear': return_unique_bear,
-        'return_unique_s_bull': return_unique_s_bull,
-        'return_unique_s_bear': return_unique_s_bear,
-        'return_unique_w1_bull': return_unique_w1_bull,
-        'return_unique_w1_bear': return_unique_w1_bear,
-
-        'accuracy_unique_bull': accuracy_bull,
-        'accuracy_unique_bear': accuracy_bear,
-
-        'accuracy_unique_s': (accuracy_s_bull + accuracy_s_bear) / 2,
-        'num_tweets': num_tweets_unique,
-        'num_tweets_s': num_tweets_s_unique,
-        'return_unique_label': return_unique_label,
-        'return_unique_log': return_unique_log,
-        'return_unique_log_s': return_unique_log_s,
-        'return_unique_w1': return_unique_w1,
-        'return_unique_w1_s': return_unique_w1_s,
+        'num_tweets': num_tweets,
+        'num_tweets_s': num_tweets_s,
+        'accuracy_bull': accuracy_bull,
+        'accuracy_bear': accuracy_bear,
+        'accuracy_s_bull': accuracy_s_bull,
+        'accuracy_s_bear': accuracy_s_bear,
+        'return_bull': return_bull,
+        'return_bear': return_bear,
+        'return_s_bull': return_s_bull,
+        'return_s_bear': return_s_bear,
+        'return_w1_bull': return_w1_bull,
+        'return_w1_bear': return_w1_bear,
+        'return_label': return_label,
+        'return_log': return_log,
     }
+
+    # bucket['return_unique_bull'].append(return_unique_s_bull)
+    # bucket['return_unique_bear'].append(return_unique_s_bear)
+    # bucket['return_unique'].append(return_unique_s)
 
     return user_values
 
@@ -312,13 +258,14 @@ def findStockStd(symbol, stock_features, weightings, mode, params, bucket):
     bull_weight = params['bull_weight_today']
     bear_weight = params['bear_weight_today']
 
-    features = ['accuracy_unique_s', 'num_tweets', 
-        'num_tweets_s', 'return_unique_log', 
-        'return_unique_log_s', 'return_unique_w1', 
-        'return_unique_bull', 'return_unique_bear',
-        'return_unique_w1_bull', 'return_unique_w1_bear',
-        'return_unique_s_bull', 'return_unique_s_bear',
-        'accuracy_unique_bull', 'accuracy_unique_bear']
+    features = [
+        'num_tweets', 'num_tweets_s',
+        'accuracy_bull', 'accuracy_bear',
+        'accuracy_s_bull', 'accuracy_s_bear',
+        'return_bull', 'return_bear',
+        'return_s_bull', 'return_s_bear',
+        'return_w1_bull', 'return_w1_bear',
+        'return_log', 'return_label']
     feature_avgstd = SlidingWindowCalc(14, features)
 
     result_features = ['total_w']
@@ -557,7 +504,7 @@ def makePrediction(preprocessed_user_features, stock_close_opens, weightings, pa
             res = sorted(non_close_open[date_str], key=lambda x: x[1], reverse=True)
             res = list(map(lambda x: [x[0], round(x[1], 2), x[2], x[3]], res))
             stocks_picked = res[:6]
-            print(stocks_picked)
+            print(date_str, stocks_picked)
             # if (date_str in date_symbol_count):
             #     all_stocks_today = date_symbol_count[date_str]
             #     for picked in stocks_picked:
@@ -761,69 +708,31 @@ def predictionV3():
         'bear_deviation_cutoff': -2.3,
         'bull_weight_today': 1,
         'bear_weight_today': 4.5,
-        'tweet_cutoff': 52,
-        'tweet_s_cutoff': 12,
+        'tweet_cutoff': 45,
+        'tweet_s_cutoff': 15,
         'days_back': 8,
         'return_s_bull_cutoff': 10,
         'return_s_bear_cutoff': 1
     }
 
-    weightings = [0.8, 1.7, 0.9, 2.8, 0.4, 1.3, 0.9]
-    # params = [1, 0.8, 10, 14, 3, 1.8, 1, 4.5, 1, 1, 5]
+    # weightings = [0.8, 1.7, 0.9, 2.8, 0.4, 1.3, 0.9]
     # (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, 
     #     weightings, parameters, start_date, end_date, print_info=True, mode=mode)
     # print(overall, top, accuracy_overall, accuracy_top, returns)
 
     res = []
-    for i in range(1, 15):
-        for j in range(1, 30):
-            parameters['return_s_bull_cutoff'] = i
-            weightings = [0.8, 1.7, 0.9, j/10, 0.4, 1.3, 0.9]
-            (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, 
-                weightings, parameters, start_date, end_date, print_info=False, mode=mode)
-            print(parameters, j/10, overall, top, accuracy_overall, accuracy_top, returns)
-            res.append([parameters, overall, top, returns, accuracy_overall, accuracy_top, weightings])
+    for i in range(1, 10):
+        for j in range(1, 10):
+            for k in range(1, 10):
+                weightings = [0.5 + (i / 10), 1 + (j / 10), 0.5 + (k / 10), 2.8, 0.4, 1.3, 0.9]
+                (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, 
+                    weightings, parameters, start_date, end_date, print_info=False, mode=mode)
+                print(weightings, overall, top, accuracy_overall, accuracy_top, returns)
+                res.append([parameters, overall, top, returns, accuracy_overall, accuracy_top, weightings])
 
     res.sort(key=lambda x: x[1] + x[2])
     for x in res:
         print(x)
-
-
-    # 5.4 - 5.6
-    # 8
-    # 3.2-3.5
-    # 1.8-1.84
-    # res = []
-    # for i in range(0, 11): # 5
-    #     i = 4 + (i / 5)
-    #     for j in range(7, 11): # 8
-    #         for k in range(29, 36): # 3.1
-    #             k = k / 10
-    #             for l in range(0, 9): # 1.8
-    #                 l = 1.76 + (l / 50)
-    #                 params = [i, j, k, l]
-    #                 (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, weightings, params, print_info=False, mode=mode)
-    #                 print(params, overall, top, accuracy_overall, accuracy_top, returns)
-    #                 res.append([params, overall, top, returns, accuracy_overall, accuracy_top])
-
-    # res = []
-    # for i in range(45, 60): # 5
-    #     i = i / 10
-    #     for j in range(21, 25): # 11
-    #         j = j / 10
-    #         params = [i, j]
-    #         (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, weightings, params, print_info=False, mode=mode)
-    #         if (accuracy_top[0] < 200):
-    #             continue
-    #         print(params, overall, top, accuracy_overall, accuracy_top, returns)
-    #         res.append([params, overall, top, returns, accuracy_overall, accuracy_top])
-
-    # res.sort(key=lambda x: x[1] + x[2])
-    # for x in res:
-    #     print(x)
-
-
-    # weightings = [0.5, 1.5, 1, 3, 0.4, 1.3, 0.9]
 
     # res = []
     # for i in range(0, 10):
