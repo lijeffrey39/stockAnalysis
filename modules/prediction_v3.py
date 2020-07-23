@@ -111,10 +111,11 @@ def findFeatureWeighted(user_values, feature_name, params, label, feature_avg_st
     bull_feature = findStandardizedFeature(user_values[bull_name], feature_avg_std, bull_name, log=True)
     bear_feature = findStandardizedFeature(user_values[bear_name], feature_avg_std, bear_name, log=True)
     result = 0
+    total_weight = params['label_weight'] + params['non_label_weight']
     if (label == 'bull'):
-        result = ((params[0] * bull_feature) + (params[1] * bear_feature)) / (params[0] + params[1])
+        result = ((params['label_weight'] * bull_feature) + (params['non_label_weight'] * bear_feature)) / total_weight
     else:
-        result = ((params[0] * bear_feature) + (params[1] * bull_feature)) / (params[0] + params[1])
+        result = ((params['label_weight'] * bear_feature) + (params['non_label_weight'] * bull_feature)) / total_weight
     return result
 
 
@@ -241,7 +242,7 @@ def userCutoff(user_info, symbol, prediction, params, bucket):
     num_tweets_s_unique = findFeature(user_info, symbol, 'num_predictions', None)
 
     # Filter by number of tweets
-    if (num_tweets_unique <= 52 or num_tweets_s_unique < 12):
+    if (num_tweets_unique <= params['tweet_cutoff'] or num_tweets_s_unique < params['tweet_s_cutoff']):
         return None
 
     # print(user_info)
@@ -258,16 +259,18 @@ def userCutoff(user_info, symbol, prediction, params, bucket):
 
     return_unique_s_bull = user_info[symbol]['return']['bull']
     return_unique_s_bear = user_info[symbol]['return']['bear']
-    return_unique_s = ((params[8] * return_unique_s_bull) + (params[9] * return_unique_s_bear)) / (params[8] + params[9])
+    return_unique_s = ((1 * return_unique_s_bull) + (1 * return_unique_s_bear)) / 2
 
     return_unique_bull = user_info['return']['bull'] - return_unique_s_bull
     return_unique_bear = user_info['return']['bear'] - return_unique_s_bear
 
-    # bucket['return_unique_bull'].append(return_unique_bull)
-    # bucket['return_unique_bear'].append(return_unique_bear)
-    # bucket['return_unique'].append(return_unique)
+    bucket['return_unique_bull'].append(return_unique_s_bull)
+    bucket['return_unique_bear'].append(return_unique_s_bear)
+    bucket['return_unique'].append(return_unique_s)
 
-    if ((return_unique_bull < params[2] and return_unique_bear < params[3]) or return_unique_s < params[10]):
+    if ((return_unique_bull < params['return_bull_cutoff'] and return_unique_bear < params['return_bear_cutoff']) 
+        # or return_unique_s < 5):
+        or (return_unique_s_bull < params['return_s_bull_cutoff'] and return_unique_s_bear < params['return_s_bear_cutoff'])):
         return None
 
     return_unique_label = user_info['return'][label]
@@ -295,7 +298,6 @@ def userCutoff(user_info, symbol, prediction, params, bucket):
         'num_tweets': num_tweets_unique,
         'num_tweets_s': num_tweets_s_unique,
         'return_unique_label': return_unique_label,
-        'return_unique_s': return_unique_s,
         'return_unique_log': return_unique_log,
         'return_unique_log_s': return_unique_log_s,
         'return_unique_w1': return_unique_w1,
@@ -306,12 +308,12 @@ def userCutoff(user_info, symbol, prediction, params, bucket):
 
 
 def findStockStd(symbol, stock_features, weightings, mode, params, bucket):
-    days_back = 8 # Days to look back for generated daily stock features
-    bull_weight = params[6]
-    bear_weight = params[7]
+    days_back = params['days_back'] # Days to look back for generated daily stock features
+    bull_weight = params['bull_weight_today']
+    bear_weight = params['bear_weight_today']
 
-    features = ['accuracy_unique_s', 'num_tweets', 'num_tweets_s', 
-        'return_unique_s', 'return_unique_log', 
+    features = ['accuracy_unique_s', 'num_tweets', 
+        'num_tweets_s', 'return_unique_log', 
         'return_unique_log_s', 'return_unique_w1', 
         'return_unique_bull', 'return_unique_bear',
         'return_unique_w1_bull', 'return_unique_w1_bear',
@@ -522,7 +524,7 @@ def makePrediction(preprocessed_user_features, stock_close_opens, weightings, pa
         for date_str in stock_std: # For each day, look at deviation and close open for the day
             date_real = datetime.datetime.strptime(date_str, '%Y-%m-%d')
             stock_day_std = stock_std[date_str]
-            if (stock_day_std['total_w']['std'] == 0 or stock_day_std['total_tweet_w'] <= params[4]):
+            if (stock_day_std['total_w']['std'] == 0 or stock_day_std['total_tweet_w'] <= params['weight_today_cutoff']):
                 continue
             deviation = (stock_day_std['total_w']['val'] - stock_day_std['total_w']['avg']) / stock_day_std['total_w']['std']
 
@@ -535,7 +537,7 @@ def makePrediction(preprocessed_user_features, stock_close_opens, weightings, pa
                 continue
 
             # Minimum devation to keep a stock
-            if (deviation > params[5] or deviation < -2.3):
+            if (deviation > params['bull_deviation_cutoff'] or deviation < params['bear_deviation_cutoff']):
                 if (date_str not in picked_stocks):
                     picked_stocks[date_str] = []
                 picked_stocks[date_str].append([symbol, deviation, close_open[2]])
@@ -748,20 +750,39 @@ def predictionV3():
 
     # STEP 6: Make prediction
     # 6, 8, 3.1, 1.8
+
+    parameters = {
+        'label_weight': 1,
+        'non_label_weight': 0.8,
+        'return_bull_cutoff': 10,
+        'return_bear_cutoff': 14,
+        'weight_today_cutoff': 3,
+        'bull_deviation_cutoff': 1.8,
+        'bear_deviation_cutoff': -2.3,
+        'bull_weight_today': 1,
+        'bear_weight_today': 4.5,
+        'tweet_cutoff': 52,
+        'tweet_s_cutoff': 12,
+        'days_back': 8,
+        'return_s_bull_cutoff': 10,
+        'return_s_bear_cutoff': 1
+    }
+
     weightings = [0.8, 1.7, 0.9, 2.8, 0.4, 1.3, 0.9]
     # params = [1, 0.8, 10, 14, 3, 1.8, 1, 4.5, 1, 1, 5]
     # (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, 
-    #     weightings, params, start_date, end_date, print_info=True, mode=mode)
+    #     weightings, parameters, start_date, end_date, print_info=True, mode=mode)
     # print(overall, top, accuracy_overall, accuracy_top, returns)
 
     res = []
-    for i in range(1, 20):
-        for j in range(1, 10):
-            params = [1, 0.8, 10, 14, 3, 1.8, 1, 4.5, 1, i/10, j]
+    for i in range(1, 15):
+        for j in range(1, 30):
+            parameters['return_s_bull_cutoff'] = i
+            weightings = [0.8, 1.7, 0.9, j/10, 0.4, 1.3, 0.9]
             (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, 
-                weightings, params, start_date, end_date, print_info=False, mode=mode)
-            print(params, overall, top, accuracy_overall, accuracy_top, returns)
-            res.append([params, overall, top, returns, accuracy_overall, accuracy_top])
+                weightings, parameters, start_date, end_date, print_info=False, mode=mode)
+            print(parameters, j/10, overall, top, accuracy_overall, accuracy_top, returns)
+            res.append([parameters, overall, top, returns, accuracy_overall, accuracy_top, weightings])
 
     res.sort(key=lambda x: x[1] + x[2])
     for x in res:

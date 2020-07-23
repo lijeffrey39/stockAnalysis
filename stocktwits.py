@@ -287,7 +287,7 @@ def main():
         # bucket = readPickleObject('bucket.pkl')
         # res = bucket['return_unique_bull']
         # res.sort(reverse=True)
-        # res = list(filter(lambda x: x < 20 and x > 0, res))
+        # res = list(filter(lambda x: x < 60 and x > -20, res))
         # plt.hist(res[50:], density=False, bins=150)
         # plt.show()
     
