@@ -119,7 +119,7 @@ def findFeatureWeighted(user_values, feature_name, params, label, feature_avg_st
     return result
 
 
-def userWeight(user_values, feature_avg_std, weightings, params, prediction):
+def userWeight(user_values, feature_avg_std, params, prediction):
     label = 'bull' if prediction else 'bear'
 
     # (1) Scale tweet number
@@ -259,7 +259,7 @@ def userCutoff(user_info, symbol, prediction, params, bucket):
     return user_values
 
 
-def findStockStd(symbol, stock_features, weightings, mode, params, bucket):
+def findStockStd(symbol, stock_features, mode, params, bucket):
     days_back = params['days_back'] # Days to look back for generated daily stock features
     bull_weight = params['bull_weight_today']
     bear_weight = params['bear_weight_today']
@@ -318,7 +318,7 @@ def findStockStd(symbol, stock_features, weightings, mode, params, bucket):
         for username in found_users:
             user_features = found_users[username]
 
-            user_w = userWeight(user_features, weightings_avgstd, weightings, params, user_features['prediction'])
+            user_w = userWeight(user_features, weightings_avgstd, params, user_features['prediction'])
             tweet_w = sigmoidFn(user_features['times'][0], mode, params) # Most recent posted time
             total_tweet_w += tweet_w
             if (user_features['prediction']):
@@ -455,7 +455,7 @@ def dateSymbolCounts(start_date, end_date):
     return result
 
 
-def makePrediction(preprocessed_user_features, stock_close_opens, weightings, params, start_date, end_date, print_info, mode=1):
+def makePrediction(preprocessed_user_features, stock_close_opens, params, start_date, end_date, print_info, mode=1):
     # date_symbol_count = dateSymbolCounts(start_date, end_date)
     picked_stocks = {}
     top_n_stocks = 3
@@ -472,7 +472,7 @@ def makePrediction(preprocessed_user_features, stock_close_opens, weightings, pa
             continue
 
         stock_features = preprocessed_user_features[symbol]
-        stock_std = findStockStd(symbol, stock_features, weightings, mode, params, bucket)
+        stock_std = findStockStd(symbol, stock_features, mode, params, bucket)
 
         for date_str in stock_std: # For each day, look at deviation and close open for the day
             date_real = datetime.datetime.strptime(date_str, '%Y-%m-%d')
@@ -519,7 +519,7 @@ def makePrediction(preprocessed_user_features, stock_close_opens, weightings, pa
             #         stock_counts[rank] += 1
 
     # print(stock_counts)
-    writePickleObject('bucket.pkl', bucket)
+    # writePickleObject('bucket.pkl', bucket)
     return (round(overall, 4), round(top, 4), accuracy_overall, accuracy_top, returns_overall)
 
 
@@ -535,6 +535,11 @@ def saveLocalTweets(start_date, end_date):
 
 
 def newDailyPrediction(date):
+    bucket = {
+        'return_unique_bull': [],
+        'return_unique_bear': [],
+        'return_unique': []
+    }
     end_date = date
     start_date = end_date - datetime.timedelta(days=80)
     mode = 1
@@ -548,7 +553,6 @@ def newDailyPrediction(date):
     # Fetch stock features per day
     path = 'newPickled/preprocessed_daily_user_features.pickle'
     preprocessed_user_features = findAllStockFeatures(start_date, end_date, user_features, path, update=True)
-    weightings = [0.8, 1.7, 0.9, 2.8, 0.4, 1.3, 0.9]
     non_close_open = {}
     params=[1, 0]
 
@@ -558,11 +562,11 @@ def newDailyPrediction(date):
             continue
 
         stock_features = preprocessed_user_features[symbol]
-        stock_std = findStockStd(symbol, stock_features, weightings, mode, params)
+        stock_std = findStockStd(symbol, stock_features, mode, params, bucket)
 
         for date_str in stock_std: # For each day, look at deviation and close open for the day
             stock_day_std = stock_std[date_str]
-            if (stock_day_std['total_w']['std'] == 0 or stock_day_std['total_tweet_w'] <= 3.1):
+            if (stock_day_std['total_w']['std'] == 0 or stock_day_std['total_tweet_w'] <= 3):
                 continue
             deviation = (stock_day_std['total_w']['val'] - stock_day_std['total_w']['avg']) / stock_day_std['total_w']['std']
 
@@ -689,7 +693,7 @@ def predictionV3():
     # saveUserTweets()
 
     # STEP 2: Calculate and save individual user features
-    user_features = pregenerateAllUserFeatures(update=False, path='newPickled/user_features_v3.pickle', mode=mode)
+    # user_features = pregenerateAllUserFeatures(update=False, path='newPickled/user_features_v3.pickle', mode=mode)
 
     # STEP 3: Fetch all stock tweets
     # writeAllTweets(start_date, end_date)
@@ -699,7 +703,7 @@ def predictionV3():
 
     # STEP 5: Calculate stock features per day
     path = 'newPickled/preprocessed_stock_user_features_v3.pickle'
-    preprocessed_user_features = findAllStockFeatures(start_date, end_date, user_features, path, update=True, mode=mode)
+    preprocessed_user_features = findAllStockFeatures(start_date, end_date, {}, path, update=False, mode=mode)
 
     # STEP 6: Make prediction
 
@@ -710,10 +714,10 @@ def predictionV3():
         'return_bear_cutoff': 14,
         'accuracy_cutoff': 0.5,
         'accuracy_s_cutoff': 0.5,
-        'weight_today_cutoff': 3,
+        'weight_today_cutoff': 3.4,
         'bull_deviation_cutoff': 1.8,
         'bear_deviation_cutoff': -2.3,
-        'bull_weight_today': 1,
+        'bull_weight_today': 1.2,
         'bear_weight_today': 4.5,
         'tweet_cutoff': 45,
         'tweet_s_cutoff': 15,
@@ -730,42 +734,24 @@ def predictionV3():
         'return_w1_wt': 0.7
     }
 
-    weightings = [0.7, 1.7, 0.6, 2.8, 0.7, 1.3, 0.9]
     (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, 
-        weightings, parameters, start_date, end_date, print_info=True, mode=mode)
+        parameters, start_date, end_date, print_info=True, mode=mode)
     print(overall, top, accuracy_overall, accuracy_top, returns)
 
-    res = []
-    for i in range(1, 10):
-        for j in range(1, 10):
-            parameters['accuracy_cutoff'] = 0.5 + (i / 100)
-            parameters['accuracy_s_cutoff'] = 0.5 + (j / 100)
-            (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, 
-                weightings, parameters, start_date, end_date, print_info=False, mode=mode)
-            print([0.5 + (i / 100), 0.5 + (j / 100)], overall, top, accuracy_overall, accuracy_top, returns)
-            res.append([[0.5 + (i / 100), 0.5 + (j / 100)], overall, top, returns, accuracy_overall, accuracy_top, weightings])
-
-    res.sort(key=lambda x: x[1] + x[2])
-    for x in res:
-        print(x)
-
     # res = []
-    # for i in range(0, 10):
-    #     i = i / 10
-    #     for j in range(0, 10):
-    #         j = 1 + (j / 10)
-    #         for k in range(0, 10):
-    #             k = 0.5 + (k / 10)
-    #             weightings = [0.8, 1.7, 0.9, 2.8, i, j, k]
-    #             (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, weightings, [], print_info=False)
-    #             if (accuracy_top[0] < 200):
-    #                 continue
-    #             print(weightings, overall, top, accuracy_overall, accuracy_top, returns)
-    #             res.append([weightings, overall, top, returns, accuracy_overall, accuracy_top])
+    # for i in range(1, 10):
+    #     for j in range(1, 10):
+    #         parameters['accuracy_cutoff'] = 0.5 + (i / 100)
+    #         parameters['accuracy_s_cutoff'] = 0.5 + (j / 100)
+    #         (overall, top, accuracy_overall, accuracy_top, returns) = makePrediction(preprocessed_user_features, close_opens, 
+    #             parameters, start_date, end_date, print_info=False, mode=mode)
+    #         print([0.5 + (i / 100), 0.5 + (j / 100)], overall, top, accuracy_overall, accuracy_top, returns)
+    #         res.append([[0.5 + (i / 100), 0.5 + (j / 100)], overall, top, returns, accuracy_overall, accuracy_top])
 
     # res.sort(key=lambda x: x[1] + x[2])
     # for x in res:
-    #     print(x)
+        # print(x)
+
 
     # STEP FINAL - DAILY PREDICTION
     # dailyPrediction()
