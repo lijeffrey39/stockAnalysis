@@ -129,8 +129,9 @@ def analyzeUsers(reAnalyze, findNewUsers, updateUser):
         allc = usercollection.find(all_tweet_query).count()
         print('bbcount: ' + str(bb))
         print('total tweets: ' + str(allc))
+        now = convertToEST(datetime.datetime.now())
         userdb = constants['db_user_client'].get_database('user_data_db').users
-        x = userdb.update({'_id': username}, {'$set': {'bbcount': bb, 'allcount': allc}})
+        x = userdb.update({'_id': username}, {'$set': {'bbcount': bb, 'allcount': allc, 'last_updated': now}})
         print(userdb.find({'_id': username})[0])
         insertResults(result)
         coreInfo['error'] = ''
@@ -213,8 +214,8 @@ def hourlyparse():
 def dailyparse():
     now = convertToEST(datetime.datetime.now())
     date = datetime.datetime(now.year, now.month, now.day)
-    stocks = stockcount1000daily(date, 70)
-    analyzeStocks(date, stocks[:3]) 
+    stocks = stockcount1000daily(date, 80)
+    analyzeStocks(date, stocks) 
 
 def main():
     opt_parser = optparse.OptionParser()
@@ -223,13 +224,13 @@ def main():
     dateNow = convertToEST(datetime.datetime.now())
 
     if (options.users):
-        analyzeUsers(reAnalyze=False, findNewUsers=False, updateUser=True)
+        analyzeUsers(reAnalyze=True, findNewUsers=False, updateUser=False)
     elif (options.stocks):
         while True:
             now = convertToEST(datetime.datetime.now())
             date = datetime.datetime(now.year, now.month, now.day)
-            stocks = stockcount1000daily(date, 70)
-            analyzeStocks(date, stocks) 
+            stocks = stockcount1000daily(date, 80)
+            analyzeStocks(date, stocks[50:80])
     elif (options.optimizer):
         optimizeParams()
     elif (options.prediction):

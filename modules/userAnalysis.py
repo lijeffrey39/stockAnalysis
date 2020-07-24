@@ -2,6 +2,7 @@ import datetime
 import time
 import math
 from random import shuffle
+import sys
 
 import requests
 from dateutil import parser
@@ -50,19 +51,13 @@ def insertUpdateError(coreInfo, reAnalyze, updateUser):
 # Can parse/analyze users if it is set to true
 def shouldParseUser(username, reAnalyze, updateUser):
     analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
-    if (reAnalyze is False and updateUser is False and
-        analyzedUsers.count_documents({'_id': username}) != 0):
+    if (reAnalyze is False and updateUser is False and analyzedUsers.count_documents({'_id': username}) != 0):
         return None
     
     if (updateUser):
         query = {'_id': username}
         result = analyzedUsers.find_one(query)
         
-        try:
-            if result['last_updated'] is None:
-                return None
-        except:
-            return None
         # elif result['last_updated'] > datetime.datetime.now():
         #     print('done already')
         #     return None
@@ -71,12 +66,12 @@ def shouldParseUser(username, reAnalyze, updateUser):
             print('has an allcount')
         except:
             print(result['last_updated'])
-            result['last_updated'] = convertToEST(datetime.datetime.now())
-            print(result['last_updated'])
+            #result['last_updated'] = convertToEST(datetime.datetime.now())
             return result
 
-        # if result['last_updated'] is None:
-        #     return None
+        if result['last_updated'] is None:
+            result['last_updated'] = datetime.datetime.now()-datetime.timedelta(years=1)
+            
         lu = result['last_updated'].strftime("%Y-%m-%d")
         if bb is None:
             pass
@@ -141,24 +136,15 @@ def shouldParseUser(username, reAnalyze, updateUser):
         #                                                                                             {'time': {'$gte': start_date,'$lt': end_date}}]})
         # print(tweetsDB.count())
         
+        # result exists so user needs to be parsed
         if (result):
-            result['last_updated'] = convertToEST(datetime.datetime.now())
+            #result['last_updated'] = convertToEST(datetime.datetime.now())
             return result
-            # Already updated recently
-            # if (lastUpdated > dateStart):
-            #     return None
 
     if (updateUser):
         print("should not get here")
 
     (coreInfo, error) = findUserInfo(username)
-    
-    try:
-        if coreInfo['last_updated'] > datetime.datetime(2020, 7, 9):
-            print('done already')
-            return None
-    except:
-        pass
 
     currTime = convertToEST(datetime.datetime.now())
 
@@ -166,8 +152,7 @@ def shouldParseUser(username, reAnalyze, updateUser):
     if (not coreInfo):
         errorMsg = "User doesn't exist / API down"
         userInfoError = {'_id': username,
-                         'error': errorMsg,
-                         'last_updated': currTime}
+                         'error': errorMsg}
         insertUpdateError(userInfoError, reAnalyze, updateUser)
         return None
 
@@ -176,12 +161,10 @@ def shouldParseUser(username, reAnalyze, updateUser):
         (coreInfo, errorMsg) = findUserInfoDriver(username)
         if (not coreInfo):
             userInfoError = {'_id': username,
-                             'error': errorMsg,
-                             'last_updated': currTime}
+                             'error': errorMsg}
             insertUpdateError(userInfoError, reAnalyze, updateUser)
             return None
 
-    coreInfo['last_updated'] = currTime
     coreInfo['_id'] = username
 
     # If number of ideas are < the curren min threshold
@@ -189,7 +172,8 @@ def shouldParseUser(username, reAnalyze, updateUser):
         coreInfo['error'] = 'Not enough ideas'
         insertUpdateError(coreInfo, reAnalyze, updateUser)
         return None
-
+    
+    coreInfo['last_updated'] = currTime
     coreInfo['error'] = ""
     return coreInfo
 
@@ -212,13 +196,13 @@ def findUsers(reAnalyze, findNewUsers, updateUser):
     if (reAnalyze):
         dateStart = convertToEST(datetime.datetime.now())
         query = {'$and': [
-                    {'last_updated': {'$lte': datetime.datetime(2020, 7, 9)}},
+                    # {'last_updated': {'$lte': datetime.datetime(2020, 7, 9)}},
                     # {'error': {'$eq': 'Message: unknown error: Chrome failed to start: crashed.\n  (unknown error: DevToolsActivePort file doesn\'t exist)\n  (The process started from chrome location C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe is no longer running, so ChromeDriver is assuming that Chrome has crashed.)\n'}},
-                    # {'error': {'$ne': 'User doesn\'t exist'}},
-                    {'error': {'$eq': 'Not enough ideas'}},
-                    # #{'error': {'$ne': ""}},
-                    # {'error': {'$ne': "User doesn't exist / API down"}},
-                    # {'error': {'$ne': 'Len of messages was 0 ???'}}
+                    {'error': {'$ne': 'User doesn\'t exist'}},
+                    {'error': {'$ne': 'Not enough ideas'}},
+                    {'error': {'$ne': ""}},
+                    {'error': {'$ne': "User doesn't exist / API down"}},
+                    {'error': {'$ne': 'Len of messages was 0 ???'}}
                 ]}
         cursor = analyzedUsers.find(query)
     elif (updateUser):
