@@ -137,7 +137,7 @@ def userWeight(user_values, feature_avg_std, params, prediction):
 
     all_features = scaled_accuracy * scaled_num_tweets * scaled_return
     all_features_s = scaled_accuracy_s * scaled_num_tweets_s * scaled_return_s
-    
+
     user_weight = (
         (params['return_wt'] * scaled_return) +
         (params['return_s_wt'] * scaled_return_s) +
@@ -206,17 +206,6 @@ def userCutoff(user_info, symbol, prediction, params, bucket):
     if (num_tweets <= params['tweet_cutoff'] or num_tweets_s < params['tweet_s_cutoff']):
         return None
 
-    accuracy_bull = calculateAccuracyUser(user_info, '', 'bull')
-    accuracy_bear = calculateAccuracyUser(user_info, '', 'bear')
-    accuracy_s_bull = calculateAccuracyUser(user_info, symbol, 'bull')
-    accuracy_s_bear = calculateAccuracyUser(user_info, symbol, 'bear')
-
-    # Filter by accuracy
-    if (max(accuracy_bull, accuracy_bear) < params['accuracy_cutoff'] or 
-        max(accuracy_s_bull, accuracy_s_bear) < params['accuracy_s_cutoff']):
-        return None
-
-
     return_s_bull = user_info[symbol]['return']['bull']
     return_s_bear = user_info[symbol]['return']['bear']
     return_unique_s = ((1 * return_s_bull) + (1 * return_s_bear)) / 2
@@ -229,8 +218,19 @@ def userCutoff(user_info, symbol, prediction, params, bucket):
         # or (return_s_bull < params['return_s_bull_cutoff'] and return_s_bear < params['return_s_bear_cutoff'])):
         return None
 
-    return_label = user_info['return'][label]
-    return_log = (user_info['return_log']['bear'] + user_info['return_log']['bull']) / 2
+    accuracy_bull = calculateAccuracyUser(user_info, '', 'bull')
+    accuracy_bear = calculateAccuracyUser(user_info, '', 'bear')
+    accuracy_s_bull = calculateAccuracyUser(user_info, symbol, 'bull')
+    accuracy_s_bear = calculateAccuracyUser(user_info, symbol, 'bear')
+
+    # Filter by accuracy
+    if (max(accuracy_bull, accuracy_bear) < params['accuracy_cutoff'] or 
+        max(accuracy_s_bull, accuracy_s_bear) < params['accuracy_s_cutoff']):
+        return None
+
+
+    return_log_bull = user_info['return_log']['bull']
+    return_log_bear = user_info['return_log']['bear']
     return_w1_bull = user_info['return_w']['bull'] - user_info[symbol]['return_w']['bull']
     return_w1_bear = user_info['return_w']['bear'] - user_info[symbol]['return_w']['bear']
 
@@ -248,8 +248,8 @@ def userCutoff(user_info, symbol, prediction, params, bucket):
         'return_s_bear': return_s_bear,
         'return_w1_bull': return_w1_bull,
         'return_w1_bear': return_w1_bear,
-        'return_label': return_label,
-        'return_log': return_log,
+        'return_log_bull': return_log_bull,
+        'return_log_bear': return_log_bear
     }
 
     # bucket['return_unique_bull'].append(return_unique_s_bull)
@@ -271,8 +271,8 @@ def findStockStd(symbol, stock_features, mode, params, bucket):
         'return_bull', 'return_bear',
         'return_s_bull', 'return_s_bear',
         'return_w1_bull', 'return_w1_bear',
-        'return_log', 'return_label']
-    feature_avgstd = SlidingWindowCalc(14, features)
+        'return_log_bull', 'return_log_bear']
+    feature_avgstd = SlidingWindowCalc(params['users_back'], features)
 
     result_features = ['total_w']
     result_feature_avgstd = SlidingWindowCalc(days_back, result_features)
@@ -548,13 +548,40 @@ def newDailyPrediction(date):
     saveLocalTweets(date, date)
 
     # Use pregenerated user features
-    user_features = pregenerateAllUserFeatures(update=False, path='newPickled/user_features.pickle')
+    user_features = pregenerateAllUserFeatures(update=False, path='newPickled/user_features_v3.pickle')
 
     # Fetch stock features per day
     path = 'newPickled/preprocessed_daily_user_features.pickle'
     preprocessed_user_features = findAllStockFeatures(start_date, end_date, user_features, path, update=True)
     non_close_open = {}
-    params=[1, 0]
+
+    parameters = {
+        'label_weight': 1,
+        'non_label_weight': 0.8,
+        'return_bull_cutoff': 10,
+        'return_bear_cutoff': 14,
+        'tweet_cutoff': 45,
+        'tweet_s_cutoff': 15,
+        'accuracy_cutoff': 0.5,
+        'accuracy_s_cutoff': 0.5,
+        'weight_today_cutoff': 3.4,
+        'bull_deviation_cutoff': 1.8,
+        'bear_deviation_cutoff': -2.3,
+        'bull_weight_today': 1.2,
+        'bear_weight_today': 4.5,
+        'days_back': 8,
+        'return_s_bull_cutoff': 10,
+        'return_s_bear_cutoff': 1,
+
+        'return_wt': 0.9,
+        'return_s_wt': 2.8,
+        'accuracy_wt': 1.7 ,
+        'accuracy_s_wt': 0.6,
+        'all_features_wt': 1.5,
+        'all_features_s_wt': 0.9,
+        'return_w1_wt': 0.7
+    }
+
 
     # Find each stocks std per day
     for symbol in constants['good_stocks']:
@@ -562,11 +589,11 @@ def newDailyPrediction(date):
             continue
 
         stock_features = preprocessed_user_features[symbol]
-        stock_std = findStockStd(symbol, stock_features, mode, params, bucket)
+        stock_std = findStockStd(symbol, stock_features, mode, parameters, bucket)
 
         for date_str in stock_std: # For each day, look at deviation and close open for the day
             stock_day_std = stock_std[date_str]
-            if (stock_day_std['total_w']['std'] == 0 or stock_day_std['total_tweet_w'] <= 3):
+            if (stock_day_std['total_w']['std'] == 0 or stock_day_std['total_tweet_w'] <= 3.4):
                 continue
             deviation = (stock_day_std['total_w']['val'] - stock_day_std['total_w']['avg']) / stock_day_std['total_w']['std']
 
@@ -578,7 +605,7 @@ def newDailyPrediction(date):
     # Sort by std
     for date_str in non_close_open:
         symbols = list(non_close_open[date_str].keys())
-        non_close_open[date_str]['stocks_found'] = sorted(symbols, key=lambda symbol: non_close_open[date_str][symbol][1], reverse=True)
+        non_close_open[date_str]['stocks_found'] = sorted(symbols, key=lambda symbol: abs(non_close_open[date_str][symbol][1]), reverse=True)
 
     # Display past info about the top stocks
     current_date_str = date.strftime("%Y-%m-%d")
@@ -668,25 +695,27 @@ def newDailyPrediction(date):
             - return_unique_w1
             - return_unique_label
     6. Prediction - 
-        paramaters to change:
-            1. Minimum user cutoff to consider stock for the day (3.1)
-            2. Devation cutoff to keep a bull stock (1.82)
-            3. Devation cutoff to keep a bear stock (-2.3)
-            4. Weight of bull predictions (1)
-            5. Weight of bear predictions (5)
-            6. Number of days to look back for calculating deviation (8 days)
-            7. Hours back for tweet to be weighted half (5.2 hours)
-            8. Ratio of stock weight to number of tweets
-            9. User bull return cutoff ()
-            10. User bear return cutoff ()
-            11. User min tweet cutoff (52)
-            12. User min tweet stock cutoff (12)
-    
+        label_weight           - weight of user's past features based on prediction (bull/bear)
+        non_label_weight       - weight of user's past features based on opposite of prediction (bull/bear)
+        return_bull_cutoff     - minimum bull return to consider user
+        return_bear_cutoff     - minimum bear return to consider user
+        tweet_cutoff           - min total tweets to consider user
+        tweet_s_cutoff         - min total tweets for stock to consider user
+        accuracy_cutoff        - min user accuracy to consider
+        accuracy_s_cutoff      - min user accuracy for stock to consider
+        weight_today_cutoff    - min total weight for the day to consider stock
+        bull_deviation_cutoff  - min postive deviation for the day to consider stock
+        bear_deviation_cutoff  - min negative deviation for the day to consider stock
+        bull_weight_today      - weight of bull predictions for the day
+        bear_weight_today      - weight of bear predictions for the day
+        days_back              - days to look back for daily generated stock features
+        users_back             - users to look back to generate avg/std for user features
+
 """
 
 def predictionV3():
     start_date = datetime.datetime(2019, 6, 3) # Prediction start date
-    end_date = datetime.datetime(2020, 7, 22) # Prediction end date
+    end_date = datetime.datetime(2020, 7, 23) # Prediction end date
     mode = 1 # 4:00 PM to 9:30 AM next trading day
 
     # STEP 1: Fetch all user tweets
@@ -712,24 +741,25 @@ def predictionV3():
         'non_label_weight': 0.8,
         'return_bull_cutoff': 10,
         'return_bear_cutoff': 14,
+        'tweet_cutoff': 45,
+        'tweet_s_cutoff': 15,
         'accuracy_cutoff': 0.5,
         'accuracy_s_cutoff': 0.5,
         'weight_today_cutoff': 3.4,
         'bull_deviation_cutoff': 1.8,
-        'bear_deviation_cutoff': -2.3,
+        'bear_deviation_cutoff': -2.15,
         'bull_weight_today': 1.2,
         'bear_weight_today': 4.5,
-        'tweet_cutoff': 45,
-        'tweet_s_cutoff': 15,
         'days_back': 8,
         'return_s_bull_cutoff': 10,
         'return_s_bear_cutoff': 1,
+        'users_back': 14,
 
-        'return_wt': 0.7,
+        'return_wt': 0.9,
         'return_s_wt': 2.8,
         'accuracy_wt': 1.7 ,
         'accuracy_s_wt': 0.6,
-        'all_features_wt': 1.3,
+        'all_features_wt': 1.5,
         'all_features_s_wt': 0.9,
         'return_w1_wt': 0.7
     }
