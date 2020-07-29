@@ -198,7 +198,6 @@ def userCutoff(user_info, symbol, prediction, params, bucket):
     if (len(user_info[symbol]) == 0):
         return None
 
-    label = 'bull' if prediction else 'bear'
     num_tweets = user_info['num_predictions']['bull'] + user_info['num_predictions']['bear']
     num_tweets_s = user_info[symbol]['num_predictions']['bull'] + user_info[symbol]['num_predictions']['bear']
 
@@ -465,6 +464,7 @@ def makePrediction(preprocessed_user_features, stock_close_opens, params, start_
         'return_unique_bear': [],
         'return_unique': []
     }
+    new_bucket = {}
 
     # Find each stocks std per day
     for symbol in constants['good_stocks']:
@@ -494,6 +494,12 @@ def makePrediction(preprocessed_user_features, stock_close_opens, params, start_
                 if (date_str not in picked_stocks):
                     picked_stocks[date_str] = []
                 picked_stocks[date_str].append([symbol, deviation, close_open[2]])
+            
+            # Data analysis on daily stock picking
+            if (symbol not in new_bucket):
+                new_bucket[symbol] = []
+            
+            new_bucket[symbol].append([date_str, stock_day_std['total_w']['val'], deviation, close_open[2]])
 
     (accuracy_overall, accuracy_top) = calculateAccuracy(picked_stocks, top_n_stocks, print_info)
     (returns_overall, returns_top) = calculateReturns(picked_stocks, top_n_stocks, False)
@@ -507,7 +513,7 @@ def makePrediction(preprocessed_user_features, stock_close_opens, params, start_
         print(returns_overall, returns_top)
 
         for date_str in sorted(non_close_open.keys()):
-            res = sorted(non_close_open[date_str], key=lambda x: x[1], reverse=True)
+            res = sorted(non_close_open[date_str], key=lambda x: abs(x[1]), reverse=True)
             res = list(map(lambda x: [x[0], round(x[1], 2), x[2], x[3]], res))
             stocks_picked = res[:6]
             print(date_str, stocks_picked)
@@ -519,7 +525,7 @@ def makePrediction(preprocessed_user_features, stock_close_opens, params, start_
             #         stock_counts[rank] += 1
 
     # print(stock_counts)
-    # writePickleObject('bucket.pkl', bucket)
+    writePickleObject('new_bucket.pkl', new_bucket)
     return (round(overall, 4), round(top, 4), accuracy_overall, accuracy_top, returns_overall)
 
 
@@ -570,6 +576,7 @@ def newDailyPrediction(date):
         'bull_weight_today': 1.2,
         'bear_weight_today': 4.5,
         'days_back': 8,
+        'users_back': 14,
         'return_s_bull_cutoff': 10,
         'return_s_bear_cutoff': 1,
 

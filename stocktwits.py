@@ -2,6 +2,7 @@ import datetime
 import optparse
 import multiprocessing
 import matplotlib. pyplot as plt
+import matplotlib. dates as mdates
 import math
 import time
 import requests
@@ -280,12 +281,86 @@ def main():
 
         # print(len(constants['good_stocks']))
 
-        predictionV3()
-        # dailyPrediction(datetime.datetime(2020, 7, 23))
-        # newDailyPrediction(datetime.datetime(2020, 7, 23))
+        # predictionV3()
+        # dailyPrediction(datetime.datetime(2020, 7, 29))
+        newDailyPrediction(datetime.datetime(2020, 7, 29))
 
-        # bucket = readPickleObject('bucket.pkl')
-        # res = bucket['return_unique_bull']
+        return
+
+        bucket = readPickleObject('new_bucket.pkl')
+        symbol_count = []
+        stock_cutoffs_x = []
+        stock_cutoffs_y = []
+        stock_cutoffs_ydev = []
+        stock_cutoffs_yraw = []
+        stock_price = []
+        stock_symbol = 'BYND'
+        c = 0
+        t = 0
+        for symbol in bucket:
+            length = len(bucket[symbol])
+            correct = 0
+            real_correct = 0
+            real_total = 0
+            start = 0
+            for i in range(len(bucket[symbol])):
+                x = bucket[symbol][i]
+                if (x[2] > 1.7 or x[2] < -2.3):
+                    real_total += 1
+                    t += 1
+                    if (symbol == stock_symbol):
+                        stock_cutoffs_x.append(i)
+                        stock_cutoffs_y.append(x[3])
+                        stock_cutoffs_ydev.append(x[2])
+                        stock_cutoffs_yraw.append(x[1])
+                if (symbol == stock_symbol):
+                    start += x[3]
+                    stock_price.append(start)
+                if ((x[3] > 0 and x[2] > 0) or (x[3] < 0 and x[2] < 0)):
+                    correct += 1
+                    if (x[2] > 1.7 or x[2] < -2.3):
+                        c += 1
+                        correct += 1
+                        real_correct += 1
+
+            accuracy = 0
+            if (real_total != 0):
+                accuracy = round(real_correct/real_total, 3)
+            symbol_count.append([symbol, length, correct, round(correct/length, 3), real_correct, real_total, accuracy])
+
+        sort = sorted(symbol_count, key=lambda x: x[5], reverse=True)
+        for x in sort:
+            print(x)
+        print(c, t, c/t)
+
+        res = bucket[stock_symbol]
+
+        x = list(range(len(res)))
+        y = list(map(lambda key: key[1], res))
+        y1 = list(map(lambda key: key[2], res))
+        y2 = list(map(lambda key: key[3], res))
+
+        # print(res)
+        fig, (ax1, ax2, ax3) = plt.subplots(3)
+        fig.tight_layout()
+        ax1.plot(x, y)
+        # ax1.plot(stock_cutoffs_x, stock_cutoffs_yraw, 'o', label='marker=o', markerfacecolor='red', markeredgecolor='red', markersize=3)
+        # ax1.set(title="Raw stock weights")
+        # ax2.axhline(y=1.8, color='r', linestyle='-', linewidth=0.5)
+        # ax2.axhline(y=-2.3, color='r', linestyle='-', linewidth=0.5)
+        ax2.plot(x, y1)
+        # ax2.plot(stock_cutoffs_x, stock_cutoffs_ydev, 'o', label='marker=o', markerfacecolor='red', markeredgecolor='red', markersize=3)
+        # ax2.set(title="Standardized stock weights")
+        ax3.plot(x, y2)
+        ax3.axhline(y=0, color='r', linestyle='-', linewidth=0.5)
+        ax3.plot(stock_cutoffs_x, stock_cutoffs_y, 'o', label='marker=o', markerfacecolor='red', markeredgecolor='red', markersize=3)
+        # ax3.set(title="Stock daily % change")
+
+        # ax4.plot(x, stock_price)
+        # ax4.set(title="Stock price")
+
+        plt.show()
+
         # res.sort(reverse=True)
         # res = list(filter(lambda x: x < 60 and x > -20, res))
         # plt.hist(res[50:], density=False, bins=150)

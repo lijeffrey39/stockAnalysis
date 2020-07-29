@@ -702,7 +702,7 @@ def findAverageStd(start_date, end_date, all_features):
 
 
 # Save user tweets locally (only save symbol, time, isBull)
-def saveUserTweets(update=False):
+def saveUserTweets():
     print("Saving all user tweets")
     analyzedUsers = constants['db_user_client'].get_database('user_data_db').users
     time = datetime.datetime(2020, 6, 1)
