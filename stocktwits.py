@@ -281,9 +281,9 @@ def main():
 
         # print(len(constants['good_stocks']))
 
-        # predictionV3()
-        # dailyPrediction(datetime.datetime(2020, 7, 29))
-        newDailyPrediction(datetime.datetime(2020, 7, 29))
+        predictionV3()
+        # dailyPrediction(datetime.datetime(2020, 8, 14))
+        # newDailyPrediction(datetime.datetime(2020, 8, 13))
 
         return
 
