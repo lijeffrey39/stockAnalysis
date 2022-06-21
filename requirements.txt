@@ -5,7 +5,7 @@ chardet==3.0.4
 dnspython==1.16.0
 idna==2.8
 iexfinance==0.4.2
-numpy==1.17.0
+numpy==1.22.0
 optparse-pretty==0.1.1
 pandas==0.25.0
 pymongo==3.9.0
